@@ -91,3 +91,9 @@ Live AUSD settlement has not been run: funded testnet wallet credentials are not
 configured. The payment implementation is type-checked, but its AUSD domain,
 facilitator compatibility, and full payment-to-inference path still need a funded
 testnet run. OWL-ViT weights/inference are also unverified locally.
+
+Browser review covered desktop and narrow layouts, the orange quote (3 shards),
+the grape quote (3 shards with different compatible providers), a mixed three-object
+mission (9 shards), candidate rejection reasons, marketplace cards, persisted plan
+restoration, and the missing-wallet execution block. No live payment was attempted
+with funded credentials.

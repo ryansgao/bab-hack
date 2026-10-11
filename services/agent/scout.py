@@ -22,12 +22,13 @@ def arm_plan(request):
     for match in re.finditer(r'(?:(\d+)\s+)?(orange|grape)s?\b',text):
         count=int(match.group(1) or 1)
         if not 1 <= count <= 10: raise ValueError('Use 1–10 objects per type for this prototype')
-        expanded.extend([match.group(2)]*count)
-    perception_only = not re.search(r'\b(peel|pick|grasp|handle|place)\b',text)
+        verbs=re.findall(r'\b(peel|pick|grasp|handle|inspect|detect|place)\b',text[:match.start()])
+        action=verbs[-1] if verbs else 'inspect'
+        expanded.extend([(match.group(2),action)]*count)
     steps=[]
-    for index, name in enumerate(expanded):
+    for index, (name, action) in enumerate(expanded):
         size,mass,fragility=OBJECTS[name]
-        layers=['object_detection'] if perception_only else ['object_detection','grasp','control']
+        layers=['object_detection'] if action in ('inspect','detect') else ['object_detection','grasp','control']
         needs=Requirements(object_name=name,object_size_mm=size,mass_kg=mass,fragility=fragility,
             max_pose_error_mm=max(.15,size*(1-fragility)*.05), max_force_n=max(.1,3*(1-fragility)),layers=layers)
         for layer in layers:

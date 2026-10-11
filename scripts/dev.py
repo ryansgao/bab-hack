@@ -18,8 +18,8 @@ os.environ.setdefault('HF_HOME',str(root/'data/huggingface'))
 os.environ.setdefault('SSL_CERT_FILE',certifi.where())
 if not (root/'apps/frontend/dist/index.html').exists(): subprocess.run(['npm','run','build'],check=True)
 commands=[
-    [sys.executable,'-m','uvicorn','services.api:app','--host','127.0.0.1','--port','8000'],
-    [sys.executable,'-m','uvicorn','services.models.app:app','--host','127.0.0.1','--port','8001'],
+    [sys.executable,'-m','uvicorn','services.api:app','--host','127.0.0.1','--port','8000','--no-access-log'],
+    [sys.executable,'-m','uvicorn','services.models.app:app','--host','127.0.0.1','--port','8001','--no-access-log'],
     ['node','--import','tsx','services/payments/src/server.ts'],
 ]
 children=[]
