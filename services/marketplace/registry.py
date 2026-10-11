@@ -10,50 +10,46 @@ from services.storage import db
 
 BENCHMARKS = Path(__file__).resolve().parents[1] / 'models' / 'benchmarks.json'
 
-# Fixed COCO label vocabulary shared by every closed-set detector; OWL-ViT takes any query.
-COCO_OBJECTS = 'person,bicycle,car,motorcycle,airplane,bus,train,truck,boat,traffic light,fire hydrant,stop sign,parking meter,bench,bird,cat,dog,horse,sheep,cow,elephant,bear,zebra,giraffe,backpack,umbrella,handbag,tie,suitcase,frisbee,skis,snowboard,sports ball,kite,baseball bat,baseball glove,skateboard,surfboard,tennis racket,bottle,wine glass,cup,fork,knife,spoon,bowl,banana,apple,sandwich,orange,broccoli,carrot,hot dog,pizza,donut,cake,chair,couch,potted plant,bed,dining table,toilet,tv,laptop,mouse,remote,keyboard,cell phone,microwave,oven,toaster,sink,refrigerator,book,clock,vase,scissors,teddy bear,hair drier,toothbrush'.split(',')
-
-_detector = dict(task_type='object_detection', required_sensors=['rgb'], supported_objects=COCO_OBJECTS)
-_arm = dict(kind='algorithm', embodiments=['6dof_arm'], grippers=['parallel_jaw'])
-
-SEEDS = [
-    # Perception: four real pretrained COCO detectors from two vendors, plus open vocabulary.
-    dict(id='yolo11n', name='YOLO11 Nano', provider_id='edge_vision', price_ausd='0.002', latency_ms=60, **_detector),
-    dict(id='ssdlite', name='MobileNet · SSD Lite', provider_id='vision_lab', price_ausd='0.002', latency_ms=180, **_detector),
-    dict(id='yolo11s', name='YOLO11 Small', provider_id='edge_vision', price_ausd='0.006', latency_ms=150, **_detector),
-    dict(id='fasterrcnn', name='MobileNet · Faster R-CNN', provider_id='vision_lab', price_ausd='0.008', latency_ms=650, **_detector),
-    dict(id='owlvit', name='OWL-ViT · Open Vocabulary', provider_id='vision_lab', task_type='object_detection', price_ausd='0.006', latency_ms=1800, required_sensors=['rgb']),
-    # Manipulation: analytic policies (documented heuristics, not learned models).
-    dict(id='power_grasp', name='General Power Grasp', provider_id='gripworks', task_type='grasp', price_ausd='0.003', latency_ms=15, required_sensors=['rgb', 'depth'], object_size_range_mm=[30, 150], pose_error_mm=2, **_arm),
-    dict(id='precision_grasp', name='Precision Pinch Grasp', provider_id='gripworks', task_type='grasp', price_ausd='0.008', latency_ms=25, required_sensors=['rgb', 'depth'], object_size_range_mm=[5, 100], pose_error_mm=.1, **_arm),
-    dict(id='standard_control', name='Standard Force Controller', provider_id='motion_lab', task_type='control', price_ausd='0.002', latency_ms=10, required_sensors=['wrist_force'], min_force_n=.8, **_arm),
-    dict(id='soft_control', name='Soft Force Controller', provider_id='motion_lab', task_type='control', price_ausd='0.006', latency_ms=20, required_sensors=['wrist_force'], min_force_n=.05, **_arm),
-    # Navigation.
-    dict(id='astar', name='A* Route Planner', provider_id='navigation_lab', task_type='path_planning', price_ausd='0.001', latency_ms=15, kind='algorithm', quality=1, quality_source='configured_estimate'),
-    dict(id='scene_summary', name='Sensor Scene Inspector', provider_id='navigation_lab', task_type='scene_inspection', price_ausd='0.001', latency_ms=10, kind='algorithm'),
-]
-
-
-# Explicit demo providers are isolated from testnet selections.
+from services.marketplace.catalog import COCO_OBJECTS, BACKENDS, listings
 from services.models.simulation import offers as simulation_offers
-SEEDS.extend(simulation_offers())
+
+# Sample catalog (many competing vendors) plus SimLab's reference simulation adapters.
+SEEDS = [{k: v for k, v in row.items() if k != 'backend'} for row in listings()] + simulation_offers()
+_seeded_db = None
+
+
+def backend(model_id):
+    """Adapter that runs when this listing is purchased."""
+    return BACKENDS.get(model_id, model_id)
+
 
 def benchmarks():
     return json.loads(BENCHMARKS.read_text()) if BENCHMARKS.exists() else {'results': {}}
 
 
 def _with_benchmark(model, published):
-    result = published['results'].get(model.id)
+    adapter = backend(model.id)
+    result = published['results'].get(adapter)
     if not result: return model
-    model.quality = result['map50']
+    quality, scope = result['map50'], 'all classes'
+    by_class = result.get('ap50_by_class', {})
+    if model.supported_objects and len(model.supported_objects) < len(COCO_OBJECTS):
+        scoped = [by_class[c] for c in model.supported_objects if c in by_class]
+        if scoped: quality, scope = sum(scoped) / len(scoped), f'{len(scoped)} listed classes'
+    model.quality = round(quality, 4)
     model.quality_source = 'measured_benchmark'
-    model.benchmark_reference = f"services/models/benchmarks.json#{model.id} · COCO128 mAP@0.5 · n={result['images']}"
+    model.benchmark_reference = f"services/models/benchmarks.json#{adapter} · COCO128 AP@0.5 over {scope} · n={result['images']}"
     if model.latency_source != 'measured_ema':
         model.latency_ms = result['latency_ms_p50']
     return model
 
 
-def seed():
+def seed(force=False):
+    """Idempotently load sample listings; runs once per database per process."""
+    global _seeded_db
+    import os
+    target = os.getenv('ROBOMARKET_DB', 'data/robomarket.sqlite')
+    if _seeded_db == target and not force: return
     published = benchmarks()
     with db() as conn:
         for offer in SEEDS:
@@ -68,6 +64,7 @@ def seed():
             if model.quality_source == 'measured_benchmark':
                 existing = _with_benchmark(existing, published)
             conn.execute('UPDATE models SET body=? WHERE id=?', (existing.model_dump_json(), model.id))
+    _seeded_db = target
 
 
 def list_models(task_type=None):
@@ -119,3 +116,20 @@ def compatibility(model, robot_card=None, object_name=None, object_size_mm=None)
     if object_size_mm is not None and not model.object_size_range_mm[0] <= object_size_mm <= model.object_size_range_mm[1]:
         reasons.append(f'Object size {object_size_mm:g} mm outside {model.object_size_range_mm[0]:g}–{model.object_size_range_mm[1]:g} mm')
     return reasons
+
+
+def capability_summary(execution_mode=None):
+    """Compact catalog for planners: one row per capability instead of every listing.
+
+    The full catalog is ~90 listings (~11k tokens in simulation mode); planning only
+    needs to know which capabilities exist. Scout then compares individual listings.
+    """
+    from decimal import Decimal
+    rows = {}
+    for model in list_models():
+        if execution_mode and model.execution_mode != execution_mode: continue
+        rows.setdefault(model.task_type, []).append(model)
+    return [dict(task_type=task, listings=len(offers), vendors=sorted({m.provider_id for m in offers}),
+                 price_range_ausd=[str(min(Decimal(m.price_ausd) for m in offers)), str(max(Decimal(m.price_ausd) for m in offers))],
+                 examples=[m.description or m.name for m in offers[:2]])
+            for task, offers in sorted(rows.items())]

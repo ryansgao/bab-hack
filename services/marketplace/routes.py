@@ -24,6 +24,7 @@ class SearchRequest(Contract):
     max_latency_ms: float | None = Field(default=None, gt=0)
     min_quality: float | None = Field(default=None, ge=0, le=1)
     include_incompatible: bool = True
+    execution_mode: Literal['testnet', 'simulation'] | None = None
 
 
 class SearchHit(Contract):
@@ -52,6 +53,7 @@ def search(request: SearchRequest):
     """
     hits = []
     for model in registry.list_models(request.task_type):
+        if request.execution_mode and model.execution_mode != request.execution_mode: continue
         reasons = registry.compatibility(model, request.robot_card, request.object_name, request.object_size_mm)
         if request.max_price_ausd is not None and Decimal(model.price_ausd) > Decimal(request.max_price_ausd):
             reasons.append(f'Price {model.price_ausd} AUSD exceeds {request.max_price_ausd}')
@@ -76,3 +78,38 @@ def update_status(model_id: str, update: StatusUpdate, x_service_key: str = Head
     if not key or not secrets.compare_digest(key, x_service_key): raise HTTPException(403, 'Service key required')
     try: return registry.set_status(model_id, update.status)
     except KeyError: raise HTTPException(404, 'Unknown shard')
+
+
+@router.get('/vendors')
+def vendors():
+    """Provider profiles with live listing counts and price ranges."""
+    from services.marketplace.catalog import VENDORS
+    by_vendor = {}
+    for model in registry.list_models():
+        by_vendor.setdefault(model.provider_id, []).append(model)
+    rows = []
+    for vendor_id, offers in sorted(by_vendor.items()):
+        prices = sorted(Decimal(m.price_ausd) for m in offers)
+        profile = VENDORS.get(vendor_id, dict(name=vendor_id, focus='', region='', joined=''))
+        rows.append(dict(id=vendor_id, **profile, listings=len(offers),
+                         capabilities=sorted({m.task_type for m in offers}),
+                         execution_modes=sorted({m.execution_mode for m in offers}),
+                         price_min_ausd=str(prices[0]), price_max_ausd=str(prices[-1]),
+                         benchmarked_listings=sum(m.quality_source == 'measured_benchmark' for m in offers)))
+    return rows
+
+
+@router.get('/stats')
+def stats(execution_mode: Literal['testnet', 'simulation'] | None = None):
+    """Market depth per capability: how many sellers compete and at what prices."""
+    layers = {}
+    for model in registry.list_models():
+        if execution_mode and model.execution_mode != execution_mode: continue
+        layers.setdefault(model.task_type, []).append(model)
+    return dict(listings=sum(len(v) for v in layers.values()),
+                vendors=len({m.provider_id for v in layers.values() for m in v}),
+                capabilities={task: dict(listings=len(offers), vendors=len({m.provider_id for m in offers}),
+                                         cheapest_ausd=str(min(Decimal(m.price_ausd) for m in offers)),
+                                         priciest_ausd=str(max(Decimal(m.price_ausd) for m in offers)),
+                                         best_quality=max((m.quality for m in offers if m.quality is not None), default=None))
+                              for task, offers in sorted(layers.items())})

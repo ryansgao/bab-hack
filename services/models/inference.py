@@ -25,6 +25,8 @@ TORCHVISION_DETECTORS = ('ssdlite', 'fasterrcnn')
 YOLO_DETECTORS = {
     'yolo11n': 'https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11n.pt',
     'yolo11s': 'https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11s.pt',
+    'yolo11n_pose': 'https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11n-pose.pt',
+    'yolo11n_seg': 'https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11n-seg.pt',
 }
 CLOSED_SET_DETECTORS = TORCHVISION_DETECTORS + tuple(YOLO_DETECTORS)
 IMAGE_MODELS = CLOSED_SET_DETECTORS + ('owlvit',)
@@ -33,6 +35,17 @@ MODEL_IDS = IMAGE_MODELS + ARM_SHARDS + ('astar', 'scene_summary') + tuple(SIM_I
 ALGORITHMS = set(MODEL_IDS) - set(IMAGE_MODELS)
 SERVING_THRESHOLD = .4  # detections below this confidence are not returned to buyers
 MAX_PIXELS = 16_000_000
+_extras = {}  # per-thread-safe scratch for keypoints/masks from the last YOLO call, keyed by model
+
+
+def adapter(model_id):
+    """Marketplace listings resell adapters; resolve a listing id to the adapter that runs."""
+    from services.marketplace.catalog import BACKENDS
+    return BACKENDS.get(model_id, model_id)
+
+
+def known(model_id):
+    return adapter(model_id) in MODEL_IDS
 
 
 def _dependency(module):
@@ -66,7 +79,13 @@ def _loaded(model_id):
         return _models[model_id]
 
 
+def state(model_id):
+    target = adapter(model_id)
+    return next(item for item in readiness() if item['model_id'] == target)
+
+
 def prepare(model_id):
+    model_id = adapter(model_id)
     if model_id not in MODEL_IDS: raise ValueError('Unknown model adapter')
     if model_id in ALGORITHMS: return {'model_id': model_id, 'state': 'ready'}
     _preparing.add(model_id)
@@ -129,6 +148,14 @@ def decode_image(image_base64):
     return image
 
 
+def vocabulary(model_id):
+    """Class names a closed-set detector can output."""
+    model, extra = _loaded(model_id)
+    if model_id in YOLO_DETECTORS: return set(model.names.values())
+    if model_id in TORCHVISION_DETECTORS: return set(extra.meta['categories'])
+    return set()
+
+
 def detect(model_id, image, threshold=SERVING_THRESHOLD, query=None):
     """Run one image detector on a PIL image. Boxes are [x1, y1, x2, y2] pixels."""
     import torch
@@ -140,7 +167,12 @@ def detect(model_id, image, threshold=SERVING_THRESHOLD, query=None):
             return [Prediction(label=names[int(label)], confidence=float(score), bbox=box.tolist())
                     for label, score, box in zip(output['labels'], output['scores'], output['boxes']) if score >= threshold]
         if model_id in YOLO_DETECTORS:
-            boxes = model.predict(image, conf=threshold, verbose=False, device='cpu')[0].boxes
+            result = model.predict(image, conf=threshold, verbose=False, device='cpu')[0]
+            boxes = result.boxes
+            _extras[(model_id, threading.get_ident())] = dict(
+                keypoints=result.keypoints.xy.tolist() if getattr(result, 'keypoints', None) is not None else None,
+                mask_area_px=[float(m.sum()) for m in result.masks.data] if getattr(result, 'masks', None) is not None else None,
+                masks_xy=[[[round(float(x), 1), round(float(y), 1)] for x, y in poly[::4]] for poly in result.masks.xy] if getattr(result, 'masks', None) is not None else None)
             return [Prediction(label=model.names[int(label)], confidence=float(score), bbox=box.tolist())
                     for label, score, box in zip(boxes.cls, boxes.conf, boxes.xyxy)]
         if model_id == 'owlvit':
@@ -153,10 +185,14 @@ def detect(model_id, image, threshold=SERVING_THRESHOLD, query=None):
 
 
 def infer(request):
-    if request.model_id in SIM_IDS: return infer_simulated(request)
+    listing, model_id = request.model_id, adapter(request.model_id)
+    if model_id in SIM_IDS:
+        result = infer_simulated(request.model_copy(update={'model_id': model_id}))
+        result.model_id = listing
+        return result
     started = time.perf_counter()
-    model_id, data = request.model_id, request.input
-    result = InferenceResult(model_id=model_id, inference_latency_ms=0,
+    data = request.input
+    result = InferenceResult(model_id=listing, inference_latency_ms=0,
         observation_revision=data.observation.revision, source='algorithm')
     if model_id in ARM_SHARDS:
         from services.models.arm_shards import run_shard
@@ -168,7 +204,16 @@ def infer(request):
         result.source = 'pretrained_model'
         result.summary = 'Open-vocabulary detections; confidence is not measured accuracy'
     elif model_id in CLOSED_SET_DETECTORS:
-        result.predictions = detect(model_id, decode_image(data.image_base64))
+        allowed = _listing_vocabulary(listing)
+        predictions = detect(model_id, decode_image(data.image_base64))
+        kept = [i for i, p in enumerate(predictions) if not allowed or p.label in allowed]
+        result.predictions = [predictions[i] for i in kept]
+        extra = _extras.pop((model_id, threading.get_ident()), None) or {}
+        if extra.get('keypoints') is not None:
+            result.output = {'keypoints_xy': [extra['keypoints'][i] for i in kept], 'keypoint_format': 'COCO-17 [x, y] pixels'}
+        if extra.get('masks_xy') is not None:
+            result.output = {'mask_polygons_xy': [extra['masks_xy'][i] for i in kept], 'mask_area_px': [extra['mask_area_px'][i] for i in kept],
+                             'mask_note': 'polygons downsampled every 4th vertex; areas at model input resolution'}
         result.source = 'pretrained_model'
         result.summary = (f'{len(result.predictions)} detections at confidence >= {SERVING_THRESHOLD}. '
                           'Quality on the listing is COCO128 mAP@0.5; synthetic images are out of domain.')
@@ -185,3 +230,11 @@ def infer(request):
         raise ValueError('No local adapter registered for model')
     result.inference_latency_ms = (time.perf_counter() - started) * 1000
     return result
+
+
+def _listing_vocabulary(listing):
+    """Listings that resell a detector for a narrower class set only return those classes."""
+    from services.marketplace.catalog import BY_ID, COCO_OBJECTS
+    row = BY_ID.get(listing)
+    objects = (row or {}).get('supported_objects') or []
+    return set(objects) if objects and len(objects) < len(COCO_OBJECTS) else None

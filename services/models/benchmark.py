@@ -115,6 +115,8 @@ def evaluate(model_id, samples):
             per_class[label].append((confidence, hit))
             if confidence >= inference.SERVING_THRESHOLD:
                 served_tp, served_fp = served_tp + hit, served_fp + (not hit)
+    vocab = inference.vocabulary(model_id)
+    positives = {label: count for label, count in positives.items() if label in vocab}
     ap = {label: average_precision(per_class[label], count) for label, count in positives.items()}
     total = sum(positives.values())
     latencies.sort()
@@ -129,7 +131,7 @@ def evaluate(model_id, samples):
         'images': len(samples),
         'ground_truth_boxes': total,
         'classes_evaluated': len(ap),
-        'ap50_selected_classes': {k: round(v, 4) for k, v in sorted(ap.items()) if k in ('person', 'orange', 'apple', 'banana', 'cup', 'bottle', 'bowl')},
+        'ap50_by_class': {k: round(v, 4) for k, v in sorted(ap.items())},
     }
 
 
