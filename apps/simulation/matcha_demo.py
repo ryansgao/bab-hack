@@ -30,7 +30,7 @@ CRITERIA = [
  'The matcha mixture is smooth and whisked in the fixture state.',
  'The glass contains 150 mL of oat milk.',
  'The glass contains a 210 mL matcha latte; the matcha bowl is empty.',
- 'Request a producer skill to serve the finished latte on the serving tray.',
+ 'The finished latte is placed upright in the center of the serving tray.',
 ]
 
 def enabled(): return os.getenv('MATCHA_DEMO_ENABLED','true').strip().lower() in ('1','true','yes','on')
