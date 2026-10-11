@@ -350,53 +350,6 @@ nav > button.active {
   background: #818a7c;
   border-radius: 50%;
 }
-.sidebar-bottom {
-  width: 198px;
-}
-.sidebar-note {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 12px 12px;
-  font-size: 9px;
-  color: var(--faint);
-  white-space: nowrap;
-}
-.profile-button {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  padding: 9px;
-  width: 100%;
-  border-radius: 12px;
-  text-align: left;
-}
-.profile-button:hover {
-  background: #ffffff66;
-}
-.profile-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: #e0e9dd;
-  border: 1px solid #3f7d5c16;
-  display: grid;
-  place-items: center;
-  color: var(--sage-dark);
-}
-.profile-button strong {
-  display: block;
-  font-size: 12px;
-  font-weight: 500;
-}
-.profile-button small {
-  font-size: 10px;
-  color: var(--muted);
-}
-.profile-button > svg {
-  margin-left: auto;
-  color: var(--faint);
-}
 .main-shell {
   flex: 1;
   min-width: 0;
@@ -430,13 +383,6 @@ nav > button.active {
 .breadcrumb-home:hover {
   color: var(--ink);
 }
-.workspace-status {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 10px;
-  color: var(--muted);
-}
 .tiny-dot {
   width: 5px;
   height: 5px;
@@ -448,11 +394,6 @@ nav > button.active {
 .tiny-dot.offline {
   background: #c68d59;
 }
-.topbar-divider {
-  width: 1px;
-  height: 15px;
-  background: var(--line);
-}
 .topbar-right > .icon-button {
   background: #ffffff70;
   border: 1px solid #ffffffa6;
@@ -463,25 +404,6 @@ nav > button.active {
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-}
-.app-footer {
-  display: flex;
-  justify-content: space-between;
-  gap: 15px;
-  padding: 14px 30px 18px;
-  font-size: 9px;
-  color: #76796c;
-}
-.app-footer > span:last-child {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.app-footer i {
-  width: 2px;
-  height: 2px;
-  border-radius: 50%;
-  background: currentColor;
 }
 .landing {
   min-height: 100%;
@@ -2186,9 +2108,6 @@ nav > button.active {
   .topbar-left > svg {
     display: none;
   }
-  .workspace-status {
-    font-size: 9px;
-  }
   .landing {
     padding: 28px 22px 40px;
   }
@@ -2226,16 +2145,6 @@ nav > button.active {
   .landing-note {
     font-size: 9px;
     margin-top: 23px;
-  }
-  .app-footer {
-    padding: 12px 20px;
-    font-size: 8px;
-  }
-  .app-footer > span:first-child {
-    display: none;
-  }
-  .app-footer > span:last-child {
-    margin-left: auto;
   }
   .compose-page {
     padding: 30px 22px 50px;

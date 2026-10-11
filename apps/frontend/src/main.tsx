@@ -1264,26 +1264,6 @@ function App() {
             <p>No recent missions</p>
           )}
         </div>
-        <div className="sidebar-bottom">
-          <div className="sidebar-note">
-            <span className="tiny-dot" />
-            {data.online === null
-              ? "Connecting"
-              : data.online
-                ? "Connected"
-                : "Offline"}
-          </div>
-          <button className="profile-button" onClick={() => navigate("robot")}>
-            <span className="profile-avatar">
-              <Bot size={18} />
-            </span>
-            <span>
-              <strong>Scout</strong>
-              <small>Robot workspace</small>
-            </span>
-            <ChevronRight size={14} />
-          </button>
-        </div>
       </aside>
       <div className="main-shell">
         <header className="topbar">
@@ -1316,19 +1296,6 @@ function App() {
             )}
           </div>
           <div className="topbar-right">
-            <span className="workspace-status">
-              <span
-                className={
-                  "tiny-dot " + (data.online === false ? "offline" : "")
-                }
-              />
-              {data.online === null
-                ? "Connecting"
-                : data.online
-                  ? "Online"
-                  : "Offline"}
-            </span>
-            <span className="topbar-divider" />
             <IconButton
               label={contextOpen ? "Hide robot context" : "Show robot context"}
               onClick={() => setContextOpen(!contextOpen)}
@@ -1466,10 +1433,6 @@ function App() {
             </div>
           )}
         </main>
-        <footer className="app-footer">
-          <span>rBazaar</span>
-          <span>Testnet workspace</span>
-        </footer>
       </div>
       {contextOpen && (
         <>
