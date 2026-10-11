@@ -99,10 +99,15 @@ paid outputs before settlement, but it does not implement refunds.
 
 Idempotency binds a request ID to the full request body. Completed retries return
 the stored result. Reusing a nonce or a request ID with different input is rejected.
-Any ambiguous outcome remains reserved as `uncertain`. An operator must reconcile
-it with chain history before retrying. There is no automatic reconciliation or
-refund UI in this rough draft. Never delete the payment database to resolve an
-uncertain transaction.
+Any ambiguous outcome remains reserved as `uncertain` until the chain says which it
+was. Every minute (and on `POST /reconcile`) the service checks each uncertain
+payment older than `RECONCILE_AFTER_SECONDS` (default 240, longer than any request
+can run): if AUSD's `authorizationState` shows its authorization was used it becomes
+`settled` and the transaction is recovered from the `AuthorizationUsed` event; if no
+authorization was ever stored, or the stored one expired unused, it becomes `failed`
+and its Allowance is released. A reconciled request ID is never bought again; the
+caller starts a new request. There is no refund flow. Never delete the payment
+database to resolve an uncertain transaction.
 
 The provider route also requires `X-Service-Key`: this is a private single-robot
 prototype, not a public x402 merchant endpoint. The header is application auth;

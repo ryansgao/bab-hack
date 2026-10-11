@@ -27,6 +27,7 @@ class Observation(Contract):
     revision: int = Field(default=0, ge=0)
 
 class RobotCard(Contract):
+    reach_mm: float = Field(default=1100, ge=200, le=3000)
     robot_id: Literal['robot_001'] = 'robot_001'
     embodiment: Literal['6dof_arm', 'mobile_base'] = '6dof_arm'
     dof: int = Field(default=6, ge=1, le=30)
@@ -175,6 +176,7 @@ class Subtask(Contract):
     error: str | None = None
 
 class MissionPlan(Contract):
+    planning_usage: dict = Field(default_factory=dict)
     simulation_fallbacks: list[ModelOffer] = Field(default_factory=list, max_length=64)
     bounty_ids: list[str] = Field(default_factory=list)
     simulation_scene: dict = Field(default_factory=dict)

@@ -1,9 +1,9 @@
 import express from 'express';
 import { timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
-import { type Address, type Hex } from 'viem';
+import { parseAbi, type Address, type Hex } from 'viem';
 import { decodePaymentSignatureHeader, encodePaymentRequiredHeader, encodePaymentResponseHeader } from '@x402/core/http';
-import { Ledger, units, money, fingerprint, type Policy } from './ledger.js';
+import { Ledger, units, money, fingerprint, type Policy, type Row } from './ledger.js';
 import { chain, missing, requirements, challenge, payoutAddress, transfer, AUSD, abi, type Chain } from './chain.js';
 import { checkOnChain, recordOnChain, policyStatus, policyChainEnabled } from './policy-chain.js';
 
@@ -105,6 +105,59 @@ const missionView = (m: ReturnType<Ledger['missions']>[number]) => ({ task_id: m
   transfers: m.transfers.map(t => ({ kind: t.kind === 'fund' ? 'owner_to_robot' : 'robot_to_owner', amount_ausd: money(t.amount), transaction_hash: t.tx,
     explorer_url: `https://sepolia.basescan.org/tx/${t.tx}`, timestamp: t.created_at })) });
 
+// ---- reconciliation of uncertain payments ----
+// An uncertain payment keeps its Allowance reserved because its authorization may have been
+// broadcast. The chain settles the question: ERC-3009 records every authorization nonce it used.
+// Rows are left alone until no request that created them can still be running.
+const erc3009 = parseAbi(['function authorizationState(address authorizer, bytes32 nonce) view returns (bool)',
+  'event AuthorizationUsed(address indexed authorizer, bytes32 indexed nonce)']);
+const reconcileAfter = Number(process.env.RECONCILE_AFTER_SECONDS || 240);
+async function settlementOf(c: Chain, authorizer: Address, nonce: Hex, row: Row): Promise<Hex | null> {
+  try {
+    // Base produces a block about every two seconds, and the public RPC answers log queries for
+    // at most 200 blocks, so search forward from the purchase time in windows of that size.
+    const latest = await c.publicClient.getBlock();
+    const age = Number(latest.timestamp) - Date.parse(row.created_at.replace(' ', 'T') + 'Z') / 1000;
+    let from = latest.number - BigInt(Math.max(0, Math.ceil(age / 2))) - 20n;
+    for (let window = 0; window < 4 && from <= latest.number; window++, from += 200n) {
+      const to = from + 199n < latest.number ? from + 199n : latest.number;
+      const logs = await c.publicClient.getLogs({ address: AUSD, event: erc3009[1], args: { authorizer, nonce }, fromBlock: from > 0n ? from : 0n, toBlock: to });
+      if (logs[0]) return logs[0].transactionHash;
+    }
+    return null;
+  } catch { return null; }
+}
+async function reconcileOne(c: Chain, row: Row): Promise<'settled' | 'failed' | 'uncertain'> {
+  if (row.tx) {
+    const receipt = await c.publicClient.getTransactionReceipt({ hash: row.tx as Hex }).catch(() => null);
+    if (receipt?.status === 'success') { ledger.update(row.id, 'settled', null, null, 'Reconciled: settled onchain; the inference result was not delivered'); return 'settled'; }
+  }
+  const stored = ledger.authorizationFor(row.id);
+  // The authorization is stored before it is submitted, so without one nothing was ever sent.
+  if (!stored) { ledger.update(row.id, 'failed', null, null, 'Reconciled: no payment authorization was ever submitted'); return 'failed'; }
+  const auth = stored.payload?.authorization as { from: Address; nonce: Hex; validBefore: string } | undefined;
+  if (!auth?.from || !auth.nonce) return 'uncertain';
+  if (await c.publicClient.readContract({ address: AUSD, abi: erc3009, functionName: 'authorizationState', args: [auth.from, auth.nonce] })) {
+    ledger.update(row.id, 'settled', await settlementOf(c, auth.from, auth.nonce, row), null, 'Reconciled: settled onchain; the inference result was not delivered');
+    return 'settled';
+  }
+  // Unused and past its deadline: the token contract will never accept it.
+  if (Date.now() / 1000 > Number(auth.validBefore) + 30) { ledger.update(row.id, 'failed', null, null, 'Reconciled: authorization expired unused; no payment was made'); return 'failed'; }
+  return 'uncertain';
+}
+let reconciling: Promise<Record<string, string>> | undefined;
+function reconcile() {
+  return reconciling ??= (async () => {
+    const outcome: Record<string, string> = {};
+    if (missing().length) return outcome;
+    const c = await chain();
+    for (const row of ledger.uncertain(reconcileAfter)) outcome[row.id] = await reconcileOne(c, row).catch(() => 'uncertain');
+    return outcome;
+  })().finally(() => { reconciling = undefined; });
+}
+setTimeout(() => reconcile().catch(() => undefined), 5_000).unref();
+setInterval(() => reconcile().catch(error => console.error('reconciliation failed:', error instanceof Error ? error.message : error)), 60_000).unref();
+
 async function offer(modelId: string) {
   const response = await fetch(`${process.env.API_URL || 'http://127.0.0.1:8000'}/api/marketplace/models`, {signal:AbortSignal.timeout(8000)});
   if (!response.ok) throw new Error('Marketplace unavailable');
@@ -146,6 +199,10 @@ app.get('/vendors',requireKey,(_req,res)=>{
   }));
 });
 app.get('/missions',requireKey,(_req,res)=>res.json(ledger.missions().map(missionView)));
+app.post('/reconcile',requireKey,async(_req,res)=>{
+  const outcome=await reconcile();
+  res.json({reconciled:outcome,still_uncertain:ledger.rows().filter(row=>row.status==='uncertain').length});
+});
 app.post('/missions/:task/close',requireKey,async(req,res)=>{
   const task=z.string().regex(/^[a-zA-Z0-9-]{1,100}$/).parse(req.params.task);
   const c=await chain();

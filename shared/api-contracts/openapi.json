@@ -1235,6 +1235,11 @@
       },
       "MissionPlan": {
         "properties": {
+          "planning_usage": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Planning Usage"
+          },
           "simulation_fallbacks": {
             "items": {
               "$ref": "#/components/schemas/ModelOffer"
@@ -1825,6 +1830,13 @@
       },
       "RobotCard": {
         "properties": {
+          "reach_mm": {
+            "type": "number",
+            "maximum": 3000.0,
+            "minimum": 200.0,
+            "title": "Reach Mm",
+            "default": 1100
+          },
           "robot_id": {
             "type": "string",
             "const": "robot_001",
