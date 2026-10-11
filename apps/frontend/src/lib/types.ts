@@ -41,6 +41,8 @@ export type Receipt = {
   transaction_hash: string | null;
   explorer_url: string | null;
   timestamp: string;
+  pay_to?: string | null;
+  audit_explorer_url?: string | null;
 };
 export type PlannerConfig = { provider: string; model: string; configured: boolean; message: string };
 export type SimulationScene = {
@@ -125,6 +127,10 @@ export type Arm = {
 export type WalletState = {
   wallet_address: string | null;
   balance_ausd: string | null;
+  custody?: "mission_float" | "robot_holds_balance";
+  owner_address?: string | null;
+  owner_treasury_ausd?: string | null;
+  policy_chain?: { contract: string; explorer_url: string; receipt_count: number } | null;
   remaining_allowance_ausd: string;
   session_used_ausd: string;
   setup_error: string | null;

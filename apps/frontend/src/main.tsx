@@ -269,6 +269,32 @@ function WalletCard({
         </span>
         <span className="tag">Base Sepolia</span>
       </div>
+      {wallet?.custody === "mission_float" ? (
+        <div className="wallet-amount">
+          <span className="eyebrow">Owner treasury</span>
+          <strong>
+            {wallet.owner_treasury_ausd ? money(wallet.owner_treasury_ausd) : "—"}{" "}
+            <small>AUSD</small>
+          </strong>
+          <span className="wallet-address">
+            Robot holds {wallet.balance_ausd ? money(wallet.balance_ausd) : "—"} AUSD
+            (mission float only, no gas)
+            {wallet.wallet_address
+              ? ` · ${wallet.wallet_address.slice(0, 8)}…${wallet.wallet_address.slice(-6)}`
+              : ""}
+          </span>
+          {wallet.policy_chain && (
+            <a
+              className="wallet-address"
+              href={wallet.policy_chain.explorer_url}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Policy on BNB chain · {wallet.policy_chain.receipt_count} receipts
+            </a>
+          )}
+        </div>
+      ) : (
       <div className="wallet-amount">
         <span className="eyebrow">Available balance</span>
         <strong>
@@ -283,6 +309,7 @@ function WalletCard({
             : "Connect a funded testnet wallet to execute."}
         </span>
       </div>
+      )}
       <div className="allowance-heading">
         <ShieldCheck size={16} />
         <strong>Spending allowance</strong>
@@ -1098,6 +1125,20 @@ function WalletPage({ data }: { data: RoboMarket }) {
                       </a>
                     ) : (
                       <span>No confirmed receipt</span>
+                    )}
+                    {receipt.pay_to && (
+                      <small title={receipt.pay_to}>
+                        Paid to {receipt.pay_to.slice(0, 8)}…{receipt.pay_to.slice(-4)}
+                      </small>
+                    )}
+                    {receipt.audit_explorer_url && (
+                      <a
+                        href={receipt.audit_explorer_url}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        BNB audit record <ExternalLink size={12} />
+                      </a>
                     )}
                   </div>
                 </article>
