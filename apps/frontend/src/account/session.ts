@@ -7,7 +7,9 @@ export type AccountSettings = {
   payments_paused: boolean;
   save_simulation_history: boolean;
 };
-export type User = { id: string; email: string; name: string; created_at: string; settings: AccountSettings };
+export type User = { id: string; email: string; name: string; created_at: string; settings: AccountSettings; has_password: boolean; sign_in_methods: string[] };
+/** What this server offers for sign-in and wallet connection. */
+export type SignInConfig = { providers: { id: string; name: string }[]; walletConnectProjectId: string };
 export type Payment = {
   status: string;
   amount_ausd: string;
@@ -46,6 +48,7 @@ export type AccountWallet = {
   owner_address: string | null;
   owner_treasury_ausd: string | null;
   owner_explorer_url?: string | null;
+  asset_domain?: { name: string; version: string; chainId: number; verifyingContract: `0x${string}` } | null;
   starter_grant?: { amount_ausd: string; claimed: boolean } | null;
   policy_chain?: { contract: string; explorer_url: string; receipt_count: number } | null;
   remaining_allowance_ausd: string;
@@ -69,15 +72,17 @@ export async function call<T>(path: string, body?: unknown, method?: string): Pr
   return data as T;
 }
 
-let state: { user: User | null; ready: boolean } = { user: null, ready: false };
+let state: { user: User | null; ready: boolean; config: SignInConfig } = { user: null, ready: false, config: { providers: [], walletConnectProjectId: "" } };
 const listeners = new Set<() => void>();
-function set(user: User | null) {
-  state = { user, ready: true };
+function set(user: User | null, config = state.config) {
+  state = { user, ready: true, config };
   listeners.forEach((notify) => notify());
 }
 let loading: Promise<void> | undefined;
 function load() {
-  return (loading ??= call<{ user: User | null }>("/auth/me").then((result) => set(result.user)).catch(() => set(null)));
+  return (loading ??= call<{ user: User | null; providers: SignInConfig["providers"]; walletconnect_project_id: string }>("/auth/me")
+    .then((result) => set(result.user, { providers: result.providers, walletConnectProjectId: result.walletconnect_project_id }))
+    .catch(() => set(null)));
 }
 export function useSession() {
   void load();
@@ -89,6 +94,7 @@ export const session = {
   signOut: () => call("/auth/logout", {}).then(() => set(null)),
   save: (changes: Partial<AccountSettings> & { name?: string }) => call<{ user: User }>("/account", changes, "PATCH").then((r) => set(r.user)),
   forget: () => set(null),
+  adopt: (user: User) => set(user),
 };
 /** "Open the payment history next": set by the payment screen, read once by the account area. */
 let showPayments = false;

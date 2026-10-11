@@ -92,7 +92,7 @@ export class Ledger {
   // ---- user accounts: whose wallet funds a mission, and what moved in or out of that wallet ----
   bindAccount(task: string, account: string) { this.db.prepare('INSERT OR IGNORE INTO mission_accounts(task,account) VALUES (?,?)').run(task,account); }
   accountOf(task: string) { return (this.db.prepare('SELECT account FROM mission_accounts WHERE task=?').get(task) as { account: string } | undefined)?.account ?? null; }
-  walletAdd(account: string, kind: 'grant' | 'withdraw', amount: number, counterparty: string, tx: string) {
+  walletAdd(account: string, kind: 'grant' | 'withdraw' | 'deposit', amount: number, counterparty: string, tx: string) {
     this.db.prepare('INSERT INTO wallet_transfers(account,kind,amount,counterparty,tx) VALUES (?,?,?,?,?)').run(account,kind,amount,counterparty,tx);
   }
   walletTransfers(account: string) {

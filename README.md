@@ -65,6 +65,8 @@ weights before any purchase. There are no fake detection or payment fallbacks.
 - Persistent Allowance limits, idempotency, replay checks, and uncertain-payment holds.
 - Owner treasury with a per-mission float returned on close or idle, and one payout address per vendor.
 - Spending policy and a per-payment receipt in a contract on BNB chain (BSC Testnet), checked before signing.
+- Bring your own wallet through RainbowKit (Rainbow, Coinbase, MetaMask, Binance, Ledger …): gasless
+  top-ups by one signature, and sign-in with a wallet; Google and GitHub sign-in when keys are set.
 - User accounts with a wallet of their own, starter test AUSD, withdrawals, per-user spending limits,
   a payment screen with receipts, private payment history, data export and account deletion.
 - Separate component entry points and Docker Compose configuration.

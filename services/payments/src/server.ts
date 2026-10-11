@@ -222,9 +222,40 @@ app.post('/accounts/withdraw',requireKey,async(req,res)=>{
   ledger.walletAdd(account,'withdraw',amount,to,tx);
   res.json({amount_ausd:money(amount),to,transaction_hash:tx,explorer_url:`https://sepolia.basescan.org/tx/${tx}`});
 });
+// A user tops up their rBazaar wallet from a wallet they hold themselves (Rainbow, Coinbase, MetaMask,
+// a hardware wallet …). They sign one ERC-3009 authorization and the facilitator submits it, so the
+// user pays no gas. The recipient is always the account's own wallet, whatever the request says.
+app.post('/accounts/deposit',requireKey,async(req,res)=>{
+  const body=z.object({from:z.string().regex(/^0x[0-9a-fA-F]{40}$/),amount_ausd:z.string(),valid_after:z.string().regex(/^\d{1,12}$/),
+    valid_before:z.string().regex(/^\d{1,12}$/),nonce:z.string().regex(/^0x[0-9a-fA-F]{64}$/),signature:z.string().regex(/^0x[0-9a-fA-F]{130,4000}$/)}).parse(req.body);
+  const c=await chain(), {account,wallet}=ownWallet(c,req), amount=units(body.amount_ausd);
+  if(amount<=0)throw new Error('Your wallet deposit must be a positive amount');
+  const required=requirements(amount,wallet.address,c.domain);
+  const payload={x402Version:2,resource:{url:'https://rbazaar.invalid/deposit',description:'rBazaar wallet deposit',mimeType:'application/json'},accepted:required,
+    payload:{authorization:{from:body.from,to:wallet.address,value:String(amount),validAfter:body.valid_after,validBefore:body.valid_before,nonce:body.nonce},signature:body.signature}};
+  const verified=await c.facilitator.verify(payload as any,required);
+  if(!verified.isValid)throw new Error(`Your wallet signature was not accepted: ${verified.invalidReason || 'invalid'}`);
+  const tx=await settleSerially(async()=>{
+    const settled=await c.facilitator.settle(payload as any,required);
+    if(!settled.success || !settled.transaction)throw new Error('Your wallet deposit did not settle');
+    const receipt=await c.publicClient.waitForTransactionReceipt({hash:settled.transaction as Hex,confirmations:2,timeout:60_000});
+    if(receipt.status!=='success')throw new Error('Your wallet deposit reverted onchain');
+    return settled.transaction as Hex;
+  });
+  ledger.walletAdd(account,'deposit',amount,body.from,tx);
+  res.json({amount_ausd:money(amount),from:body.from,transaction_hash:tx,explorer_url:`https://sepolia.basescan.org/tx/${tx}`});
+});
+// Sign-in with a wallet: the gateway asks whether this address signed this message. viem also
+// accepts smart-contract wallets (ERC-1271), which a plain signature recovery would reject.
+app.post('/verify-signature',requireKey,async(req,res)=>{
+  const {address,message,signature}=z.object({address:z.string().regex(/^0x[0-9a-fA-F]{40}$/),message:z.string().max(2000),signature:z.string().regex(/^0x[0-9a-fA-F]{130,4000}$/)}).parse(req.body);
+  const c=await chain();
+  res.json({valid:await c.publicClient.verifyMessage({address:address as Address,message,signature:signature as Hex}).catch(()=>false)});
+});
 app.get('/wallet',requireKey,async (req,res)=>{
-  let address=null, balance=null, setupError=null, ownerAddress=null, treasury=null, own=false;
+  let address=null, balance=null, setupError=null, ownerAddress=null, treasury=null, own=false, domain=null;
   try { const c=await chain(); address=c.robot.address; balance=money(await balanceOf(c,address));
+    domain={name:c.domain.name,version:c.domain.version,chainId:84532,verifyingContract:AUSD};
     if(c.owner){
       // A signed-in user sees their own wallet; everyone else sees the shared owner treasury.
       const account=accountOf(req), wallet=account?userWallet(account):null;
@@ -232,7 +263,7 @@ app.get('/wallet',requireKey,async (req,res)=>{
   catch { setupError=missing().length ? `Missing ${missing().join(', ')}` : 'RPC or token validation failed'; }
   const account=accountOf(req);
   res.json({robot_id:'robot_001',wallet_address:address,balance_ausd:balance,mode:'testnet',setup_error:setupError,
-    own_wallet:own,asset:AUSD,network:'Base Sepolia',owner_explorer_url:ownerAddress?`https://sepolia.basescan.org/address/${ownerAddress}`:null,
+    own_wallet:own,asset:AUSD,asset_domain:domain,network:'Base Sepolia',owner_explorer_url:ownerAddress?`https://sepolia.basescan.org/address/${ownerAddress}`:null,
     starter_grant:own?{amount_ausd:money(starterGrant),claimed:ledger.walletTransfers(account!).some(t=>t.kind==='grant')}:null,
     custody:ownerAddress?'mission_float':'robot_holds_balance',owner_address:ownerAddress,owner_treasury_ausd:treasury,policy_chain:await policyChain(),
     session_used_ausd:money(ledger.used()),remaining_allowance_ausd:money(Math.max(0,policy.maxSession-ledger.used())),
