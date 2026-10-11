@@ -149,7 +149,7 @@ class MissionPlan(Contract):
     id: str
     request: MissionRequest
     subtasks: list[Subtask]
-    status: Literal['planned', 'running', 'waiting_for_motion', 'blocked', 'completed'] = 'planned'
+    status: Literal['planned', 'running', 'waiting_for_motion', 'blocked', 'completed', 'cancelled'] = 'planned'
     spent_ausd: Money = '0'
     estimated_cost_ausd: Money = '0'
     explanation: str

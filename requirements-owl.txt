@@ -1,0 +1,2 @@
+-r requirements-models.txt
+transformers>=4.48,<5

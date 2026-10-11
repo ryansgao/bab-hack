@@ -1,8 +1,10 @@
 # RoboMarket architecture
 
+The primary demo is a kitchen arm buying perception, grasp, and control shards.
+Scout is the buyer, Vendor proposes a quote, and Allowance limits wallet spend.
 A mission becomes a dependency graph of separately purchasable capabilities. The
 robot buys inference, uses the output, and only then advances to dependent work.
-The graph size follows the number of destinations and requested operations.
+The graph size follows object counts, destinations, and requested operations.
 
 ```mermaid
 flowchart LR
@@ -27,18 +29,23 @@ flowchart LR
   proxies `/api` to Python; the production gateway serves the built client.
 * SQLite holds provider metadata, plans, telemetry, and execution records. The
   payment process owns its own SQLite ledger with atomic budget reservations.
-* Mission decomposition uses a bounded warehouse task grammar and typed goals,
-  rather than pretending unrestricted natural-language understanding. Navigation,
-  inspection, and multi-stop delivery expand into perception, route planning, and
-  inspection steps. Unsupported goals fail explicitly. New capabilities can be
+* Mission decomposition uses a bounded arm/warehouse task grammar and typed goals,
+  rather than pretending unrestricted natural-language understanding. Arm tasks expand each object operation into perception, grasp, and force control.
+  Inspection can require only perception. The original navigation grammar remains
+  available for mobile-base experiments. An LLM requirements adapter is deferred. Unsupported goals fail explicitly. New capabilities can be
   registered without changing model selection.
 * Every paid step has its own request ID, dependencies, requirements, selected
   provider, receipt, and result. A failed prerequisite blocks its descendants.
   Selection rechecks the remaining mission budget before each purchase.
-* Two pretrained torchvision object detectors share an image adapter. Route
+* Robot Card embodiment, gripper, sensors, and payload are hard constraints.
+  Object size, fragility, required grasp precision, and safe force limits come from
+  documented task priors. General and precision policies advertise their physical
+  constraints, so selection changes without hard-coded scenario-specific model IDs.
+* Two pretrained torchvision object detectors share an image adapter. OWL-ViT
+  adds open-vocabulary grape detection because COCO has no grape class. Route
   planning is a separately listed deterministic A* service. Computed sensor
   summaries are identified as algorithms, not learned models.
-* The simulator can render a sensor image. Pretrained COCO detectors are not
+* The simulators can render sensor images. Pretrained COCO detectors are not
   validated on this synthetic domain. Empty detections do not establish safety.
   Users can supply a real camera image for detector evaluation; it is explicitly
   identified separately from the simulator sensor image.

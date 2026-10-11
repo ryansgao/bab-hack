@@ -1,9 +1,10 @@
+import asyncio
 import json
 import os
 import secrets
 from pathlib import Path
 import httpx
-from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -14,7 +15,7 @@ from services.agent.selection import select
 from services.agent.planner import decompose
 from services.agent.quote import quote
 from apps.simulation.arm import arm
-from services.agent.executor import execute, save, get
+from services.agent.executor import execute, save, get, cancel
 from services.storage import db
 from apps.simulation.world import world
 
@@ -78,6 +79,27 @@ def run(request: ExecuteRequest):
     try: return execute(request.plan_id)
     except KeyError: raise HTTPException(404, 'Plan not found')
     except RuntimeError as exc: raise HTTPException(409, str(exc))
+
+@app.post('/api/agent/cancel', response_model=MissionPlan)
+def cancel_plan(request: ExecuteRequest):
+    try: return cancel(request.plan_id)
+    except KeyError: raise HTTPException(404, 'Plan not found')
+    except RuntimeError as exc: raise HTTPException(409, str(exc))
+
+@app.websocket('/api/events')
+async def events(socket: WebSocket):
+    await socket.accept()
+    last_id=0
+    try:
+        while True:
+            with db() as conn:
+                rows=conn.execute('SELECT * FROM telemetry WHERE id>? ORDER BY id LIMIT 100',(last_id,)).fetchall()
+            for row in rows:
+                payload=json.loads(row['body'])
+                await socket.send_json({'ts':row['created_at'],'source':'scout','type':payload.get('type','telemetry'),'payload':payload})
+                last_id=row['id']
+            await asyncio.sleep(.5)
+    except WebSocketDisconnect: pass
 
 @app.get('/api/simulation')
 def simulation(): return world.snapshot()

@@ -28,7 +28,7 @@ def execute(plan_id, purchase=None):
     if not execution_lock.acquire(blocking=False): raise RuntimeError('Another mission execution is in progress')
     try:
         plan = get(plan_id)
-        if plan.status in ('completed', 'blocked'): return plan
+        if plan.status in ('completed', 'blocked', 'cancelled'): return plan
         # A single robot cannot execute competing missions concurrently.
         with db() as conn:
             for row in conn.execute('SELECT body FROM plans WHERE id != ?', (plan_id,)):
@@ -81,7 +81,7 @@ def execute(plan_id, purchase=None):
             step.status = 'running'
             save(plan)  # Durable intent before any external payment.
             try:
-                predictions = [p for s in plan.subtasks if s.result for p in s.result.predictions]
+                predictions = next((s.result.predictions for s in reversed(plan.subtasks[:plan.subtasks.index(step)]) if s.result and s.task_type == 'object_detection'), [])
                 body = InferenceRequest(request_id=f'{plan.id}_{step.id}', model_id=step.decision.selected_model_id,
                     input=InferenceInput(observation=request.observation, target=step.target,
                         robot_card=plan.request.robot_card, requirements=step.requirements,
@@ -136,3 +136,17 @@ def execute(plan_id, purchase=None):
         return save(plan)
     finally:
         execution_lock.release()
+
+
+def cancel(plan_id):
+    if not execution_lock.acquire(blocking=False): raise RuntimeError('A purchase is in progress; wait for its outcome before cancelling')
+    try:
+        plan=get(plan_id)
+        if plan.status=='completed': return plan
+        plan.status='cancelled'
+        for step in plan.subtasks:
+            if step.status!='completed': step.status='blocked'; step.error='Cancelled by operator; existing receipts retained'
+        world.stop('Mission cancelled')
+        arm.running=False; arm.reason='Mission cancelled'
+        return save(plan)
+    finally: execution_lock.release()

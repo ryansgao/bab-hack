@@ -1,0 +1,31 @@
+services:
+  api:
+    build: .
+    env_file: .env
+    environment:
+      SERVICE_KEY: ${SERVICE_KEY:?Set SERVICE_KEY in .env before Docker startup}
+      PAYMENT_URL: http://payments:4021
+      ROBOMARKET_DB: /app/data/robomarket.sqlite
+    ports: ["127.0.0.1:8000:8000"]
+    volumes: ["market-data:/app/data"]
+  models:
+    build:
+      context: .
+      dockerfile: services/models/Dockerfile
+    env_file: .env
+    volumes: ["model-data:/app/data"]
+  payments:
+    build:
+      context: .
+      dockerfile: services/payments/Dockerfile
+    env_file: .env
+    environment:
+      PAYMENT_HOST: 0.0.0.0
+      API_URL: http://api:8000
+      MODEL_URL: http://models:8001
+      PAYMENT_DB: /app/data/payments.sqlite
+    volumes: ["payment-data:/app/data"]
+volumes:
+  market-data:
+  model-data:
+  payment-data:

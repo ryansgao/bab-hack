@@ -2,9 +2,9 @@
 
 | Owner | Owned files | Deliverables / APIs | Dependencies and checks |
 |---|---|---|---|
-| 1: simulation + UI | `apps/frontend/**`, `apps/simulation/**` | Warehouse controls, mission graph, candidate comparison, wallet/receipt display; `/api/simulation` and controls | Shared schemas; tests for A*, collision stop, sensor observations, replanning, inference effects; build React and exercise narrow-screen layout |
-| 2: marketplace + inference | `services/marketplace/**`, `services/models/**` | Registry CRUD, two pretrained detectors, standardized predictions, measured latency; `/api/marketplace/models`, internal inference | Shared schemas; registry persistence, input validation, unavailable provider handling, real model smoke test; publish benchmark provenance |
-| 3: agent | `services/agent/**` | Mission DAG, dependency executor, risk score, constrained optimizer, explanations; `/api/agent/select`, `/api/agent/plan`, `/api/agent/execute`, plan inspection | Registry and payment contracts; variable-size plans, unknown goals, budget/deadline/availability constraints, price sensitivity, safe fallback, failed prerequisites, retries |
+| 1: simulation + UI | `apps/frontend/**`, `apps/simulation/**` | Kitchen arm, Robot Card, warehouse controls, mission graph, candidate comparison, wallet/receipt display; `/api/simulation` and controls | Shared schemas; tests for A*, collision stop, sensor observations, replanning, inference effects; build React and exercise narrow-screen layout |
+| 2: marketplace + inference | `services/marketplace/**`, `services/models/**` | Registry CRUD, two pretrained detectors, optional OWL-ViT, analytic grasp/control, standardized predictions, measured latency; `/api/marketplace/models`, internal inference | Shared schemas; registry persistence, input validation, unavailable provider handling, real model smoke test; publish benchmark provenance |
+| 3: agent | `services/agent/**` | Scout/Vendor mission DAG, robot compatibility, dependency executor, risk score, constrained optimizer, explanations; `/api/agent/select`, `/api/agent/plan`, `/api/agent/execute`, plan inspection | Registry and payment contracts; variable-size plans, unknown goals, budget/deadline/availability constraints, price sensitivity, safe fallback, failed prerequisites, retries |
 | 4: payments | `services/payments/**` | x402 buyer/provider/facilitator, atomic policy ledger, verified receipts; `/wallet`, `/transactions`, `/purchase`, `/inference/:model` | Official SDK, Base Sepolia RPC, funded wallets; rejected/replayed payment, concurrency, policy limits, crash recovery, opt-in live settlement test |
 
 The integration lead owns `shared/**`, `services/api.py`, root manifests,
@@ -33,3 +33,9 @@ points. Generated OpenAPI belongs to the schema owner; do not hand-edit it.
 The two-minute demo should show one short mission, its decomposition, a candidate
 rejection, one verified purchase, an obstacle-induced stop/replan, and the receipt.
 Only claim live settlement after the external integration check succeeds.
+
+The latest build plan makes the arm/shard flow primary. Retain the existing folder
+layout to avoid moving shared files during parallel work. Vendor quote ownership
+is currently with Member 3 (`services/agent/quote.py`); Member 2 owns the listing
+metadata it consumes. Member 1 owns the event-channel client, and the integration
+lead owns `/api/events` in the gateway. No LLM key is required for the grammar fallback.

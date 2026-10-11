@@ -145,6 +145,6 @@ app.post('/api/inference/:modelId',requireKey,async(req,res)=>{
   } finally { active.delete(body.request_id); }
 });
 app.use((error: Error,_req:express.Request,res:express.Response,_next:express.NextFunction)=>{
-  res.status(error instanceof z.ZodError?422:503).json({error:{code:'SERVICE_UNAVAILABLE',message:error instanceof z.ZodError?'Invalid inference request':missing().length?`Testnet setup missing: ${missing().join(', ')}`:'Purchase unavailable: check Allowance, provider and RPC configuration'}});
+  res.status(error instanceof z.ZodError?422:503).json({error:{code:'SERVICE_UNAVAILABLE',message:error instanceof z.ZodError?'Invalid inference request':missing().length?`Testnet setup missing: ${missing().join(', ')}`:/Allowance|allowlist|threshold|Insufficient unreserved/.test(error.message)?error.message:'Purchase unavailable: check Allowance, provider and RPC configuration'}});
 });
 app.listen(port,process.env.PAYMENT_HOST || '127.0.0.1',()=>console.log(`RoboMarket x402 service on ${port}; mode=testnet; configured=${missing().length===0}`));

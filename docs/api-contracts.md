@@ -22,7 +22,37 @@ HTTP 422 means invalid input, 404 missing resource, 409 conflict, 503 unavailabl
 | `POST /api/simulation/control` | `SimulationControl` | Updated state |
 | `POST /api/inference/{model_id}` (payment service) | `InferenceRequest` | x402 v2 402 challenge or paid `InferenceResult` |
 
-## Mission example
+## Kitchen-arm Task Spec and Robot Card
+
+`POST /api/vendor/quote` previews the same plan that `/api/agent/plan` persists.
+A shard is a `ModelOffer`; `task_type` names its layer. Money stays decimal text
+rather than the floating-point values used in the concept examples.
+
+```json
+{
+  "robot_id": "robot_001",
+  "robot_card": {
+    "robot_id": "robot_001", "embodiment": "6dof_arm", "dof": 6,
+    "gripper": "parallel_jaw", "max_payload_kg": 1.5,
+    "sensors": ["rgb", "depth", "wrist_force"], "onboard_compute": "jetson_orin"
+  },
+  "task": "Peel 2 oranges and a grape",
+  "budget_ausd": "0.05",
+  "inference_deadline_ms": 3000
+}
+```
+
+This produces nine dependency-ordered subtasks. `requirements` on each step
+contains object properties and their provenance. `estimated_cost_ausd` is the
+current quote; `spent_ausd` counts confirmed receipts. `POST /api/agent/cancel`
+accepts `{ "plan_id": "..." }` and stops future purchases and motion without
+reversing existing payments. `GET /api/arm` and `POST /api/arm/control` expose
+the kitchen-arm simulator. `GET /api/simulation` remains the warehouse API.
+
+WebSocket `/api/events` emits `{ "ts", "source", "type", "payload" }` for recorded
+selection and inference events. The current dashboard uses HTTP polling.
+
+## Warehouse mission example
 
 ```json
 {
@@ -70,7 +100,7 @@ Decision shape (illustrative, not a benchmark):
 
 ## Execution states
 
-Plans: `planned`, `running`, `waiting_for_motion`, `blocked`, `completed`.
+Plans: `planned`, `running`, `waiting_for_motion`, `blocked`, `completed`, `cancelled`.
 Subtasks: `pending`, `running`, `waiting_for_motion`, `completed`, `blocked`.
 Payments: `reserved`, `settling`, `settled`, `failed`, `uncertain`.
 A cached request with a different body is a 409. Ambiguous settlement is never

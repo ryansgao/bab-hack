@@ -362,6 +362,44 @@
         }
       }
     },
+    "/api/agent/cancel": {
+      "post": {
+        "summary": "Cancel Plan",
+        "operationId": "cancel_plan_api_agent_cancel_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExecuteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MissionPlan"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/simulation": {
       "get": {
         "summary": "Simulation",
@@ -636,7 +674,8 @@
               "running",
               "waiting_for_motion",
               "blocked",
-              "completed"
+              "completed",
+              "cancelled"
             ],
             "title": "Status",
             "default": "planned"
