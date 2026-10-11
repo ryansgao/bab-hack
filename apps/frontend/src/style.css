@@ -240,27 +240,6 @@ h2 {
   color: var(--ink);
   background: #1c1d1807;
 }
-.new-mission {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  width: 198px;
-  border: 1px solid #ffffffb3;
-  background: #ffffff60;
-  border-radius: 12px;
-  padding: 10px 12px;
-  margin-bottom: 18px;
-  text-align: left;
-  color: var(--muted);
-  font-size: 13px;
-}
-.new-mission:hover {
-  background: #ffffffa6;
-}
-.new-mission > span {
-  margin-left: auto;
-  color: var(--faint);
-}
 nav {
   display: flex;
   flex-direction: column;

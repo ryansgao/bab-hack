@@ -1186,14 +1186,6 @@ function App() {
             <PanelLeftClose size={17} />
           </IconButton>
         </div>
-        <button
-          className="new-mission"
-          disabled={data.busy || data.restoring}
-          onClick={() => void newMission()}
-        >
-          <Plus size={16} />
-          New mission<span>↗</span>
-        </button>
         <nav>
           {nav.map((item) => (
             <button
