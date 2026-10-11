@@ -111,8 +111,8 @@ database to resolve an uncertain transaction.
 
 The provider route also requires `X-Service-Key`: this is a private single-robot
 prototype, not a public x402 merchant endpoint. The header is application auth;
-it is not represented as part of the x402 standard. The gateway is localhost-only
-and has no end-user login. Do not deploy it publicly until auth is added.
+it is not represented as part of the x402 standard. End users sign in at the gateway
+(see Accounts below); the payment service and the model worker stay on private ports.
 
 ## Official sources consulted
 
@@ -142,3 +142,37 @@ challenge, forged and bypassing payments, failure after payment, restart recover
 setup faults, per-vendor payouts and the mission float. Run it from the payments
 folder: `node --env-file=../../.env --import tsx scripts/live-check.ts out.json`
 (about five minutes; it spends about 0.2 test AUSD).
+
+## Accounts and each user's own wallet
+
+Simulation missions are open to everyone. Spending AUSD needs an account (`services/accounts/`,
+`ACCOUNTS_REQUIRED=1`): email and password, a session in an HttpOnly SameSite cookie, passwords
+stored as scrypt hashes, sign-in attempts rate-limited, and cross-site requests refused.
+
+With `USER_WALLET_SEED` set (and an owner wallet), every account has its own treasury address on
+Base Sepolia, derived from the seed and the account id, so no key is stored per user. It is a
+custodial testnet wallet: the server can sign for it. The gateway names the signed-in user to the
+payment service in `X-Account`:
+
+- A mission started by a user is bound to that account on its first purchase. Its float is sent
+  from that user's wallet to the robot and the unspent part returns to the same wallet.
+- `POST /accounts/grant` sends a new account `STARTER_GRANT_AUSD` from the owner treasury, once,
+  and at most `STARTER_GRANTS_PER_DAY` across all accounts.
+- `POST /accounts/withdraw` sends AUSD from the user's wallet to any address, gasless.
+- `GET /wallet` with `X-Account` reports that user's wallet instead of the owner treasury.
+
+Each user sets their own per-mission and per-day limits and can pause payments; the gateway checks
+them when a paid mission starts, and the Allowance above still bounds every purchase. A user sees
+only their own missions and receipts (`/api/account/activity`, `/api/transactions`), can download
+everything stored about them, and can delete the account. Deleting removes the profile and its
+missions; settled payments stay in the ledger and on chain, no longer linked to a person.
+
+The dashboard's **Wallet & receipts** area holds the wallet, payment history, spending limits,
+profile and privacy, and security pages. A paid mission opens a payment screen: review the
+purchases, authorize, watch each one settle, keep the receipts. **Send a live test payment** on
+the Wallet page buys one sensor summary (about 0.001 AUSD) through the same path without a
+planning call. Live-checked on Base Sepolia 2026-10-11: sign-up, starter grant, a paid purchase
+with float out and back, a withdrawal, pause, and sign-out.
+
+Not built: email verification, password reset, two-factor sign-in, and user-held keys (connect
+your own wallet). A user's allowance is checked when a mission starts, not per purchase.

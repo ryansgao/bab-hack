@@ -65,6 +65,8 @@ weights before any purchase. There are no fake detection or payment fallbacks.
 - Persistent Allowance limits, idempotency, replay checks, and uncertain-payment holds.
 - Owner treasury with a per-mission float returned on close or idle, and one payout address per vendor.
 - Spending policy and a per-payment receipt in a contract on BNB chain (BSC Testnet), checked before signing.
+- User accounts with a wallet of their own, starter test AUSD, withdrawals, per-user spending limits,
+  a payment screen with receipts, private payment history, data export and account deletion.
 - Separate component entry points and Docker Compose configuration.
 
 ## Current limits
@@ -86,8 +88,8 @@ animation. The server blocks interrupted missions after restart because simulati
 state is not durable. Provider registration also needs a model adapter. Each vendor
 is paid at its own address when `VENDOR_SEED` is set; with `OWNER_PRIVATE_KEY` set an
 owner wallet holds the treasury and the robot holds only one mission float at a time
-(see the payment setup). Payments are intended for localhost and
-need authentication before any public deployment. The gateway alone (dashboard,
+(see the payment setup). Paying in AUSD needs a signed-in account, and each account has its own
+wallet and limits; the payment service itself must still stay off the public network. The gateway alone (dashboard,
 marketplace, planning) can be hosted publicly with `render.yaml`; planning calls
 are capped per visitor and per day. See the integration guide.
 

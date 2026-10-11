@@ -41,7 +41,6 @@ import { useRoboMarket, type RoboMarket } from "./lib/useRoboMarket";
 import {
   humanize,
   layerName,
-  money,
   usd,
   DEFAULT_ROBOT,
   liveStep,
@@ -51,11 +50,16 @@ import {
 } from "./lib/types";
 import "./style.css";
 import MissionPricing from './components/MissionPricing';
+import { GROUPS, familyOf } from "./lib/skills";
+
+const sentence = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
 
 const RobotStation = lazy(() => import('./components/RobotStation'));
 const SkillPreview = lazy(() => import("./components/SkillPreview").then((module) => ({ default: module.SkillPreview })));
 const TaskPreview3D = lazy(() => import("./components/TaskPreview3D"));
 const BountyBoard = lazy(() => import("./components/BountyBoard"));
+const AccountArea = lazy(() => import("./account/AccountArea"));
+import PaymentFlow, { AccountButton } from "./account/PaymentFlow";
 
 function TaskPreviewToggle({ data, plan, selected, onSelect }: {
   data: RoboMarket; plan?: Plan; selected?: number; onSelect?: (index: number) => void;
@@ -161,99 +165,6 @@ function Background() {
       <div className="ambient-light" />
       <div className="ambient-wash" />
     </div>
-  );
-}
-
-function WalletCard({
-  data,
-  compact = false,
-}: {
-  data: RoboMarket;
-  compact?: boolean;
-}) {
-  const { wallet, paymentError } = data;
-  return (
-    <section className={"glass wallet-card " + (compact ? "compact" : "")}>
-      <div className="panel-heading">
-        <span className="label-with-icon">
-          <Wallet size={16} /> Scout wallet
-        </span>
-        <span className="tag">Base Sepolia</span>
-      </div>
-      {wallet?.custody === "mission_float" ? (
-        <div className="wallet-amount">
-          <span className="eyebrow">Owner treasury</span>
-          <strong>
-            {wallet.owner_treasury_ausd ? money(wallet.owner_treasury_ausd) : "—"}{" "}
-            <small>AUSD</small>
-          </strong>
-          <span className="wallet-address">
-            Robot holds {wallet.balance_ausd ? money(wallet.balance_ausd) : "—"} AUSD
-            (mission float only, no gas)
-            {wallet.wallet_address
-              ? ` · ${wallet.wallet_address.slice(0, 8)}…${wallet.wallet_address.slice(-6)}`
-              : ""}
-          </span>
-          {wallet.policy_chain && (
-            <a
-              className="wallet-address"
-              href={wallet.policy_chain.explorer_url}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Policy on BNB chain · {wallet.policy_chain.receipt_count} receipts
-            </a>
-          )}
-        </div>
-      ) : (
-      <div className="wallet-amount">
-        <span className="eyebrow">Available balance</span>
-        <strong>
-          {wallet?.balance_ausd !== null && wallet?.balance_ausd !== undefined
-            ? money(wallet.balance_ausd)
-            : "—"}{" "}
-          <small>AUSD</small>
-        </strong>
-        <span className="wallet-address">
-          {wallet?.wallet_address
-            ? `${wallet.wallet_address.slice(0, 8)}…${wallet.wallet_address.slice(-6)}`
-            : "Connect a funded testnet wallet to execute."}
-        </span>
-      </div>
-      )}
-      <div className="allowance-heading">
-        <ShieldCheck size={16} />
-        <strong>Spending allowance</strong>
-        <span className="tiny-dot" />
-      </div>
-      <dl className="spec-list">
-        <div>
-          <dt>Per purchase</dt>
-          <dd>
-            {wallet ? money(wallet.allowance.max_per_request_ausd) : "—"} AUSD
-          </dd>
-        </div>
-        <div>
-          <dt>Per mission</dt>
-          <dd>
-            {wallet ? money(wallet.allowance.max_per_task_ausd) : "—"} AUSD
-          </dd>
-        </div>
-        <div>
-          <dt>Session remaining</dt>
-          <dd>{wallet ? money(wallet.remaining_allowance_ausd) : "—"} AUSD</dd>
-        </div>
-      </dl>
-      {(paymentError || wallet?.setup_error) && (
-        <div className="quiet-notice">
-          <CircleHelp size={15} />
-          <div>
-            <strong>Wallet setup needed</strong>
-            <p>{readableMessage(wallet?.setup_error || paymentError)}</p>
-          </div>
-        </div>
-      )}
-    </section>
   );
 }
 
@@ -419,7 +330,15 @@ function Composer({
         </div>
       </div>
       <div className="suggestions">
-        {data.planner?.matcha_demo?.enabled&&<button onClick={()=>{data.setTask(data.planner!.matcha_demo!.prompt);data.setExecutionMode('simulation');data.setBudget('0.25');data.setAutoBounties(true);data.setBountyReward('5.00');input.current?.focus();}}>Make a matcha latte <ArrowUp size={12}/></button>}
+        {data.planner?.matcha_demo?.enabled&&<button className="suggestion-chip" onClick={()=>{
+          const prompt=data.planner!.matcha_demo!.prompt;
+          data.setExecutionMode('simulation');data.setBudget('0.25');data.setAutoBounties(true);data.setBountyReward('5.00');
+          input.current?.focus();
+          const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+          if(reduced){data.setTask(prompt);return;}
+          const step=Math.max(1,Math.ceil(prompt.length/36));let n=0;
+          const timer=window.setInterval(()=>{n=Math.min(prompt.length,n+step);data.setTask(prompt.slice(0,n));if(n>=prompt.length)window.clearInterval(timer);},16);
+        }}><span><strong>Make a matcha latte</strong><small>Try the guided recipe</small></span><ArrowUp size={13}/></button>}
       </div>
       <ol className="how-it-works">
         <li>
@@ -744,7 +663,7 @@ function Mission({ data, onNew, onBounties, onRobot }: { data: RoboMarket; onNew
             <button
               className="primary full-width"
               disabled={busy || plan.status !== "planned"}
-              onClick={() => void data.execute()}
+              onClick={() => simulated ? void data.execute() : void window.dispatchEvent(new Event("rbazaar:checkout"))}
             >
               {busy ? (
                 <LoaderCircle size={15} className="spin" />
@@ -801,7 +720,7 @@ function Marketplace({ data, onBounties }: { data: RoboMarket; onBounties: () =>
   useEffect(()=>setPage(0),[filter,search,category]);
   const shown = data.models.filter(
     (model) =>
-      (filter === "all" || model.task_type === filter) &&
+      (filter === "all" || GROUPS.find((group) => group.key === filter)?.families.includes(familyOf(model.task_type))) &&
       (category==='all'||model.category===category) &&
       search.toLowerCase().trim().split(/\s+/).every(term=>`${model.name} ${model.description} ${model.provider_id} ${model.task_type} ${(model.tags||[]).join(' ')}`.toLowerCase().includes(term)),
   );
@@ -811,25 +730,18 @@ function Marketplace({ data, onBounties }: { data: RoboMarket; onBounties: () =>
         <div>
           <h1>Marketplace</h1>
         </div>
-        <span className="count-badge">{data.models.length} shards</span>
+        <span className="count-badge">{data.models.length.toLocaleString()} models</span>
       </div>
       <div className="market-toolbar">
         <div className="filter-list" aria-label="Filter expertise">
-          {[
-            "all",
-            "object_detection",
-            "grasp",
-            "control",
-            "path_planning",
-            "scene_inspection",
-          ].map((value) => (
+          {[{ key: "all", label: "All" }, ...GROUPS].map(({ key, label }) => (
             <button
-              key={value}
-              className={filter === value ? "active" : ""}
-              aria-pressed={filter === value}
-              onClick={() => setFilter(value)}
+              key={key}
+              className={filter === key ? "active" : ""}
+              aria-pressed={filter === key}
+              onClick={() => setFilter(key)}
             >
-              {value === "all" ? "All expertise" : layerName(value)}
+              {label}
             </button>
           ))}
         </div>
@@ -837,49 +749,35 @@ function Marketplace({ data, onBounties }: { data: RoboMarket; onBounties: () =>
           <Search size={15} />
           <input
             aria-label="Search shards"
-            placeholder="Find a skill…"
+            placeholder="Search models, objects, tasks…"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
           />
         </label>
       </div>
-      <div className="market-browse"><label>Collection <select aria-label="Skill collection" value={category} onChange={e=>setCategory(e.target.value)}><option value="all">All collections</option>{[...new Set(data.models.map(m=>m.category).filter(Boolean))].sort().map(value=><option key={value} value={value}>{humanize(value)}</option>)}</select></label><span>{shown.length} matching skills</span><button className="text-button" onClick={onBounties}><Flag size={13} /> Need a missing skill? Post a bounty</button></div>
+      <div className="market-browse"><label>Collection <select aria-label="Skill collection" value={category} onChange={e=>setCategory(e.target.value)}><option value="all">All collections</option>{[...new Set(data.models.map(m=>m.category).filter(Boolean))].sort().map(value=><option key={value} value={value}>{humanize(value)}</option>)}</select></label><span>{shown.length.toLocaleString()} matching</span><button className="text-button" onClick={onBounties}><Flag size={13} /> Need a missing skill? Post a bounty</button></div>
       <div className="market-grid">
         {shown.slice(page*18,(page+1)*18).map((model) => (
           <article className="glass market-card" key={model.id}>
-            <div className="market-card-head">
-              <span className={"layer-icon layer-" + model.task_type}>
-                <LayerIcon type={model.task_type} size={18} />
+            <div className="market-card-kicker">
+              <span className="market-card-type">{sentence(layerName(model.task_type))}</span>
+              <span className="tag">
+                {model.execution_mode === "simulation" ? "Simulation" : model.kind === "algorithm" ? "Algorithm" : "Pretrained"}
               </span>
-              <div className="market-card-copy">
-                <div className="market-card-kicker">
-                  <span className="eyebrow">{layerName(model.task_type)}</span>
-                  <span className="tag">
-                    {model.execution_mode === "simulation" ? "Simulation" : model.kind === "algorithm" ? "Algorithm" : "Pretrained"}
-                  </span>
-                </div>
-                <h2>{model.name}</h2>
-                <span className="vendor-name">
-                  by {humanize(model.provider_id)}
-                </span>
-              </div>
             </div>
+            <h2 title={model.name}>{model.name}</h2>
+            <span className="vendor-name">by {humanize(model.provider_id)}</span>
             <Suspense fallback={<div className="skill-preview skill-preview-loading" aria-label="Loading skill preview" />}>
-              {model.execution_mode!=="simulation"&&<SkillPreview offer={model} />}
+              <SkillPreview offer={model} />
             </Suspense>
             <div className="market-card-bottom">
               <div>
-                <strong>{money(model.price_ausd)}</strong>
-                <span>{model.execution_mode==="simulation"?"demo credits / call":"AUSD / call"}</span>
+                <strong>{usd(model.price_ausd)}</strong>
+                <span>{model.execution_mode === "simulation" ? "per call · demo" : "per call"}</span>
               </div>
-              <span className="latency-label">
+              <span className="latency-label" title={model.latency_source === "measured_ema" ? "Measured moving average" : "Provider estimate"}>
                 <Clock3 size={12} />
                 {model.latency_ms.toFixed(0)} ms
-                <small>
-                  {model.latency_source === "measured_ema"
-                    ? "measured EMA"
-                    : "estimate"}
-                </small>
               </span>
             </div>
             <button
@@ -945,94 +843,6 @@ function Marketplace({ data, onBounties }: { data: RoboMarket; onBounties: () =>
             : "Try another search or choose a different capability."}
         </EmptyState>
       )}
-      <p className="market-note">
-        <ShieldCheck size={14} />
-        Scout checks compatibility, task risk, latency, and your budget before
-        selecting a provider.
-      </p>
-    </div>
-  );
-}
-
-function WalletPage({ data }: { data: RoboMarket }) {
-  return (
-    <div className="page enter">
-      <div className="page-heading">
-        <div>
-          <h1>Wallet & Receipts</h1>
-        </div>
-        <button className="secondary" onClick={() => void data.refresh()}>
-          <Wallet size={14} />
-          Refresh wallet
-        </button>
-      </div>
-      <div className="wallet-layout">
-        <WalletCard data={data} />
-        <section className="glass ledger">
-          <div className="panel-heading">
-            <span className="label-with-icon">
-              <Fingerprint size={17} />
-              Purchase history
-            </span>
-            <span className="tag">{data.receipts.length} receipts</span>
-          </div>
-          {data.receipts.length ? (
-            <div className="receipt-list">
-              {data.receipts.map((receipt) => (
-                <article className="receipt" key={receipt.request_id}>
-                  <span className="soft-icon">
-                    <Box size={17} />
-                  </span>
-                  <div>
-                    <h3>
-                      {data.models.find(
-                        (model) => model.id === receipt.model_id,
-                      )?.name || receipt.model_id}
-                    </h3>
-                    <Status value={receipt.status} />
-                    <small>{receipt.timestamp} UTC</small>
-                  </div>
-                  <div className="receipt-price">
-                    <strong>
-                      {money(receipt.amount_ausd)} <small>AUSD</small>
-                    </strong>
-                    {receipt.explorer_url ? (
-                      <a
-                        href={receipt.explorer_url}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        View receipt <ExternalLink size={12} />
-                      </a>
-                    ) : (
-                      <span>No confirmed receipt</span>
-                    )}
-                    {receipt.pay_to && (
-                      <small title={receipt.pay_to}>
-                        Paid to {receipt.pay_to.slice(0, 8)}…{receipt.pay_to.slice(-4)}
-                      </small>
-                    )}
-                    {receipt.audit_explorer_url && (
-                      <a
-                        href={receipt.audit_explorer_url}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        BNB audit record <ExternalLink size={12} />
-                      </a>
-                    )}
-                  </div>
-                </article>
-              ))}
-            </div>
-          ) : (
-            <EmptyState icon={<Fingerprint size={30} />} title="A clean slate.">
-              Your purchases will appear here, each with its amount, status, and
-              verified onchain receipt when settled.
-            </EmptyState>
-          )}
-        </section>
-      </div>
     </div>
   );
 }
@@ -1182,6 +992,7 @@ function App() {
                     : view === "marketplace"
                       ? "Marketplace"
                       : view === "bounties" ? "Bounties"
+                      : view === "account" ? "Account"
                       : view === "wallet"
                         ? "Wallet & receipts"
                         : "Simulation studio"}
@@ -1190,7 +1001,7 @@ function App() {
             )}
           </div>
           <div className="topbar-right">
-
+            <AccountButton onOpen={() => navigate("account")} />
           </div>
         </header>
         <main ref={content} id="main-content" className="main-content">
@@ -1214,12 +1025,12 @@ function App() {
           )}
           {view === "marketplace" && <Marketplace data={data} onBounties={()=>navigate('bounties')} />}
           {view === "bounties" && <Suspense fallback={<p className="preview-loading">Loading bounty board…</p>}><BountyBoard data={data} /></Suspense>}
-          {view === "wallet" && <WalletPage data={data} />}
+          {(view === "wallet" || view === "account") && <Suspense fallback={<p className="preview-loading">Loading your account…</p>}><AccountArea data={data} tab={view === "wallet" ? "wallet" : "profile"} /></Suspense>}
           {view === "robot" && <Suspense fallback={<p className="preview-loading">Loading connected robot workcell…</p>}><RobotStation data={data} onMission={()=>navigate('mission')}/></Suspense>}
 
         </main>
       </div>
-
+      <PaymentFlow data={data} onHistory={() => navigate("wallet")} />
     </div>
   );
 }

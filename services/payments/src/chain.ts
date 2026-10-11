@@ -57,7 +57,7 @@ async function setup() {
   const owner = process.env.OWNER_PRIVATE_KEY ? privateKeyToAccount(process.env.OWNER_PRIVATE_KEY as Hex) : null;
   const ownerSigner = owner ? signerFor(owner, atomic('MAX_PER_TASK_AUSD', '0.10')) : null;
   const returnSigner = owner ? signerFor(robot) : null;
-  return { publicClient, robot, buyer, owner, ownerSigner, returnSigner, facilitator: new FacilitatorScheme(signer), domain: { name, version, assetTransferMethod: 'eip3009' } };
+  return { publicClient, robot, buyer, owner, ownerSigner, returnSigner, signerFor, facilitator: new FacilitatorScheme(signer), domain: { name, version, assetTransferMethod: 'eip3009' } };
 }
 export type Chain = Awaited<ReturnType<typeof setup>>;
 /** Where a vendor is paid. A listing may carry its own payout address; otherwise each vendor gets a
@@ -69,6 +69,12 @@ export function payoutAddress(providerId: string, listed?: unknown): Address {
   const fallback = process.env.PROVIDER_ADDRESS;
   if (!fallback || !isAddress(fallback)) throw new Error('Invalid provider recipient');
   return fallback;
+}
+/** A signed-in user's own treasury wallet, derived from USER_WALLET_SEED so no key is stored per
+ *  user. Without the seed every user shares the owner treasury. */
+export function userWallet(account: string) {
+  const seed = process.env.USER_WALLET_SEED;
+  return seed ? privateKeyToAccount(keccak256(toHex(`${seed}:${account}`))) : null;
 }
 /** Moves AUSD between our own wallets with the same gasless ERC-3009 path a purchase uses. */
 export async function transfer(c: Chain, signer: x402HTTPClient, to: Address, amount: number, what: string): Promise<Hex> {

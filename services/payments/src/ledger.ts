@@ -28,6 +28,9 @@ export class Ledger {
       CREATE TABLE IF NOT EXISTS authorizations(nonce TEXT PRIMARY KEY, request_id TEXT UNIQUE, payload TEXT);
       CREATE TABLE IF NOT EXISTS float_transfers(id INTEGER PRIMARY KEY AUTOINCREMENT, task TEXT, kind TEXT, amount INTEGER,
         tx TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP);
+      CREATE TABLE IF NOT EXISTS mission_accounts(task TEXT PRIMARY KEY, account TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS wallet_transfers(id INTEGER PRIMARY KEY AUTOINCREMENT, account TEXT, kind TEXT, amount INTEGER,
+        counterparty TEXT, tx TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP);
     `);
     // Ledgers created before per-vendor payouts and the BNB audit trail lack these columns.
     const columns = (this.db.prepare('PRAGMA table_info(purchases)').all() as { name: string }[]).map(c => c.name);
@@ -85,6 +88,18 @@ export class Ledger {
       return { task, funded: this.floatSum(task,'fund'), returned: this.floatSum(task,'sweep'), spent: this.used('AND task=?', [task]),
         remaining: this.floatRemaining(task), lastActivity, transfers };
     });
+  }
+  // ---- user accounts: whose wallet funds a mission, and what moved in or out of that wallet ----
+  bindAccount(task: string, account: string) { this.db.prepare('INSERT OR IGNORE INTO mission_accounts(task,account) VALUES (?,?)').run(task,account); }
+  accountOf(task: string) { return (this.db.prepare('SELECT account FROM mission_accounts WHERE task=?').get(task) as { account: string } | undefined)?.account ?? null; }
+  walletAdd(account: string, kind: 'grant' | 'withdraw', amount: number, counterparty: string, tx: string) {
+    this.db.prepare('INSERT INTO wallet_transfers(account,kind,amount,counterparty,tx) VALUES (?,?,?,?,?)').run(account,kind,amount,counterparty,tx);
+  }
+  walletTransfers(account: string) {
+    return this.db.prepare('SELECT kind,amount,counterparty,tx,created_at FROM wallet_transfers WHERE account=? ORDER BY id DESC LIMIT 100').all(account) as { kind: string; amount: number; counterparty: string; tx: string; created_at: string }[];
+  }
+  grantsToday() {
+    return Number((this.db.prepare("SELECT COUNT(*) AS n FROM wallet_transfers WHERE kind='grant' AND date(created_at)=date('now')").get() as any).n);
   }
   earnings() {
     return this.db.prepare("SELECT vendor, pay_to, COUNT(*) AS payments, SUM(amount) AS earned FROM purchases WHERE status='settled' GROUP BY vendor, pay_to").all() as { vendor: string; pay_to: string | null; payments: number; earned: number }[];

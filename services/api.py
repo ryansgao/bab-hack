@@ -24,6 +24,8 @@ from services.storage import db
 from apps.simulation.world import world
 
 from services.agent.runtime import runtime
+from services.accounts import store as accounts
+from services.accounts.routes import router as accounts_router
 
 @asynccontextmanager
 async def lifespan(app):
@@ -67,15 +69,21 @@ def register(model: ModelOffer, x_service_key: str = Header(default='')):
 
 app.include_router(marketplace_router)
 app.include_router(bounty_router)
+app.include_router(accounts_router)
 
 @app.post('/api/agent/select', response_model=SelectionDecision)
 def selection(request: SelectionRequest): return select(request, registry.list_models())
 
 @app.post('/api/agent/plan', response_model=MissionPlan, dependencies=[Depends(admit)])
-def plan(request: MissionRequest):
+def plan(request: MissionRequest, http: Request):
     for point in request.waypoints:
         if (point.x,point.y) in world.blocked(): raise ValueError('A destination is occupied')
-    return save(auto_post(quote(decompose(request))))
+    mission = save(auto_post(quote(decompose(request))))
+    # A signed-in user's missions go into their own history (simulations only if they keep them).
+    user = accounts.current_user(http)
+    if user and (request.execution_mode == 'testnet' or accounts.public(user)['settings']['save_simulation_history']):
+        accounts.claim(mission.id, user['id'])
+    return mission
 
 @app.post('/api/vendor/quote', response_model=MissionPlan, dependencies=[Depends(admit)])
 def vendor_quote(request: MissionRequest): return quote(decompose(request))
@@ -102,8 +110,18 @@ def read_plan(plan_id: str):
     except KeyError: raise HTTPException(404, 'Plan not found')
 
 @app.post('/api/agent/execute', response_model=MissionPlan)
-async def run(request: ExecuteRequest):
-    try: return await runtime.submit(request.plan_id)
+async def run(request: ExecuteRequest, http: Request):
+    try:
+        mission = get(request.plan_id)
+        # Spending real AUSD needs an account: the mission is paid from that user's wallet, within their limits.
+        if mission.request.execution_mode == 'testnet' and mission.status == 'planned' and accounts.enforced():
+            accounts.same_origin(http)
+            user = accounts.current_user(http)
+            if not user: raise HTTPException(401, 'Sign in to pay for this mission.')
+            if accounts.owner_of(mission.id) not in (None, user['id']): raise HTTPException(403, 'This mission belongs to another account.')
+            accounts.claim(mission.id, user['id'])
+            accounts.authorize_spend(user, mission)
+        return await runtime.submit(request.plan_id)
     except KeyError: raise HTTPException(404, 'Plan not found')
     except RuntimeError as exc: raise HTTPException(409, str(exc))
 
@@ -182,7 +200,13 @@ async def wallet(robot_id: str):
     return await payment_read('/wallet')
 
 @app.get('/api/transactions')
-async def transactions(): return await payment_read('/transactions')
+async def transactions(http: Request):
+    receipts = await payment_read('/transactions')
+    if not accounts.enforced(): return receipts
+    # Purchases are private to the account that made them.
+    user = accounts.current_user(http)
+    mine = accounts.plan_ids_of(user['id']) if user else set()
+    return [receipt for receipt in receipts if receipt.get('task_id') in mine]
 
 @app.get('/api/telemetry')
 def telemetry():
