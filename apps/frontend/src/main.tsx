@@ -356,7 +356,6 @@ function StepDetail({ step, index }: { step: Step; index: number }) {
     <section className="step-detail glass-quiet">
       <div className="step-detail-head">
         <span>Step {index + 1} · {sentence(layerName(step.task_type))}</span>
-        <Status value={step.status} />
       </div>
       <h2>{step.title}</h2>
       <p className="step-detail-description">{step.description}</p>
@@ -414,7 +413,6 @@ function Mission({ data, onNew, onRobot }: { data: RoboMarket; onNew: () => void
         <div>
           <h1>{plan.demo_scenario==='matcha_demo_v1'?'Make me a matcha latte':plan.request.task}</h1>
           <p className="mission-meta">
-            <Status value={plan.status} />
             <span>{plan.robot_visual?.name || "Generated robot"}</span>
             <span>{completed} / {plan.subtasks.length} steps</span>
             <span>{usd(plan.estimated_cost_ausd)} in skills</span>
