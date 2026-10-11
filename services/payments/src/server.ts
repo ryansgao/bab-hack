@@ -27,6 +27,14 @@ function requireKey(req: express.Request, res: express.Response, next: express.N
 const requestSchema = z.object({request_id:z.string().regex(/^[a-zA-Z0-9_-]{1,100}$/), robot_id:z.literal('robot_001'),
   model_id:z.string().regex(/^[a-z0-9_-]{1,64}$/), input:z.record(z.string(),z.unknown())}).strict();
 const active = new Set<string>();
+// One facilitator wallet submits every settlement. Concurrent submissions collide on its
+// transaction nonce and leave payments unconfirmed, so settlements run one at a time.
+let settleQueue: Promise<unknown> = Promise.resolve();
+function settleSerially<T>(work: () => Promise<T>): Promise<T> {
+  const next = settleQueue.then(work, work);
+  settleQueue = next.catch(() => undefined);
+  return next;
+}
 async function offer(modelId: string) {
   const response = await fetch(`${process.env.API_URL || 'http://127.0.0.1:8000'}/api/marketplace/models`, {signal:AbortSignal.timeout(8000)});
   if (!response.ok) throw new Error('Marketplace unavailable');
@@ -88,7 +96,8 @@ app.post('/purchase',requireKey,async(req,res)=>{
     const paid=await fetch(url,{method:'POST',headers:{...serviceHeaders(),...headers},body:JSON.stringify(body),signal:AbortSignal.timeout(150_000)});
     const response=await paid.json();
     res.status(paid.status).json(response);
-  } catch {
+  } catch (error) {
+    console.error('purchase interrupted:', error instanceof Error ? error.message : error);
     const row=ledger.get(body.request_id)!;
     if(row.status==='reserved')ledger.update(body.request_id,'uncertain',null,null,'Purchase interrupted; reconcile before retry');
     res.status(503).json({payment:ledger.receipt(ledger.get(body.request_id)!),error:{code:'PURCHASE_INTERRUPTED',message:'Purchase interrupted. Inspect ledger; automatic repeat payment disabled.'}});
@@ -126,7 +135,11 @@ app.post('/api/inference/:modelId',requireKey,async(req,res)=>{
     if(!auth?.nonce)throw new Error('ERC-3009 authorization required');
     ledger.authorization(body.request_id,`${AUSD}:${verified.payer}:${auth.nonce}`.toLowerCase(),payload);
     ledger.update(body.request_id,'settling');
-    const settled=await c.facilitator.settle(payload,required);
+    const settled=await settleSerially(async()=>{
+      const outcome=await c.facilitator.settle(payload,required);
+      if(outcome.success && outcome.transaction)await c.publicClient.waitForTransactionReceipt({hash:outcome.transaction as Hex,confirmations:1,timeout:60_000});
+      return outcome;
+    });
     if(!settled.success || !settled.transaction){
       ledger.update(body.request_id,'uncertain',settled.transaction || null,null,'Settlement not confirmed; reconcile before retry');
       res.status(503).json({payment:ledger.receipt(ledger.get(body.request_id)!),error:{code:'SETTLEMENT_UNCONFIRMED',message:'No verified settlement'}});return;
@@ -145,13 +158,15 @@ app.post('/api/inference/:modelId',requireKey,async(req,res)=>{
       ledger.update(body.request_id,'settled',settled.transaction,null,'Inference failed after payment; do not purchase again');
       res.status(503).json({payment:ledger.receipt(ledger.get(body.request_id)!),error:{code:'INFERENCE_FAILED',message:'Payment settled but model inference failed; inspect worker and receipt'}});
     }
-  } catch {
+  } catch (error) {
+    console.error('provider failed:', error instanceof Error ? error.message : error);
     const row=ledger.get(body.request_id);
     if(row && row.status!=='settled')ledger.update(body.request_id,'uncertain',null,null,'Provider interrupted; reconciliation required');
     res.status(503).json({payment:row?ledger.receipt(ledger.get(body.request_id)!):null,error:{code:'PROVIDER_FAILED',message:'Provider rejected or could not complete payment; inspect ledger'}});
   } finally { active.delete(body.request_id); }
 });
 app.use((error: Error,_req:express.Request,res:express.Response,_next:express.NextFunction)=>{
+  console.error('payment request failed:', error.message);
   res.status(error instanceof z.ZodError?422:503).json({error:{code:'SERVICE_UNAVAILABLE',message:error instanceof z.ZodError?'Invalid inference request':missing().length?`Testnet setup missing: ${missing().join(', ')}`:/Allowance|allowlist|threshold|Insufficient unreserved/.test(error.message)?error.message:'Purchase unavailable: check Allowance, provider and RPC configuration'}});
 });
 app.listen(port,process.env.PAYMENT_HOST || '127.0.0.1',()=>console.log(`RoboMarket x402 service on ${port}; mode=testnet; configured=${missing().length===0}`));

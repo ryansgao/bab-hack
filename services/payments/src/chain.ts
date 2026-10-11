@@ -43,7 +43,13 @@ async function setup() {
   ]}});
   const actual = await publicClient.readContract({address:AUSD,abi,functionName:'DOMAIN_SEPARATOR'});
   if (expected.toLowerCase() !== actual.toLowerCase()) throw new Error('AUSD EIP-712 domain mismatch; set verified AUSD_DOMAIN_NAME/VERSION');
-  const buyer = new x402HTTPClient(new x402Client().register(NETWORK, new BuyerScheme(robot)));
+  // AUSD is not one of the SDK's default assets, so it must be allowed explicitly. The per-payment
+  // cap repeats the wallet's per-call Allowance inside the signer as a second line of defence.
+  const cap = String(Math.round(Number(process.env.MAX_PER_CALL_AUSD || '0.05') * 1_000_000));
+  const buyer = new x402HTTPClient(x402Client.fromConfig({
+    schemes: [{ network: NETWORK, client: new BuyerScheme(robot) }],
+    spendControls: { allowedAssets: [{ network: NETWORK, asset: AUSD, maxAmountPerPayment: cap }] },
+  }));
   return { publicClient, robot, buyer, facilitator: new FacilitatorScheme(signer), domain: { name, version, assetTransferMethod: 'eip3009' } };
 }
 export function requirements(amount: number, payTo: Address, extra: Record<string,unknown>): PaymentRequirements {
