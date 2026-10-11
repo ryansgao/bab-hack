@@ -3,6 +3,15 @@ from services.agent.selection import select
 from shared.schemas.contracts import CandidateEvaluation
 
 def select_step(plan, step, request, offers):
+    from apps.simulation.matcha_demo import forced_bounty, SCENARIO
+    if forced_bounty(plan,step):
+        decision=virtual_decision(plan,step,select(request,[],exact=True))
+        decision.explanation='This demo reserves serving for a producer bounty. The request is posted automatically; a free virtual serving preview completes the illustration.'
+        return decision
+    if plan.demo_scenario==SCENARIO:
+        offers=[offer for offer in offers if offer.id=='matcha_demo_'+step.id.removeprefix('matcha_')]
+        decision=select(request,offers,exact=True)
+        return virtual_decision(plan,step,decision) if decision.safe_fallback else decision
     decision=select(request,offers)
     if not decision.safe_fallback or request.execution_mode!='simulation': return decision
     return virtual_decision(plan,step,decision)

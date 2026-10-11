@@ -1,5 +1,6 @@
 export type View = "home" | "mission" | "marketplace" | "bounties" | "wallet" | "robot";
 export type Offer = {
+  simulation_program?: Record<string,unknown> | null;
   simulation_placeholder?: boolean;
   category: string; tags: string[]; specialist: boolean;
   execution_mode: "simulation" | "testnet";
@@ -44,7 +45,7 @@ export type Receipt = {
   pay_to?: string | null;
   audit_explorer_url?: string | null;
 };
-export type PlannerConfig = { provider: string; model: string; configured: boolean; message: string };
+export type PlannerConfig = { provider: string; model: string; configured: boolean; message: string; matcha_demo?:{enabled:boolean;prompt:string} };
 export type SimulationScene = {
   id: string;
   source: string;
@@ -83,6 +84,7 @@ export type Step = {
   } | null;
 };
 export type Plan = {
+  demo_scenario?: string | null;
   robot_visual?: {name:string;form:'arm'|'mobile'|'humanoid';body_color:string;accent_color:string;context_summary:string};
   planning_usage?: { input_tokens: number; output_tokens: number; cache_creation_input_tokens: number; cache_read_input_tokens: number; estimated_cost_usd: string | null; pricing_source: string; rates_checked_at: string };
   simulation_fallbacks?: Offer[];

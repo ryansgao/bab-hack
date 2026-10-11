@@ -142,7 +142,9 @@ credits; no on-chain purchase occurs. Do not claim real perception or real payme
 """
 
 def planner_status():
+    from apps.simulation.matcha_demo import enabled, PROMPT
     return {'provider': 'anthropic', 'model': os.getenv('ANTHROPIC_MODEL', '').strip() or DEFAULT_MODEL,
+            'matcha_demo': {'enabled':enabled(), 'prompt':PROMPT},
             'configured': bool(os.getenv('ANTHROPIC_API_KEY', '').strip()),
             'message': 'Add ANTHROPIC_API_KEY to the server .env and restart to enable task planning.'}
 
@@ -196,6 +198,8 @@ def validate_graph(draft, request):
     return ordered
 
 def decompose(request):
+    from apps.simulation import matcha_demo
+    if matcha_demo.matches(request): return matcha_demo.plan(request)
     settings = planner_status()
     if not settings['configured']: raise PlannerError(settings['message'], 503)
     from apps.simulation.catalog import scene_for_task

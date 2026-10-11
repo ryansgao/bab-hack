@@ -412,9 +412,16 @@ function Composer({
                 ))}
               </select>
             </label>
+            <label>Execution mode <select aria-label="Execution mode" value={data.executionMode} onChange={e=>data.setExecutionMode(e.target.value as 'simulation'|'testnet')}><option value="simulation">Simulation · USD estimates</option><option value="testnet">Real providers · AUSD testnet</option></select></label>
+            <label>Automatic bounty reward (USD) <input aria-label="Automatic bounty reward" type="number" min="0.000001" step="0.01" value={data.bountyReward} onChange={e=>data.setBountyReward(e.target.value)}/></label>
+            <label><input type="checkbox" checked={data.autoBounties} onChange={e=>data.setAutoBounties(e.target.checked)}/> Automatically post bounties for missing skills</label>
           </div></div>
         </div>
       </div>
+      <div className="suggestions">
+        {data.planner?.matcha_demo?.enabled&&<button onClick={()=>{data.setTask(data.planner!.matcha_demo!.prompt);data.setExecutionMode('simulation');data.setBudget('0.25');data.setAutoBounties(true);data.setBountyReward('5.00');input.current?.focus();}}>Make a matcha latte <ArrowUp size={12}/></button>}
+      </div>
+      <div className="media-context-note"><label className="secondary upload-context"><ImagePlus size={14}/>{data.mediaBusy?'Preparing reference files…':'Upload documents, images or video'}<input type="file" aria-label="Upload task reference files" multiple accept="image/png,image/jpeg,image/webp,image/gif,application/pdf,.txt,.md,.csv,.json,video/mp4,video/webm,video/quicktime" disabled={data.mediaBusy||data.busy} onChange={async e=>{const files=Array.from(e.target.files||[]);e.target.value='';for(const file of files)await data.uploadMedia(file);}}/></label><p>Optional references go to Anthropic with your prompt. PDF/text and images are supported; videos use six frames without audio.</p><div className="attachment-list">{data.media.map((file,i)=><div key={i}><span>{file.name}</span><small>{file.kind==='video'?`${file.frames?.length||0} frames`:file.kind.toUpperCase()}</small><button className="icon-button" aria-label={`Remove ${file.name}`} onClick={()=>data.removeMedia(i)}><X size={12}/></button></div>)}</div></div>
       <ol className="how-it-works">
         <li>
           <strong>Describe a task</strong>
@@ -625,7 +632,7 @@ function Mission({ data, onNew, onBounties, onRobot }: { data: RoboMarket; onNew
     <div className="page mission-page enter">
       <div className="page-heading">
         <div>
-          <h1>{plan.request.task}</h1>
+          <h1>{plan.demo_scenario==='matcha_demo_v1'?'Make me a matcha latte':plan.request.task}</h1>
         </div>
         <button className="secondary" onClick={onNew} disabled={busy}>
           <Plus size={15} />
@@ -633,7 +640,8 @@ function Mission({ data, onNew, onBounties, onRobot }: { data: RoboMarket; onNew
         </button>
       </div>
       <div className="mission-robot-link glass-quiet"><Bot size={20}/><div><strong>{plan.robot_visual?.name||'Generated demo robot'} · from your prompt{plan.request.media?.length?` + ${plan.request.media.length} reference files`:''}</strong><span>{plan.subtasks[liveStep(plan)]?.title} · {humanize(plan.status)}</span></div><button className="secondary" onClick={onRobot}>Open 3D studio <ArrowRight size={13}/></button></div>
-      {simulated&&<div className="simulation-mode glass-quiet"><strong>Simulation · This scene and robot follow your mission</strong><p>Run Simulation opens the live 3D workcell. Marketplace spending is simulated; Claude planning is billed separately.</p>{!!virtualSteps.length && <p><strong>{virtualSteps.length} {virtualSteps.length===1?'step uses':'steps use'} free virtual demo effects.</strong> These illustrate expected outcomes while marketplace skills are unavailable.</p>}</div>}
+      {plan.demo_scenario==='matcha_demo_v1'&&<div className="bounty-mission-notice glass-quiet"><Sparkles size={18}/><div><strong>Matcha demo · 6 recipe steps · 5 marketplace skills · 1 producer bounty</strong><p>Skills cost $0.22 in total. Serving opens a separate $5 demo bounty and uses a free virtual preview. This fixed demo recipe makes no planning API call.</p></div></div>}
+      {simulated&&<div className="simulation-mode glass-quiet"><strong>Simulation · This scene and robot follow your mission</strong><p>Run Simulation opens the live 3D workcell. Marketplace spending is simulated{plan.demo_scenario?'.':'; Claude planning is billed separately.'}</p>{!!virtualSteps.length && <p><strong>{virtualSteps.length} {virtualSteps.length===1?'step uses':'steps use'} free virtual demo effects.</strong> These illustrate expected outcomes while marketplace skills are unavailable.</p>}</div>}
       <MissionPricing plan={plan} data={data}/>
       <div className="mission-summary mission-status-only glass-quiet">
         <div>
@@ -655,7 +663,7 @@ function Mission({ data, onNew, onBounties, onRobot }: { data: RoboMarket; onNew
         </div>
       </div>
       {simulated && <TaskPreviewToggle data={data} plan={plan} selected={selected} onSelect={setSelected} />}
-      {!!plan.bounty_ids?.length && <div className="bounty-mission-notice glass-quiet"><Flag size={18}/><div><strong>{plan.bounty_ids.length} missing-skill {plan.bounty_ids.length===1?'bounty':'bounties'} posted automatically</strong><p>{simulated?'Your demo can continue with virtual effects while producers deliver these skills.':'Producers can deliver the missing capabilities.'} Review submissions, then rebuild to use a published solution.</p><button className="secondary" onClick={onBounties}>View bounties</button><button className="secondary" disabled={busy || !['blocked','planned','completed'].includes(plan.status)} onClick={()=>void data.replan()}>Rebuild with new expertise</button></div></div>}
+      {!!plan.bounty_ids?.length && <div className="bounty-mission-notice glass-quiet"><Flag size={18}/><div><strong>{plan.bounty_ids.length} missing-skill {plan.bounty_ids.length===1?'bounty':'bounties'} posted automatically</strong><p>{simulated?'Your demo can continue with virtual effects while producers deliver these skills.':'Producers can deliver the missing capabilities.'} {plan.demo_scenario?'Serving stays reserved for the bounty in this demo.':'Review submissions, then rebuild to use a published solution.'}</p><button className="secondary" onClick={onBounties}>View bounties</button><button className="secondary" disabled={busy || !['blocked','planned','completed'].includes(plan.status)} onClick={()=>void data.replan()}>{plan.demo_scenario?'Build another demo':'Rebuild with new expertise'}</button></div></div>}
       {plan.status === "blocked" && (
         <div className="mission-alert" role="status">
           <CircleHelp size={19} />

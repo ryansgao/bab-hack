@@ -60,11 +60,20 @@ export default function WorkbenchScene({scene:fixture,plan,selected=0,robot=DEFA
       const [x,,z]=point(fixture,...xy);const target=new THREE.Group();scene.add(target);target.position.set(x,TABLE_Y+.003,z);
       const zone=box(.14,.002,.13,mat('#639575',{transparent:true,opacity:.12}),0,0,0,target);zone.castShadow=false;ring(.09,.0015,green,0,.002,0,target);
     }
-    const objects=new Map<string,any>(),focusRings=new Map<string,any>();
+    const objects=new Map<string,any>(),focusRings=new Map<string,any>(),liquids=new Map<string,any>();
     for(const item of fixture.objects){
       const group=new THREE.Group();scene.add(group);objects.set(item.id,group);
       const [w,d,h]=item.size_mm.map(v=>Math.max(.004,Math.min(.65,v/1000)));const color=mat(item.color);const name=item.name.toLowerCase();
-      if(/basket|tray|bowl|container/.test(name)){
+      if(/matcha bowl|latte glass/.test(name)){
+        const r=Math.min(w,d)*.47,isGlass=/glass/.test(name);
+        const vessel=mat(isGlass?'#cee8e5':item.color,{transparent:isGlass,opacity:isGlass?.28:1,roughness:isGlass?.08:.35,metalness:0,side:THREE.DoubleSide,depthWrite:!isGlass});
+        const body=mesh(new THREE.CylinderGeometry(r,r*.85,h,48,1,true),vessel,group);body.position.y=h/2;
+        cyl(r*.83,.005,vessel,0,.004,0,group);ring(r,.0025,isGlass?vessel:white,0,h,0,group);
+        const liquid=cyl(r*.81,1,mat('#72a45b',{roughness:.27,metalness:0}),0,.01,0,group);liquid.visible=false;liquids.set(item.id,liquid);
+      }else if(/bamboo whisk/.test(name)){
+        cyl(.010,h*.60,color,0,h*.70,0,group);ring(.022,.0018,color,0,h*.18,0,group);
+        for(let i=0;i<18;i++){const angle=i*Math.PI/9;const tine=mesh(new THREE.CylinderGeometry(.0009,.0015,h*.48,8),color,group);tine.position.set(Math.cos(angle)*.019,h*.26,Math.sin(angle)*.019);tine.rotation.z=Math.cos(angle)*.20;tine.rotation.x=Math.sin(angle)*.20;}
+      }else if(/basket|tray|bowl|container/.test(name)){
         box(w,.008,d,color,0,.004,0,group);for(const x of [-w/2,w/2])box(.008,h,d,color,x,h/2,0,group);for(const z of [-d/2,d/2])box(w,h,.008,color,0,h/2,z,group);
         if(/basket/.test(name))for(let y=.03;y<h;y+=.022){for(const x of [-w/2-.004,w/2+.004])box(.002,.003,d*.88,black,x,y,0,group);}
       }else if(/shirt|towel|sock|clothes|glove/.test(name)){
@@ -113,6 +122,7 @@ export default function WorkbenchScene({scene:fixture,plan,selected=0,robot=DEFA
     const route=new THREE.Line(new THREE.BufferGeometry(),new THREE.LineDashedMaterial({color:'#dc9c57',dashSize:.015,gapSize:.009}));scene.add(route);
     const sweep=mesh(new THREE.ConeGeometry(.12,.50,32,1,true),new THREE.MeshBasicMaterial({color:'#72bd98',transparent:true,opacity:.085,depthWrite:false}));sweep.rotation.x=Math.PI;sweep.castShadow=false;
     const idle=new THREE.Vector3(.15,TABLE_Y+.26,.16),end=new THREE.Vector3();
+    const stream=cyl(.003,1,mat('#88b774',{transparent:true,opacity:.72,roughness:.2}),0,0,0);stream.visible=false;stream.castShadow=false;
     const link=(object:any,a:any,b:any)=>{const delta=b.clone().sub(a);object.position.copy(a).add(b).multiplyScalar(.5);object.scale.y=delta.length();object.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),delta.normalize());};
     const solve=(target:any)=>{
       const delta=target.clone().add(new THREE.Vector3(0,.09,0)).sub(shoulder),reach=robot.reach_mm/1000;
@@ -136,17 +146,36 @@ export default function WorkbenchScene({scene:fixture,plan,selected=0,robot=DEFA
       const relevant=state.arm?.plan_id===state.plan?.id && state.arm?.step_id===current?.id;
       const observedKey=`${state.arm?.step_id}:${state.arm?.progress}:${state.arm?.running}`;
       if(observedKey!==snapshotKey){snapshotKey=observedKey;snapshotAt=time;snapshotProgress=state.arm?.progress||0;}
-      let progress=state.mode==='live' ? current?.status==='completed'?1:relevant && state.arm?.output && ['control','object_placement'].includes(current?.task_type||'')?Math.min(1,snapshotProgress+(state.arm.running?(time-snapshotAt)/1000/(state.arm.motion_duration_s||4):0)):Math.min(1,(time-started)/1300):Math.min(1,(time-started)/4200);
+      let progress=state.mode==='live' ? current?.status==='completed'?1:relevant && state.arm?.output && (current?.result?.output.trajectory || ['control','object_placement'].includes(current?.task_type||''))?Math.min(1,snapshotProgress+(state.arm.running?(time-snapshotAt)/1000/(state.arm.motion_duration_s||4):0)):Math.min(1,(time-started)/1300):Math.min(1,(time-started)/4200);
       if(reduced.matches)progress=1;
       const selectedObject=subject(fixture,current),target=selectedObject?position(fixture,selectedObject,state.plan?.subtasks,state.selected).xyz:null;
-      let grip=.04;end.copy(idle);sweep.visible=false;route.visible=false;
+      let grip=.04;end.copy(idle);sweep.visible=false;route.visible=false;stream.visible=false;
       robotRoot.position.set(0,0,0);
       if(current&&/nav|locomotion|move_robot/.test(current.task_type)){const targetZone=destination(fixture,current,state.plan?.subtasks||[]);if(targetZone)robotRoot.position.set(targetZone[0]*smooth(progress),0,(targetZone[2]-.52)*smooth(progress));}
-      for(const item of fixture.objects){const group=objects.get(item.id),pose=position(fixture,item,state.plan?.subtasks,state.selected);group.position.set(...pose.xyz);group.visible=!pose.hidden;group.scale.set(1,1,1);focusRings.get(item.id).visible=item.id===selectedObject?.id;}
+      for(const item of fixture.objects){const group=objects.get(item.id),pose=position(fixture,item,state.plan?.subtasks,state.selected);group.position.set(...pose.xyz);group.rotation.set(0,0,0);group.visible=!pose.hidden;group.scale.set(1,1,1);focusRings.get(item.id).visible=item.id===selectedObject?.id;
+        const liquid=liquids.get(item.id);if(liquid){const traits={...item.traits};for(const previous of state.plan?.subtasks.slice(0,state.selected)||[]){const updates=previous.result?.output.trait_updates as Record<string,Record<string,string>>|undefined;if(updates?.[item.id])Object.assign(traits,updates[item.id]);}
+          const updates=current?.result?.output.trait_updates as Record<string,Record<string,string>>|undefined;
+          const interpolated=(key:string)=>Number(traits[key]||0)+(Number(updates?.[item.id]?.[key]??traits[key]??0)-Number(traits[key]||0))*smooth(Math.max(0,(progress-.35)/.35));
+          const water=interpolated('water_ml'),milk=interpolated('milk_ml'),matcha=interpolated('matcha_ml');const ml=water+milk+matcha;
+          const level=Math.min(item.size_mm[2]/1000*.8,ml/250*(item.size_mm[2]/1000*.85));liquid.visible=ml>0;liquid.scale.y=Math.max(.001,level);liquid.position.y=level/2+.006;liquid.material.color.set(milk>0?(matcha>0?'#8aac6b':'#f3e9cc'):'#6d974e');
+        }
+      }
       if(current&&target&&selectedObject){
         const object=objects.get(selectedObject.id),height=Math.max(.004,selectedObject.size_mm[2]/1000),center=new THREE.Vector3(...target).add(new THREE.Vector3(0,height/2,0));
         const virtual=!!current.decision?.candidates.find(c=>c.model.id===current.decision?.selected_model_id)?.model.simulation_placeholder;
-        if(current.task_type==='control'&&!virtual){
+        const program=current.decision?.candidates.find(c=>c.model.id===current.decision?.selected_model_id)?.model.simulation_program;
+        const motion=String(current.result?.output.motion_kind||program?.motion_kind||'');
+        const toolItem=fixture.objects.find(o=>o.id===current.result?.output.tool_object_id || o.name===program?.tool_name);
+        if(toolItem&&['pour','whisk','scoop'].includes(motion)&&!virtual){
+          const tool=objects.get(toolItem.id),origin=new THREE.Vector3(...position(fixture,toolItem,state.plan?.subtasks,state.selected).xyz),toolH=toolItem.size_mm[2]/1000;
+          const above=center.clone().add(new THREE.Vector3(0,height/2+.12,0)),lift=origin.clone().add(new THREE.Vector3(0,.25,0));
+          if(progress<.15)end.copy(idle).lerp(origin.clone().add(new THREE.Vector3(0,toolH,0)),smooth(progress/.15));
+          else if(progress<.35)end.copy(lift).lerp(above,smooth((progress-.15)/.20));
+          else if(progress<.75){end.copy(above);if(motion==='whisk'){end.y=center.y+height*.55;end.x+=Math.sin(progress*Math.PI*24)*.016;end.z+=Math.cos(progress*Math.PI*24)*.016;tool.rotation.y=progress*Math.PI*24;}else{tool.rotation.z=-.85;stream.visible=true;const bottom=center.clone().add(new THREE.Vector3(0,height*.2,0));link(stream,end,bottom);stream.material.color.set(current.task_type==='matcha_milk_pouring'?'#f3e9cc':current.task_type==='matcha_water_pouring'?'#a9dce5':'#6d974e');}}
+          else end.copy(above).lerp(origin.clone().add(new THREE.Vector3(0,toolH,0)),smooth((progress-.75)/.25));
+          grip=.014;if(progress>.15&&progress<.99)tool.position.copy(end).add(new THREE.Vector3(0,-toolH*.6,0));
+          if(progress>=.99){tool.position.copy(origin);tool.rotation.set(0,0,0);end.copy(idle);}
+        }else if(current.task_type==='control'&&!virtual){
           if(progress<.34)end.copy(idle).lerp(center.clone().add(new THREE.Vector3(0,.12,0)),smooth(progress/.34));
           else if(progress<.53){end.copy(center).add(new THREE.Vector3(0,.12*(1-smooth((progress-.34)/.19)),0));grip=.04*(1-smooth((progress-.34)/.19))+.014;}
           else{end.copy(center).add(new THREE.Vector3(0,.18*smooth((progress-.53)/.27),0));grip=Math.min(.06,selectedObject.size_mm[0]/2000);object.position.y=end.y-height/2;}
@@ -159,6 +188,7 @@ export default function WorkbenchScene({scene:fixture,plan,selected=0,robot=DEFA
         }else if(virtual){
           // Fictional transformations have a separate visual treatment; no grasp is invented.
           end.copy(idle);const folded=/fold/.test(current.task_type);if(folded)object.scale.set(1-.45*smooth(progress),1+.9*smooth(progress),1-.45*smooth(progress));
+          if(current.destination){const dest=destination(fixture,current,state.plan?.subtasks||[]);if(dest)object.position.set(target[0]+(dest[0]-target[0])*smooth(progress),target[1]+Math.sin(progress*Math.PI)*.08,target[2]+(dest[2]-target[2])*smooth(progress));}
           if(current.simulation_effect?.hide_object)object.scale.setScalar(Math.max(.001,1-smooth(progress)));
           if(/wash|clean/.test(current.task_type)){object.rotation.y=Math.sin(time*.008)*.04;focusRings.get(selectedObject.id).material.color.set('#61a9c7');}
         }else{sweep.visible=true;sweep.position.copy(center).add(new THREE.Vector3(0,.25,0));}

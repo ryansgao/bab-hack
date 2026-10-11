@@ -58,10 +58,11 @@ def auto_post(plan):
     if not plan.request.auto_bounties: return plan
     models=registry.list_models()
     gaps=[]
+    from apps.simulation.matcha_demo import forced_bounty
     for step in plan.subtasks:
         available=[m for m in models if m.execution_mode==plan.request.execution_mode and m.task_type==step.task_type
             and not registry.compatibility(m,plan.request.robot_card,step.object_name)]
-        if not available: gaps.append(step)
+        if forced_bounty(plan,step) or not available: gaps.append(step)
     with db() as conn:
         conn.execute('BEGIN IMMEDIATE')
         for step in gaps:

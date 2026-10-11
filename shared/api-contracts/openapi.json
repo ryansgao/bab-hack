@@ -377,6 +377,66 @@
         }
       }
     },
+    "/api/marketplace/match": {
+      "post": {
+        "tags": [
+          "marketplace"
+        ],
+        "summary": "Match",
+        "description": "Rank listings by relevance to a mission step described in plain language.\n\nReturns the inferred capability and object plus each listing's relevance and\nits parts (capability probability, object fit, text similarity).",
+        "operationId": "match_api_marketplace_match_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/marketplace/matcher/evaluation": {
+      "get": {
+        "tags": [
+          "marketplace"
+        ],
+        "summary": "Matcher Evaluation",
+        "description": "Accuracy of the matching model on held-out phrasings.",
+        "operationId": "matcher_evaluation_api_marketplace_matcher_evaluation_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/bounties": {
       "get": {
         "tags": [
@@ -1298,6 +1358,68 @@
         ],
         "title": "InferenceResult"
       },
+      "MatchRequest": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 2,
+            "title": "Text"
+          },
+          "task_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{1,63}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task Type"
+          },
+          "object_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Object Name"
+          },
+          "execution_mode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "testnet",
+                  "simulation"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Execution Mode"
+          },
+          "top_k": {
+            "type": "integer",
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Top K",
+            "default": 10
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "MatchRequest"
+      },
       "MediaFrame": {
         "properties": {
           "timestamp_s": {
@@ -1321,6 +1443,17 @@
       },
       "MissionPlan": {
         "properties": {
+          "demo_scenario": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Demo Scenario"
+          },
           "robot_visual": {
             "additionalProperties": true,
             "type": "object",

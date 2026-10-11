@@ -189,6 +189,7 @@ class Subtask(Contract):
     error: str | None = None
 
 class MissionPlan(Contract):
+    demo_scenario: str | None = None
     robot_visual: dict = Field(default_factory=dict)
     planning_usage: dict = Field(default_factory=dict)
     simulation_fallbacks: list[ModelOffer] = Field(default_factory=list, max_length=64)

@@ -56,6 +56,9 @@ def infer_simulated(request):
         if not offer or offer.execution_mode!='simulation' or not offer.simulation_program: raise ValueError('Unknown simulation adapter')
         program = offer.simulation_program; cap = offer.task_type
     else: cap=SIM_IDS[adapter_id]
+    if program and program.get('operation')=='matcha_demo':
+        from apps.simulation.matcha_demo import infer
+        return infer(request,program)
     scene=deepcopy(data.simulation_scene)
     matches=find_objects(scene,data.object_name)
     generic={'camera_capture','image_quality','scene_mapping','completion_verification'}

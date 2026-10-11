@@ -33,8 +33,8 @@ Open **http://127.0.0.1:8000**. Set `ANTHROPIC_API_KEY` in the server-only `.env
 and restart to enable planning. The example key is intentionally blank.
 `ANTHROPIC_MODEL` defaults to `claude-sonnet-4-5` and can be changed to a model
 available to your account, including `claude-opus-5-5`. The planner uses automatic
-tool selection and validates the returned task graph locally. There is no
-keyword-parser fallback or fabricated plan.
+tool selection and validates the returned task graph locally. Ordinary missions have no keyword-parser fallback. The separately enabled
+matcha hackathon scenario described below is deterministic and labeled in the UI.
 The prompt, optional reference files, and capability catalog go to Anthropic.
 Claude infers the robot, appearance, dimensions and fixture objects from this
 context; there is no manually configured robot panel or preset scene sent as user
@@ -201,3 +201,31 @@ for 0.0036 demo credits. It generated both objects, opened washing/folding bount
 and placed the shirt at the basket's simulated location. The 3D preview showed the
 generated objects and placement. These are fictional demo outcomes, not physical
 eating or laundry operations. No automated tests added.
+
+## Matcha hackathon scenario
+
+`MATCHA_DEMO_ENABLED=true` (default) enables one isolated simulation profile in
+`apps/simulation/matcha_demo.py`. Click **Make a matcha latte** or paste:
+
+> Make me a matcha latte: measure 2 g of matcha, add 60 mL of water at 75°C, whisk until smooth, add 150 mL of oat milk to a glass, combine the matcha with the milk, and serve it on the serving tray.
+
+It always produces six meaningful recipe actions in the same order. Five seeded
+fixture skills measure matcha ($0.03), pour water ($0.04), whisk ($0.06), pour
+milk ($0.04), and combine ($0.05): **$0.22 total**. They validate recipe quantities
+and direct prerequisite evidence internally and persist ingredient state. The
+shared 3D workcell animates lifting tools, pouring, whisking and liquid levels.
+No Anthropic call is made for this exact demonstration; its planning cost is $0.
+
+The sixth step always posts/links an open **$5 demo bounty** for serving, even
+when the general catalog later gains that capability. Repeated plans reuse an
+open request; a fulfilled request results in a new one. A free virtual serving
+preview illustrates the outcome while the bounty stays open. This is not a
+producer delivery, bounty payment or physical robot action. The demo enforces a
+minimum $0.25 skill limit and automatically enables bounties. Simulation charges
+no money; the bounty pledge is separate from the skill quote.
+
+To return to normal planning, set **`MATCHA_DEMO_ENABLED=false`** in the server
+`.env` and restart. This disables exact-prompt routing, hides the five demo
+listings and removes the UI suggestion. Other prompts always use the ordinary
+Anthropic planner. Attached media or real-provider mode also use that normal
+flow. No database deletion or general-planner revert is required.
