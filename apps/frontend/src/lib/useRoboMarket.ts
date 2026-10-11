@@ -186,7 +186,7 @@ export function useRoboMarket() {
           if (event.type === 'snapshot') {
             if (event.payload.arm) setArm(event.payload.arm);
             const snapshot = event.payload.plan;
-            if (snapshot?.id === activePlan.current?.id) {
+            if (snapshot && snapshot.id === activePlan.current?.id) {
               setPlan(current => current?.id === snapshot.id ? { ...current, ...snapshot } : current);
             }
           }
