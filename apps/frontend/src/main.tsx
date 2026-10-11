@@ -260,13 +260,9 @@ function WalletCard({
 function Composer({
   data,
   onPlanned,
-  hero,
-  footer,
 }: {
   data: RoboMarket;
   onPlanned: () => void;
-  hero?: ReactNode;
-  footer?: ReactNode;
 }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const input = useRef<HTMLTextAreaElement>(null);
@@ -285,9 +281,13 @@ function Composer({
   return (
     <div className="compose-page enter">
       <div className="hero-heading">
-        {hero ?? <h1>New mission</h1>}
+        <h1>Model weights for robots, paid per call</h1>
+        <p>
+          A marketplace for physical AI. Developers sell VLAs, expert models,
+          and policy layers. Your robot rents exactly the ones a task needs and
+          pays per inference.
+        </p>
       </div>
-      <div className="simulation-mode glass-quiet"><label>Execution mode <select aria-label="Execution mode" value={data.executionMode} onChange={e=>data.setExecutionMode(e.target.value as "simulation"|"testnet")}><option value="simulation">Simulation · USD estimates</option><option value="testnet">Real providers · AUSD testnet</option></select></label><p>{data.executionMode==="simulation"?"Your prompt creates the demo scene. Available marketplace skills run locally; missing skills use free virtual effects and can open producer bounties. Claude planning usage still applies.":"Real model inference and testnet payments. Supply an observation and funded wallets."}</p></div>
       <div className="composer glass-raised">
         <textarea
           ref={input}
@@ -308,6 +308,19 @@ function Composer({
             }
           }}
         />
+        {!!data.media.length && (
+          <div className="attachment-list">
+            {data.media.map((file, i) => (
+              <div key={i}>
+                <span>{file.name}</span>
+                <small>{file.kind === "video" ? `${file.frames?.length || 0} frames` : file.kind.toUpperCase()}</small>
+                <button className="icon-button" aria-label={`Remove ${file.name}`} onClick={() => data.removeMedia(i)}>
+                  <X size={12} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
         {data.image && (
           <div className="attachment">
             <ImagePlus size={14} />
@@ -372,7 +385,7 @@ function Composer({
         <div id="mission-settings" className={"mission-settings-wrap " + (settingsOpen ? "open" : "")} inert={!settingsOpen}>
           <div className="mission-settings-clip"><div className="mission-settings">
             <label>
-              Skill spending limit <span>USD · maximum for marketplace calls</span>
+              Spending limit (USD)
               <input
                 aria-label="Skill spending limit in USD"
                 type="number"
@@ -399,41 +412,32 @@ function Composer({
                 ))}
               </select>
             </label>
-            <p>
-              Parameters apply to this plan. Settlement time is separate from
-              inference time.
-            </p>
           </div></div>
         </div>
       </div>
-      <div className="media-context-note"><label className="secondary upload-context"><ImagePlus size={14}/>{data.mediaBusy?'Preparing reference files…':'Upload documents, images or video'}<input type="file" aria-label="Upload task reference files" multiple accept="image/png,image/jpeg,image/webp,image/gif,application/pdf,.txt,.md,.csv,.json,video/mp4,video/webm,video/quicktime" disabled={data.mediaBusy||data.busy} onChange={async e=>{const files=Array.from(e.target.files||[]);e.target.value='';for(const file of files)await data.uploadMedia(file);}}/></label><p>Optional references are sent to Anthropic with your prompt. PDFs and text documents are supported. Video uses six sampled frames; audio is not analyzed.</p><div className="attachment-list">{data.media.map((file,i)=><div key={i}><span>{file.name}</span><small>{file.kind==='video'?`${file.frames?.length||0} frames`:file.kind.toUpperCase()}</small><button className="icon-button" aria-label={`Remove ${file.name}`} onClick={()=>data.removeMedia(i)}><X size={12}/></button></div>)}</div></div>
-      {data.executionMode === "simulation" && <TaskPreviewToggle data={data} />}
-      <div className="auto-bounty-settings glass-quiet"><label><input type="checkbox" checked={data.autoBounties} onChange={e=>data.setAutoBounties(e.target.checked)} /> Automatically post bounties for missing skills</label>{data.autoBounties && <label className="bounty-reward-setting">Reward per missing capability <input aria-label="Automatic bounty reward" type="number" min="0.000001" step="0.001" value={data.bountyReward} onChange={e=>data.setBountyReward(e.target.value)} /><span>{data.executionMode==='simulation'?'USD demo pledge':'USD pledge'}</span></label>}<p>Creates a producer request when no compatible skill exists. Posting commits a reward pledge; it does not send a payment.</p></div>
-      <div className="suggestions">
-        <span>A place to start</span>
-        {[
-          "Organize my workbench",
-          "Find and inspect a coffee mug",
-          "Sort packages by destination",
-        ].map((task) => (
-          <button
-            key={task}
-            onClick={() => {
-              data.setTask(task);
-              input.current?.focus();
-            }}
-          >
-            {task}
-            <ArrowUp size={12} />
-          </button>
-        ))}
-      </div>
-      <div className="planner-status glass-quiet" role="status"><Sparkles size={15} /><div><strong>{data.planner?.configured ? "Planner connected" : "Planner setup needed"}</strong><p>{data.planner?.configured ? `${data.planner.model} · Your goal becomes a dependency graph of purchasable skills.` : "Configure the planning service on the server to build a mission. Your API key stays on the backend."}</p></div></div>
-      <div className="composer-note">
-        <ShieldCheck size={13} />
-        <span>Review the fine-grained plan before running. Simulation never sends a blockchain payment.</span>
-      </div>
-      {footer}
+      <ol className="how-it-works">
+        <li>
+          <strong>Describe a task</strong>
+          <span>
+            Tell your robot what to do. Claude splits it into steps like
+            perception, grasp planning, and control.
+          </span>
+        </li>
+        <li>
+          <strong>Route to models</strong>
+          <span>
+            Each step goes to the VLA, expert, or layer that best fits your
+            robot’s hardware and budget. Missing one? Post a bounty.
+          </span>
+        </li>
+        <li>
+          <strong>Pay per inference</strong>
+          <span>
+            Weights run on demand, and each call settles as an AUSD
+            micropayment with a receipt.
+          </span>
+        </li>
+      </ol>
     </div>
   );
 }
@@ -1179,19 +1183,6 @@ function App() {
             )}
           </div>
           <div className="topbar-right">
-            <span className="workspace-status">
-              <span
-                className={
-                  "tiny-dot " + (data.online === false ? "offline" : "")
-                }
-              />
-              {data.online === null
-                ? "Connecting"
-                : data.online
-                  ? "Scout is online"
-                  : "Offline"}
-            </span>
-            <span className="topbar-divider" />
 
           </div>
         </header>
@@ -1209,44 +1200,7 @@ function App() {
             </div>
           )}
           {view === "home" && (
-            <Composer
-              data={data}
-              onPlanned={() => navigate("mission")}
-              hero={
-                <>
-                  <h1>A marketplace where robots buy skills</h1>
-                  <p>
-                    Describe a task in plain language. rBazaar breaks it into
-                    steps, finds a skill in the marketplace for each one, and
-                    pays for it per use.
-                  </p>
-                </>
-              }
-              footer={
-                <ol className="how-it-works">
-                  <li>
-                    <strong>Describe a task</strong>
-                    <span>
-                      Say what the robot should do, like “organize my workbench”.
-                    </span>
-                  </li>
-                  <li>
-                    <strong>Match skills</strong>
-                    <span>
-                      Each step gets a skill that fits your robot’s hardware and
-                      budget. If none exists, post a bounty.
-                    </span>
-                  </li>
-                  <li>
-                    <strong>Pay per use</strong>
-                    <span>
-                      Skills run in order and are paid in AUSD micropayments,
-                      with a receipt for each.
-                    </span>
-                  </li>
-                </ol>
-              }
-            />
+            <Composer data={data} onPlanned={() => navigate("mission")} />
           )}
           {view === "mission" && (
             <Mission data={data} onNew={() => void newMission()} onBounties={()=>navigate('bounties')} onRobot={()=>navigate('robot')} />
