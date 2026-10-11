@@ -69,3 +69,12 @@ def test_password_change_export_and_delete(client):
     assert client.post('/api/account/delete', json={'password': 'another long password'}).json() == {'deleted': True}
     assert client.get('/api/auth/me').json()['user'] is None
     assert client.post('/api/auth/login', json={'email': 'a@example.com', 'password': 'another long password'}).status_code == 401
+
+
+def test_a_visitor_gets_a_guest_account_once(client, monkeypatch):
+    first = client.post('/api/auth/guest').json()['user']
+    assert first['sign_in_methods'] == ['guest'] and first['email'] == ''
+    assert client.post('/api/auth/guest').json()['user']['id'] == first['id']
+    monkeypatch.setenv('GUEST_SIGN_IN', '0')
+    client.post('/api/auth/logout')
+    assert client.post('/api/auth/guest').status_code == 404

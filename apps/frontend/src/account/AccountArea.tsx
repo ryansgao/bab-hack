@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
 import {
   ArrowDownLeft, ArrowUpRight, Check, Copy, Download, ExternalLink, Fingerprint, LoaderCircle, LogOut, Pause, Play,
-  ShieldCheck, Trash2, Wallet, Zap,
+  ShieldCheck, Trash2, Wallet,
 } from "lucide-react";
 import type { RoboMarket } from "../lib/useRoboMarket";
 import { humanize } from "../lib/types";
@@ -53,7 +53,7 @@ export default function AccountArea({ data, tab: start = "wallet" }: { data: Rob
       <div className="page-heading">
         <div>
           <h1>{TABS.find((item) => item.key === tab)?.title}</h1>
-          <p>{[user.name, user.email || `signed in with ${user.sign_in_methods.join(", ")}`].join(" · ")}</p>
+          <p>{session.isGuest(user) ? "Guest account with a test wallet. Set a password under Security to keep it." : [user.name, user.email || `signed in with ${user.sign_in_methods.join(", ")}`].join(" · ")}</p>
         </div>
         <button className="secondary" onClick={() => void session.signOut()}><LogOut size={14} /> Sign out</button>
       </div>
@@ -131,6 +131,17 @@ function WalletTab({ data }: { data: RoboMarket }) {
     } catch (reason) { setLoadError((reason as Error).message); }
   }, []);
   useEffect(() => { void load(); const timer = setInterval(() => void load(), 10000); return () => clearInterval(timer); }, [load, data.plan?.status]);
+  // A new account's wallet is empty; claim its starter funds without asking, once.
+  const unfunded = !!wallet?.starter_grant && !wallet.starter_grant.claimed;
+  useEffect(() => {
+    if (!unfunded) return;
+    void action.run("grant", async () => {
+      const result = await call<{ amount_ausd: string }>("/account/wallet/grant", {});
+      await load();
+      return `${ausd(result.amount_ausd)} test AUSD arrived in your wallet.`;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unfunded]);
   if (!wallet) return <p className={loadError ? "account-error" : "preview-loading"}>{loadError || "Reading your wallet from Base Sepolia…"}</p>;
   const address = wallet.owner_address;
   async function withdraw(event: FormEvent) {
@@ -164,15 +175,7 @@ function WalletTab({ data }: { data: RoboMarket }) {
         </p>
         {wallet.setup_error && <p className="account-error">{wallet.setup_error}</p>}
         <div className="account-actions">
-          {wallet.starter_grant && !wallet.starter_grant.claimed && (
-            <button className="primary" disabled={!!action.busy} onClick={() => void action.run("grant", async () => {
-              const result = await call<{ amount_ausd: string }>("/account/wallet/grant", {});
-              await load();
-              return `${ausd(result.amount_ausd)} test AUSD arrived in your wallet.`;
-            })}>
-              {action.busy === "grant" ? <LoaderCircle size={13} className="spin" /> : <Zap size={13} />} Get {ausd(wallet.starter_grant.amount_ausd)} test AUSD
-            </button>
-          )}
+          {action.busy === "grant" && <span className="account-note"><LoaderCircle size={12} className="spin" /> Sending your starter test AUSD…</span>}
           <button className="secondary" disabled={!!action.busy || data.busy} onClick={() => void action.run("test", async () => {
             const plan = await call<{ id: string }>("/account/test-payment", {});
             // Review and pay on the same payment screen a mission uses.

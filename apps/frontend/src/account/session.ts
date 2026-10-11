@@ -78,23 +78,34 @@ function set(user: User | null, config = state.config) {
   state = { user, ready: true, config };
   listeners.forEach((notify) => notify());
 }
+// A visitor is signed in automatically with a guest account and its test wallet, unless they
+// signed out on purpose in this browser (then the sign-in page stays reachable).
+const SIGNED_OUT = "rbazaar-signed-out";
+const remembered = (out: boolean) => { try { out ? localStorage.setItem(SIGNED_OUT, "1") : localStorage.removeItem(SIGNED_OUT); } catch { /* Optional. */ } };
+const choseToSignOut = () => { try { return !!localStorage.getItem(SIGNED_OUT); } catch { return false; } };
 let loading: Promise<void> | undefined;
 function load() {
-  return (loading ??= call<{ user: User | null; providers: SignInConfig["providers"]; walletconnect_project_id: string }>("/auth/me")
-    .then((result) => set(result.user, { providers: result.providers, walletConnectProjectId: result.walletconnect_project_id }))
+  return (loading ??= call<{ user: User | null; providers: SignInConfig["providers"]; walletconnect_project_id: string; guest_sign_in: boolean }>("/auth/me")
+    .then(async (result) => {
+      const config = { providers: result.providers, walletConnectProjectId: result.walletconnect_project_id };
+      const user = result.user || (result.guest_sign_in && !choseToSignOut() ? (await call<{ user: User }>("/auth/guest", {})).user : null);
+      set(user, config);
+    })
     .catch(() => set(null)));
 }
 export function useSession() {
   void load();
   return useSyncExternalStore((notify) => { listeners.add(notify); return () => listeners.delete(notify); }, () => state);
 }
+const entered = (result: { user: User }) => { remembered(false); set(result.user); };
 export const session = {
-  signIn: (email: string, password: string) => call<{ user: User }>("/auth/login", { email, password }).then((r) => set(r.user)),
-  register: (email: string, password: string, name: string) => call<{ user: User }>("/auth/register", { email, password, name }).then((r) => set(r.user)),
-  signOut: () => call("/auth/logout", {}).then(() => set(null)),
+  signIn: (email: string, password: string) => call<{ user: User }>("/auth/login", { email, password }).then(entered),
+  register: (email: string, password: string, name: string) => call<{ user: User }>("/auth/register", { email, password, name }).then(entered),
+  signOut: () => call("/auth/logout", {}).then(() => { remembered(true); set(null); }),
   save: (changes: Partial<AccountSettings> & { name?: string }) => call<{ user: User }>("/account", changes, "PATCH").then((r) => set(r.user)),
-  forget: () => set(null),
-  adopt: (user: User) => set(user),
+  forget: () => { remembered(true); set(null); },
+  adopt: (user: User) => entered({ user }),
+  isGuest: (user: User) => user.sign_in_methods.length === 1 && user.sign_in_methods[0] === "guest",
 };
 /** "Open the payment history next": set by the payment screen, read once by the account area. */
 let showPayments = false;

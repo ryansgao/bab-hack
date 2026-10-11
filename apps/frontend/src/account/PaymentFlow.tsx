@@ -3,7 +3,7 @@ import { Check, CircleHelp, ExternalLink, LoaderCircle, ShieldCheck, UserRound, 
 import type { RoboMarket } from "../lib/useRoboMarket";
 import { humanize, type Offer, type Step } from "../lib/types";
 import { SignIn } from "./SignIn";
-import { ausd, call, intent, short, useSession, type AccountWallet } from "./session";
+import { ausd, call, intent, session, short, useSession, type AccountWallet } from "./session";
 import "./account.css";
 
 const ACTIVE = ["queued", "preparing", "running", "waiting_for_motion"];
@@ -15,7 +15,7 @@ export function AccountButton({ onOpen }: { onOpen: () => void }) {
   return (
     <button className={"account-button " + (user ? "signed-in" : "")} onClick={onOpen} aria-label={user ? "Open your account" : "Sign in"}>
       {user ? <span className="account-initial">{user.name.slice(0, 1).toUpperCase()}</span> : <UserRound size={14} />}
-      <span>{user ? user.name : "Sign in"}</span>
+      <span>{user ? (session.isGuest(user) ? "Guest · test wallet" : user.name) : "Sign in"}</span>
     </button>
   );
 }

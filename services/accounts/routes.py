@@ -81,8 +81,26 @@ async def payments(method, path, account=None, json=None, timeout=20):
 def me(request: Request):
     user = store.current_user(request)
     return {'user': store.public(user) if user else None, 'accounts_required': store.enforced(), 'providers': enabled_providers(),
+            'guest_sign_in': guests_enabled(),
             # Public by design: the id only names this app to WalletConnect so phone wallets can pair by QR code.
             'walletconnect_project_id': os.getenv('WALLETCONNECT_PROJECT_ID', '')}
+
+def guests_enabled():
+    """GUEST_SIGN_IN=0 makes visitors sign in themselves before they get an account."""
+    return os.getenv('GUEST_SIGN_IN', '1') != '0'
+
+@router.post('/api/auth/guest', dependencies=[Depends(store.same_origin)])
+def guest(request: Request, response: Response):
+    """A visitor gets an account and a test wallet without signing up. The session cookie is the
+    only key to it, so a guest who wants to keep the account sets a password or signs in another way."""
+    if not guests_enabled(): raise HTTPException(404, 'Guest accounts are off.')
+    user = store.current_user(request)
+    if not user:
+        # Generous per address (a whole room can share one); the daily starter-grant cap bounds the money.
+        store.throttle('guest|' + store.visitor(request), 60, 3600)
+        user = store.user_for_identity('guest', secrets.token_hex(12), 'Guest')
+        store.start_session(user['id'], request, response)
+    return {'user': store.public(user)}
 
 @router.post('/api/auth/wallet/challenge', dependencies=[Depends(store.same_origin)])
 def wallet_challenge(body: WalletChallenge, request: Request):

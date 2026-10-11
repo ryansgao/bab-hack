@@ -84,6 +84,7 @@ def same_origin(request: Request):
 
 
 def throttle(key, limit, seconds):
+    ensure()
     now = time.time()
     with db() as conn:
         conn.execute('DELETE FROM auth_attempts WHERE ts < ?', (now - 86400,))
