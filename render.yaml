@@ -1,0 +1,27 @@
+# Public deployment of the RoboMarket gateway (dashboard, marketplace, Scout planning) on Render.
+# Deploy: https://render.com/deploy?repo=https://github.com/ryansgao/bab-hack
+# The Anthropic key is typed into Render once at creation and is stored there, never in this repo.
+# Visitors' browsers call this server; only the server calls Anthropic.
+services:
+  - type: web
+    name: robomarket
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    envVars:
+      - key: PORT  # The image listens on 8000.
+        value: "8000"
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ANTHROPIC_MODEL
+        value: claude-sonnet-4-5
+      # Each plan is a paid Anthropic call. These bound what anonymous visitors can spend.
+      - key: PLANNER_MAX_CALLS_PER_DAY
+        value: "200"
+      - key: PLANNER_MAX_CALLS_PER_VISITOR_HOUR
+        value: "10"
+      # Payments and the model worker are not part of this deployment: wallet keys stay off public hosts.
+      - key: SERVICE_KEY
+        generateValue: true

@@ -77,8 +77,11 @@ the system must not automatically purchase again after an ambiguous timeout.
 
 This prototype runs on a trusted developer machine. Internal model endpoints
 require a shared service key. The payment signer binds to localhost by default.
-Before public deployment add user authentication, TLS, provider identity checks,
-rate limits, and a durable queue. Never expose the signer or raw model worker.
+The gateway alone may be hosted publicly (`render.yaml`): the Anthropic key stays
+in the host's secret store and planning calls are capped per visitor and per day.
+Before exposing payments add user authentication, provider identity checks, rate
+limits on the remaining routes, and a durable queue. Never expose the signer or
+raw model worker.
 
 ## External prerequisites
 

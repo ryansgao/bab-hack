@@ -5,7 +5,7 @@ import secrets
 from contextlib import asynccontextmanager
 from pathlib import Path
 import httpx
-from fastapi import FastAPI, Header, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -14,6 +14,7 @@ from shared.schemas.contracts import (ModelOffer, SelectionRequest, SelectionDec
 from services.marketplace import registry
 from services.agent.selection import select
 from services.agent.planner import decompose, planner_status, PlannerError
+from services.agent.limits import admit
 from services.agent.quote import quote
 from apps.simulation.arm import arm
 from services.agent.executor import execute, save, get, cancel
@@ -65,13 +66,13 @@ def register(model: ModelOffer, x_service_key: str = Header(default='')):
 @app.post('/api/agent/select', response_model=SelectionDecision)
 def selection(request: SelectionRequest): return select(request, registry.list_models())
 
-@app.post('/api/agent/plan', response_model=MissionPlan)
+@app.post('/api/agent/plan', response_model=MissionPlan, dependencies=[Depends(admit)])
 def plan(request: MissionRequest):
     for point in request.waypoints:
         if (point.x,point.y) in world.blocked(): raise ValueError('A destination is occupied')
     return save(quote(decompose(request)))
 
-@app.post('/api/vendor/quote', response_model=MissionPlan)
+@app.post('/api/vendor/quote', response_model=MissionPlan, dependencies=[Depends(admit)])
 def vendor_quote(request: MissionRequest): return quote(decompose(request))
 
 @app.get('/api/arm')

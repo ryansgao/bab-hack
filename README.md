@@ -72,8 +72,10 @@ LLM-inferred physical requirements are labeled simulation estimates. The workcel
 is illustrative; arbitrary physical tasks are not implemented by the generic arm
 animation. The server blocks interrupted missions after restart because simulation
 state is not durable. Provider registration also needs a model adapter, and seeded
-vendors share one configured recipient. The app is intended for localhost; public
-deployment needs authentication. Docker configuration has not been run here.
+vendors share one configured recipient. Payments are intended for localhost and
+need authentication before any public deployment. The gateway alone (dashboard,
+marketplace, planning) can be hosted publicly with `render.yaml`; planning calls
+are capped per visitor and per day. See the integration guide.
 
 ## Team handoff
 

@@ -58,8 +58,29 @@ Metadata registration alone cannot create a working remote inference service.
 For Docker, configure a nonempty `SERVICE_KEY` in `.env`, then run
 `docker compose up --build`. Only the gateway is published to localhost; models
 and payments are reachable only inside the Compose network. Model weights and
-both databases use separate volumes. The Docker build was supplied but has not
-been run on this development machine.
+both databases use separate volumes. The gateway image (root `Dockerfile`) was
+built and run under a 512 MB limit; `docker compose up` with all three services
+has not been run on this development machine.
+
+## Public deployment
+
+`render.yaml` deploys the gateway alone (dashboard, marketplace, Scout planning)
+from this repository to Render's free plan:
+https://render.com/deploy?repo=https://github.com/ryansgao/bab-hack. Render asks
+for `ANTHROPIC_API_KEY` once at creation and stores it; the key is never committed
+and never sent to the browser. Visitors call the gateway, and only the gateway
+calls Anthropic. Later pushes to `main` redeploy automatically.
+
+Every plan is a paid Anthropic call, so `services/agent/limits.py` refuses
+planning beyond `PLANNER_MAX_CALLS_PER_DAY` (all visitors) and
+`PLANNER_MAX_CALLS_PER_VISITOR_HOUR` (one address) with HTTP 429. The counters
+live in the gateway's SQLite file, which Render's free plan erases on restart, so
+also set a spend limit on the key in the Anthropic Console. The free instance
+sleeps after 15 idle minutes and takes about a minute to wake.
+
+Payments and the model worker are not deployed: purchases show the payment
+service as offline. Do not put wallet keys on a public host until the gateway has
+user authentication.
 
 ## API integration
 
