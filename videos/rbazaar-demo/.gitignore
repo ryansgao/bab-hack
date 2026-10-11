@@ -1,0 +1,7 @@
+snapshots/
+capture/assets/
+capture/screenshots/
+.hyperframes/frame-packets/
+audio_engine_meta.json
+node_modules/
+renders/

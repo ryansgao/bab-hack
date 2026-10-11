@@ -1,0 +1,956 @@
+<template>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <style>
+    @font-face {
+      font-family: "Instrument Serif";
+      src: url("assets/fonts/instrument-serif-latin-400-normal.woff2") format("woff2");
+      font-weight: 400;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: "Instrument Serif";
+      src: url("assets/fonts/instrument-serif-latin-400-italic.woff2") format("woff2");
+      font-weight: 400;
+      font-style: italic;
+    }
+    @font-face {
+      font-family: "Inter";
+      src: url("assets/fonts/inter-latin-wght-normal.woff2") format("woff2");
+      font-weight: 100 900;
+      font-style: normal;
+    }
+
+    #root {
+      position: absolute;
+      inset: 0;
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      font-family: "Inter", sans-serif;
+      color: #1c1d18;
+    }
+
+    /* ---------- background clip ---------- */
+    .f11-bg {
+      position: absolute;
+      inset: 0;
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      background: #f4f2ec;
+    }
+    .f11-bg-img {
+      position: absolute;
+      left: -20px;
+      top: -20px;
+      width: 1960px;
+      height: 1120px;
+      object-fit: cover;
+      opacity: 0.28;
+      filter: blur(2px);
+    }
+    .f11-bloom {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(140px);
+    }
+    .f11-bloom-rose {
+      left: -180px;
+      top: -240px;
+      width: 900px;
+      height: 700px;
+      background: #e8b9c4;
+      opacity: 0.5;
+    }
+    .f11-bloom-sky {
+      left: 1180px;
+      top: 260px;
+      width: 1000px;
+      height: 800px;
+      background: #cfe0ea;
+      opacity: 0.5;
+    }
+    .f11-bloom-mint {
+      left: 420px;
+      top: 620px;
+      width: 960px;
+      height: 700px;
+      background: #dcebe1;
+      opacity: 0.55;
+    }
+
+    /* ---------- stage ---------- */
+    .f11-stage {
+      position: absolute;
+      inset: 0;
+      width: 1920px;
+      height: 1080px;
+    }
+    .f11-world {
+      position: absolute;
+      inset: 0;
+      transform-origin: 50% 45%;
+    }
+    .f11-mono {
+      font-family: monospace;
+    }
+    .f11-label {
+      font-size: 17px;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #7c7e73;
+    }
+    .f11-glass {
+      background: rgba(255, 255, 255, 0.62);
+      backdrop-filter: blur(24px) saturate(1.1);
+      -webkit-backdrop-filter: blur(24px) saturate(1.1);
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      box-shadow:
+        0 1px 2px rgba(28, 29, 24, 0.03),
+        0 24px 80px -24px rgba(28, 29, 24, 0.18);
+    }
+
+    /* top-left chip row */
+    .f11-chiprow {
+      position: absolute;
+      left: 120px;
+      top: 56px;
+      display: flex;
+      gap: 14px;
+    }
+    .f11-chip {
+      height: 50px;
+      padding: 0 24px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 22px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .f11-chip-mark {
+      width: 14px;
+      height: 14px;
+      border-radius: 4px;
+      background: #4c7e60;
+    }
+    .f11-bnb-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #f0b90b;
+      box-shadow: 0 0 0 5px rgba(240, 185, 11, 0.22);
+    }
+    .f11-chip-sub {
+      color: #63665d;
+    }
+
+    /* contract window */
+    .f11-persp {
+      position: absolute;
+      left: 120px;
+      top: 132px;
+      width: 1680px;
+      height: 440px;
+      perspective: 2200px;
+    }
+    .f11-float {
+      position: absolute;
+      inset: 0;
+    }
+    .f11-win {
+      position: absolute;
+      inset: 0;
+      border-radius: 28px;
+      overflow: hidden;
+      transform-origin: 50% 100%;
+    }
+    .f11-titlebar {
+      position: absolute;
+      left: 0;
+      top: 0;
+      right: 0;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      padding: 0 26px;
+      border-bottom: 1px solid rgba(28, 29, 24, 0.08);
+      background: rgba(255, 255, 255, 0.35);
+    }
+    .f11-dots {
+      display: flex;
+      gap: 8px;
+    }
+    .f11-dots span {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: rgba(28, 29, 24, 0.12);
+    }
+    .f11-filename {
+      font-size: 22px;
+      font-weight: 500;
+      color: #1c1d18;
+    }
+    .f11-spacer {
+      flex: 1;
+    }
+    .f11-deployed {
+      height: 36px;
+      padding: 0 16px;
+      border-radius: 999px;
+      background: #dcebe1;
+      color: #2a543d;
+      font-size: 18px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      white-space: nowrap;
+    }
+    .f11-deployed i {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #3f7d5c;
+    }
+    .f11-body {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 60px;
+      bottom: 0;
+      display: flex;
+    }
+    .f11-rail {
+      width: 300px;
+      padding: 28px 22px;
+      border-right: 1px solid rgba(28, 29, 24, 0.08);
+      background: rgba(255, 255, 255, 0.22);
+    }
+    .f11-rail .f11-label {
+      margin: 0 0 16px 14px;
+    }
+    .f11-fn {
+      position: relative;
+      height: 54px;
+      margin-bottom: 8px;
+      border-radius: 14px;
+    }
+    .f11-fn-hl {
+      position: absolute;
+      inset: 0;
+      border-radius: 14px;
+      background: #dcebe1;
+      border: 1px solid rgba(63, 125, 92, 0.55);
+    }
+    .f11-fn-txt {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 16px;
+      font-size: 22px;
+      color: #1c1d18;
+    }
+    .f11-fn-txt i {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #7c7e73;
+    }
+    .f11-main {
+      flex: 1;
+      padding: 24px 40px 24px 40px;
+    }
+    .f11-head {
+      height: 58px;
+      display: flex;
+      align-items: baseline;
+      gap: 14px;
+      border-bottom: 1px solid rgba(28, 29, 24, 0.08);
+      margin-bottom: 22px;
+    }
+    .f11-head-title {
+      font-family: "Instrument Serif", serif;
+      font-size: 46px;
+      line-height: 1;
+      letter-spacing: -0.01em;
+    }
+    .f11-head-title em {
+      font-style: italic;
+      color: #3f7d5c;
+    }
+    .f11-head-sep {
+      font-size: 24px;
+      color: #7c7e73;
+    }
+    .f11-head-id {
+      font-size: 24px;
+      color: #63665d;
+    }
+    .f11-cols {
+      display: flex;
+      gap: 56px;
+    }
+    .f11-caps {
+      width: 500px;
+    }
+    .f11-caps .f11-label {
+      height: 32px;
+    }
+    .f11-cap {
+      height: 70px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(28, 29, 24, 0.08);
+    }
+    .f11-cap:last-child {
+      border-bottom: 0;
+    }
+    .f11-cap-name {
+      font-size: 24px;
+      color: #63665d;
+    }
+    .f11-cap-val {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+    .f11-cap-num {
+      font-variant-numeric: tabular-nums;
+      font-family: "Instrument Serif", serif;
+      font-size: 56px;
+      line-height: 1;
+      letter-spacing: -0.02em;
+      color: #1c1d18;
+    }
+    .f11-unit {
+      font-size: 18px;
+      font-weight: 500;
+      color: #7c7e73;
+    }
+    .f11-allow {
+      flex: 1;
+    }
+    .f11-allow-head {
+      height: 40px;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .f11-allow-count {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      font-size: 20px;
+      color: #63665d;
+    }
+    .f11-allow-num {
+      font-variant-numeric: tabular-nums;
+      font-family: "Instrument Serif", serif;
+      font-size: 40px;
+      line-height: 1;
+      color: #3f7d5c;
+    }
+    .f11-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .f11-hash {
+      width: 176px;
+      height: 40px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid rgba(28, 29, 24, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      font-size: 18px;
+      color: #1c1d18;
+      white-space: nowrap;
+    }
+    .f11-hash i {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #3f7d5c;
+    }
+
+    /* signature -> gate -> ledger row */
+    .f11-sig {
+      position: absolute;
+      left: 120px;
+      top: 616px;
+      width: 440px;
+      height: 156px;
+      border-radius: 24px;
+      padding: 20px 26px;
+    }
+    .f11-sig-amt {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      margin-top: 8px;
+    }
+    .f11-sig-num {
+      font-family: "Instrument Serif", serif;
+      font-size: 54px;
+      line-height: 1;
+      letter-spacing: -0.02em;
+    }
+    .f11-sig-meta {
+      margin-top: 8px;
+      font-size: 17px;
+      color: #63665d;
+    }
+    .f11-gate {
+      position: absolute;
+      left: 730px;
+      top: 600px;
+      width: 190px;
+      height: 176px;
+    }
+    .f11-gate-box {
+      position: absolute;
+      inset: 0;
+      border-radius: 28px;
+      overflow: hidden;
+    }
+    .f11-gate-flash {
+      position: absolute;
+      inset: 0;
+      background: #3f7d5c;
+      opacity: 0;
+    }
+    .f11-gate-ring {
+      position: absolute;
+      left: -8px;
+      top: -8px;
+      right: -8px;
+      bottom: -8px;
+      border-radius: 34px;
+      border: 2px solid #3f7d5c;
+      opacity: 0;
+    }
+    .f11-gate-inner {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    .f11-gate-inner svg {
+      width: 56px;
+      height: 56px;
+    }
+    .f11-gate-fn {
+      font-size: 24px;
+      color: #1c1d18;
+    }
+    .f11-stamp {
+      position: absolute;
+      left: 772px;
+      top: 748px;
+      height: 46px;
+      padding: 0 20px;
+      border-radius: 999px;
+      background: #3f7d5c;
+      color: #ffffff;
+      font-size: 22px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+      box-shadow: 0 12px 30px -10px rgba(42, 84, 61, 0.45);
+    }
+    .f11-link {
+      position: absolute;
+      left: 934px;
+      top: 676px;
+      width: 432px;
+      height: 24px;
+      overflow: visible;
+    }
+    .f11-ledger {
+      position: absolute;
+      left: 1380px;
+      top: 600px;
+      width: 420px;
+      height: 198px;
+      border-radius: 24px;
+    }
+    .f11-ledger-label {
+      position: absolute;
+      left: 20px;
+      top: 16px;
+      font-size: 19px;
+      color: #2a543d;
+    }
+    .f11-rcpt {
+      position: absolute;
+      left: 16px;
+      right: 16px;
+      height: 40px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 14px;
+      font-size: 17px;
+      white-space: nowrap;
+    }
+    .f11-rcpt-old {
+      background: rgba(255, 255, 255, 0.55);
+      border: 1px solid rgba(28, 29, 24, 0.06);
+      color: #63665d;
+    }
+    .f11-rcpt-new {
+      top: 54px;
+      background: #dcebe1;
+      border: 1px solid rgba(63, 125, 92, 0.55);
+      color: #1c1d18;
+    }
+    .f11-rcpt-amt {
+      margin-left: auto;
+      font-family: "Inter", sans-serif;
+      font-size: 17px;
+      font-weight: 500;
+    }
+    .f11-rcpt-ok {
+      color: #3f7d5c;
+      font-family: "Inter", sans-serif;
+      font-weight: 700;
+    }
+
+    /* custody strip */
+    .f11-custody {
+      position: absolute;
+      left: 120px;
+      top: 818px;
+      width: 1680px;
+      height: 72px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 26px;
+      padding: 0 36px;
+    }
+    .f11-custody .f11-label {
+      margin-right: 12px;
+    }
+    .f11-node {
+      height: 46px;
+      padding: 0 20px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.7);
+      border: 1px solid rgba(28, 29, 24, 0.08);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 22px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .f11-node i {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #3f7d5c;
+    }
+    .f11-node-num {
+      font-family: "Instrument Serif", serif;
+      font-size: 32px;
+      font-weight: 400;
+      line-height: 1;
+      color: #3f7d5c;
+    }
+    .f11-arrow {
+      width: 170px;
+      height: 20px;
+      overflow: visible;
+    }
+  </style>
+
+  <div
+    id="root"
+    data-composition-id="11-bnb"
+    data-start="0"
+    data-duration="10.095"
+    data-width="1920"
+    data-height="1080"
+  >
+    <!-- full-bleed ground -->
+    <div class="clip f11-bg" data-start="0" data-duration="10.095" data-track-index="0">
+      <img class="f11-bg-img" src="assets/dawn-hill.jpg" alt="" />
+      <div class="f11-bloom f11-bloom-rose"></div>
+      <div class="f11-bloom f11-bloom-sky"></div>
+      <div class="f11-bloom f11-bloom-mint"></div>
+    </div>
+
+    <div class="clip f11-stage" data-start="0" data-duration="10.095" data-track-index="1">
+      <div class="f11-world">
+        <!-- Scene 1: chip row -->
+        <div class="f11-chiprow">
+          <div class="f11-chip f11-glass f11-chip-yzi">
+            <span class="f11-chip-mark"></span>YZi Labs track
+          </div>
+          <div class="f11-chip f11-glass f11-chip-bnb">
+            <span class="f11-bnb-dot"></span>BNB Chain
+            <span class="f11-chip-sub">&middot; BSC Testnet (97)</span>
+          </div>
+        </div>
+
+        <!-- Scene 2: contract window -->
+        <div class="f11-persp">
+          <div class="f11-float">
+            <div class="f11-win f11-glass">
+              <div class="f11-titlebar">
+                <div class="f11-dots f11-tb-a"><span></span><span></span><span></span></div>
+                <div class="f11-filename f11-mono f11-tb-b">RoboMarketPolicy.sol</div>
+                <div class="f11-spacer"></div>
+                <div class="f11-deployed"><i></i>deployed &middot; BSC Testnet</div>
+              </div>
+              <div class="f11-body">
+                <div class="f11-rail">
+                  <div class="f11-label f11-rail-label">Functions</div>
+                  <div class="f11-fn f11-fn-check">
+                    <div class="f11-fn-hl f11-hl-check"></div>
+                    <div class="f11-fn-txt f11-mono"><i></i>check()</div>
+                  </div>
+                  <div class="f11-fn f11-fn-record">
+                    <div class="f11-fn-hl f11-hl-record"></div>
+                    <div class="f11-fn-txt f11-mono"><i></i>record()</div>
+                  </div>
+                  <div class="f11-fn f11-fn-set">
+                    <div class="f11-fn-txt f11-mono"><i></i>setPolicy()</div>
+                  </div>
+                </div>
+                <div class="f11-main">
+                  <div class="f11-head">
+                    <div class="f11-head-title">Robot <em>allowance</em></div>
+                    <div class="f11-head-sep">&middot;</div>
+                    <div class="f11-head-id f11-mono">robot_001</div>
+                  </div>
+                  <div class="f11-cols">
+                    <!-- Scene 3: caps -->
+                    <div class="f11-caps">
+                      <div class="f11-label f11-caps-label">Spend caps</div>
+                      <div class="f11-cap">
+                        <div class="f11-cap-name">per call</div>
+                        <div class="f11-cap-val">
+                          <span class="f11-cap-num" data-to="0.05">0.00</span><span class="f11-unit">AUSD</span>
+                        </div>
+                      </div>
+                      <div class="f11-cap">
+                        <div class="f11-cap-name">per mission</div>
+                        <div class="f11-cap-val">
+                          <span class="f11-cap-num" data-to="0.10">0.00</span><span class="f11-unit">AUSD</span>
+                        </div>
+                      </div>
+                      <div class="f11-cap">
+                        <div class="f11-cap-name">per day</div>
+                        <div class="f11-cap-val">
+                          <span class="f11-cap-num" data-to="5.00">0.00</span><span class="f11-unit">AUSD</span>
+                        </div>
+                      </div>
+                    </div>
+                    <!-- Scene 4: vendor allowlist -->
+                    <div class="f11-allow">
+                      <div class="f11-allow-head">
+                        <div class="f11-label f11-allow-label">Vendor allowlist</div>
+                        <div class="f11-allow-count">
+                          <span class="f11-allow-num">0</span>vendors allow-listed
+                        </div>
+                      </div>
+                      <div class="f11-grid">
+                        <div class="f11-hash f11-mono"><i></i>0x0ab6&hellip;25d9</div>
+                        <div class="f11-hash f11-mono"><i></i>0x8272&hellip;0f26</div>
+                        <div class="f11-hash f11-mono"><i></i>0xd367&hellip;771e</div>
+                        <div class="f11-hash f11-mono"><i></i>0xa0f5&hellip;fdcf</div>
+                        <div class="f11-hash f11-mono"><i></i>0x643a&hellip;9b48</div>
+                        <div class="f11-hash f11-mono"><i></i>0xf41d&hellip;be3f</div>
+                        <div class="f11-hash f11-mono"><i></i>0xc0e0&hellip;a5f9</div>
+                        <div class="f11-hash f11-mono"><i></i>0xd0c8&hellip;271e</div>
+                        <div class="f11-hash f11-mono"><i></i>0xb109&hellip;c6db</div>
+                        <div class="f11-hash f11-mono"><i></i>0xde5b&hellip;4946</div>
+                        <div class="f11-hash f11-mono"><i></i>0x2021&hellip;25d5</div>
+                        <div class="f11-hash f11-mono"><i></i>0x7ddd&hellip;f004</div>
+                        <div class="f11-hash f11-mono"><i></i>0x7617&hellip;0610</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Scene 5: signature -> check() gate -> record() ledger -->
+        <div class="f11-sig f11-glass">
+          <div class="f11-label">Signature request</div>
+          <div class="f11-sig-amt">
+            <span class="f11-sig-num">0.0006</span><span class="f11-unit">AUSD</span>
+          </div>
+          <div class="f11-sig-meta f11-mono">ERC-3009 &middot; robot_001</div>
+        </div>
+
+        <div class="f11-gate">
+          <div class="f11-gate-ring"></div>
+          <div class="f11-gate-box f11-glass">
+            <div class="f11-gate-flash"></div>
+            <div class="f11-gate-inner">
+              <svg viewBox="0 0 48 48" fill="none">
+                <path
+                  d="M24 4 L40 10 V22 C40 32 33 40 24 44 C15 40 8 32 8 22 V10 Z"
+                  stroke="#3F7D5C"
+                  stroke-width="2.5"
+                  stroke-linejoin="round"
+                />
+                <path
+                  class="f11-gate-check"
+                  d="M16.5 24.5 L22 30 L32 19"
+                  stroke="#3F7D5C"
+                  stroke-width="3"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  pathLength="1"
+                  stroke-dasharray="1"
+                  stroke-dashoffset="1"
+                />
+              </svg>
+              <div class="f11-gate-fn f11-mono">check()</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="f11-stamp">&#10003; approved</div>
+
+        <svg class="f11-link" viewBox="0 0 432 24" fill="none">
+          <path
+            class="f11-link-line"
+            d="M2 12 H418"
+            stroke="#3F7D5C"
+            stroke-opacity="0.55"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            pathLength="1"
+            stroke-dasharray="1"
+            stroke-dashoffset="1"
+          />
+          <path
+            class="f11-link-head"
+            d="M408 4 L420 12 L408 20"
+            stroke="#3F7D5C"
+            stroke-opacity="0.75"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+
+        <div class="f11-ledger f11-glass">
+          <div class="f11-ledger-label f11-mono">record() &middot; receipts</div>
+          <div class="f11-rcpt f11-rcpt-old f11-mono f11-rcpt-o1" style="top: 54px">
+            0x7d01&hellip;f6ae<span class="f11-rcpt-amt">0.020 AUSD</span>
+          </div>
+          <div class="f11-rcpt f11-rcpt-old f11-mono f11-rcpt-o2" style="top: 100px">
+            0xe5b6&hellip;9ccb<span class="f11-rcpt-amt">0.004 AUSD</span>
+          </div>
+          <div class="f11-rcpt f11-rcpt-new f11-mono">
+            0xa48f&hellip;b7c2<span class="f11-rcpt-amt">0.0006 AUSD</span><span class="f11-rcpt-ok">&#10003;</span>
+          </div>
+        </div>
+
+        <!-- custody strip -->
+        <div class="f11-custody f11-glass">
+          <div class="f11-label f11-custody-label">Custody</div>
+          <div class="f11-node f11-node-a"><i></i>Owner treasury</div>
+          <svg class="f11-arrow f11-arrow-a" viewBox="0 0 170 20" fill="none">
+            <path
+              class="f11-arrow-line"
+              d="M4 10 H160"
+              stroke="#3F7D5C"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              pathLength="1"
+              stroke-dasharray="1"
+              stroke-dashoffset="1"
+            />
+            <path
+              class="f11-arrow-head"
+              d="M152 3 L163 10 L152 17"
+              stroke="#3F7D5C"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <div class="f11-node f11-node-b"><i></i>Mission float <span class="f11-node-num">0.10</span></div>
+          <svg class="f11-arrow f11-arrow-b" viewBox="0 0 170 20" fill="none">
+            <path
+              class="f11-arrow-line"
+              d="M4 10 H160"
+              stroke="#3F7D5C"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              pathLength="1"
+              stroke-dasharray="1"
+              stroke-dashoffset="1"
+            />
+            <path
+              class="f11-arrow-head"
+              d="M152 3 L163 10 L152 17"
+              stroke="#3F7D5C"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <div class="f11-node f11-node-c"><i></i>Vendor payout addresses</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var rootEl = document.querySelector('[data-composition-id="11-bnb"]');
+      var q = gsap.utils.selector(rootEl);
+      var one = function (sel) {
+        return q(sel)[0];
+      };
+      var DUR = 9.595;
+      var SPRING = "back.out(1.5)";
+      var tl = gsap.timeline({ paused: true });
+
+      // spring-pop entrance for small elements (soft overshoot, airy)
+      function pop(target, at, opts) {
+        opts = opts || {};
+        tl.fromTo(
+          target,
+          { opacity: 0, y: opts.y != null ? opts.y : 48, scale: opts.scale || 0.9 },
+          {
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            duration: opts.duration || 0.7,
+            ease: SPRING,
+            stagger: opts.stagger || 0,
+          },
+          at
+        );
+      }
+      // seek-safe count-up into a text node
+      function countUp(el, to, decimals, at, dur) {
+        var o = { v: 0 };
+        tl.fromTo(
+          o,
+          { v: 0 },
+          {
+            v: to,
+            duration: dur,
+            ease: "power2.out",
+            onUpdate: function () {
+              el.textContent = o.v.toFixed(decimals);
+            },
+          },
+          at
+        );
+      }
+
+      // ---- background: blooms drift on one finite tween each; slow macro push underneath
+      tl.fromTo(one(".f11-bloom-rose"), { x: 0, y: 0 }, { x: 70, y: 40, duration: DUR, ease: "sine.inOut" }, 0);
+      tl.fromTo(one(".f11-bloom-sky"), { x: 0, y: 0 }, { x: -60, y: -36, duration: DUR, ease: "sine.inOut" }, 0);
+      tl.fromTo(one(".f11-bloom-mint"), { x: 0, y: 0 }, { x: 50, y: -30, duration: DUR, ease: "sine.inOut" }, 0);
+      tl.fromTo(one(".f11-world"), { scale: 1 }, { scale: 1.018, duration: DUR, ease: "power1.inOut" }, 0);
+
+      // ---- Scene 1 (0.0–1.2): "For YZi Labs" — chip row springs in
+      pop(q(".f11-chiprow .f11-chip"), 0.1, { y: 44, stagger: 0.12 });
+
+      // ---- Scene 2 (1.2–3.6): window rises with a 3D tilt that settles flat (power3, no overshoot)
+      tl.fromTo(
+        one(".f11-win"),
+        { opacity: 0, y: 150, rotationX: 16, rotationY: -6, scale: 0.94 },
+        { opacity: 1, y: 0, rotationX: 0, rotationY: 0, scale: 1, duration: 1.6, ease: "power3.out" },
+        0.55
+      );
+      tl.fromTo(q(".f11-tb-a, .f11-tb-b"), { opacity: 0, x: -24 }, { opacity: 1, x: 0, duration: 0.6, ease: "power3.out", stagger: 0.08 }, 1.25);
+      pop(one(".f11-deployed"), 1.5, { y: 24, scale: 0.88 });
+      tl.fromTo(one(".f11-rail-label"), { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.out" }, 1.6);
+      pop(q(".f11-fn"), 1.7, { y: 24, stagger: 0.1, duration: 0.6 });
+      tl.fromTo(one(".f11-head"), { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: 0.8, ease: "power3.out" }, 2.05);
+      // one finite airy float on the hero window over the hold
+      tl.fromTo(one(".f11-float"), { y: 0 }, { y: -6, duration: DUR - 2.6, ease: "sine.inOut" }, 2.6);
+
+      // ---- Scene 3 (3.6–4.6): "spend caps" — rows populate with count-ups
+      tl.fromTo(one(".f11-caps-label"), { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power2.out" }, 3.55);
+      var caps = q(".f11-cap");
+      pop(caps, 3.6, { y: 30, stagger: 0.12, duration: 0.6 });
+      q(".f11-cap-num").forEach(function (el, i) {
+        countUp(el, parseFloat(el.getAttribute("data-to")), 2, 3.65 + i * 0.12, 0.75);
+      });
+
+      // ---- Scene 4 (4.6–6.2): "and a vendor allowlist" — 13 hash chips flow into the grid
+      tl.fromTo(q(".f11-allow-head"), { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }, 4.6);
+      pop(q(".f11-hash"), 4.7, { y: 40, scale: 0.88, stagger: 0.075, duration: 0.6 });
+      countUp(one(".f11-allow-num"), 13, 0, 4.7, 1.0);
+
+      // ---- Scene 5 (6.2–9.6): "checked before every signature"
+      pop(one(".f11-sig"), 6.2, { y: 60, scale: 0.9, duration: 0.7 });
+      pop(one(".f11-gate"), 6.32, { y: 50, scale: 0.9, duration: 0.7 });
+      // signature card slides toward the gate
+      tl.to(one(".f11-sig"), { x: 150, duration: 0.5, ease: "power3.inOut" }, 6.62);
+      // gate flashes sage, shield check draws, ring pulses out
+      tl.fromTo(one(".f11-gate-flash"), { opacity: 0 }, { opacity: 0.55, duration: 0.12, ease: "power2.out" }, 7.1);
+      tl.to(one(".f11-gate-flash"), { opacity: 0.14, duration: 0.6, ease: "power2.out" }, 7.22);
+      tl.fromTo(one(".f11-gate-ring"), { opacity: 0, scale: 1 }, { opacity: 0.8, duration: 0.08 }, 7.1);
+      tl.to(one(".f11-gate-ring"), { opacity: 0, scale: 1.2, duration: 0.6, ease: "power2.out" }, 7.18);
+      tl.fromTo(one(".f11-gate-check"), { strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: 0.35, ease: "power2.out" }, 7.12);
+      tl.fromTo(one(".f11-hl-check"), { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power2.out" }, 7.1);
+      tl.fromTo(
+        one(".f11-stamp"),
+        { opacity: 0, scale: 1.5, rotation: -14 },
+        { opacity: 1, scale: 1, rotation: -5, duration: 0.55, ease: SPRING },
+        7.15
+      );
+      // record(): ledger appears, link draws, receipt drops in on top
+      pop(one(".f11-ledger"), 7.25, { y: 50, scale: 0.92, duration: 0.7 });
+      tl.fromTo(one(".f11-link-line"), { strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: 0.4, ease: "power2.inOut" }, 7.35);
+      tl.fromTo(one(".f11-link-head"), { opacity: 0, x: -8 }, { opacity: 1, x: 0, duration: 0.3, ease: SPRING }, 7.68);
+      tl.to(one(".f11-hl-check"), { opacity: 0.35, duration: 0.35, ease: "power2.out" }, 7.72);
+      tl.fromTo(one(".f11-hl-record"), { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power2.out" }, 7.72);
+      tl.fromTo(q(".f11-rcpt-o1, .f11-rcpt-o2"), { y: 0 }, { y: 46, duration: 0.45, ease: "power3.out" }, 7.75);
+      tl.fromTo(one(".f11-rcpt-new"), { opacity: 0, y: -64 }, { opacity: 1, y: 0, duration: 0.6, ease: SPRING }, 7.75);
+
+      // custody strip settles under everything; arrows draw between nodes
+      tl.fromTo(one(".f11-custody"), { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.7, ease: "power3.out" }, 8.0);
+      tl.fromTo(one(".f11-custody-label"), { opacity: 0 }, { opacity: 1, duration: 0.4 }, 8.1);
+      pop(one(".f11-node-a"), 8.1, { y: 26, scale: 0.9, duration: 0.55 });
+      var arrows = [one(".f11-arrow-a"), one(".f11-arrow-b")];
+      arrows.forEach(function (svg, i) {
+        var t = 8.25 + i * 0.27;
+        tl.fromTo(svg.querySelector(".f11-arrow-line"), { strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: 0.3, ease: "power2.inOut" }, t);
+        tl.fromTo(svg.querySelector(".f11-arrow-head"), { opacity: 0, x: -8 }, { opacity: 1, x: 0, duration: 0.25, ease: SPRING }, t + 0.24);
+      });
+      pop(one(".f11-node-b"), 8.36, { y: 26, scale: 0.9, duration: 0.55 });
+      pop(one(".f11-node-c"), 8.63, { y: 26, scale: 0.9, duration: 0.55 });
+      // hold to the end of the frame
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["11-bnb"] = tl;
+    })();
+  </script>
+</template>

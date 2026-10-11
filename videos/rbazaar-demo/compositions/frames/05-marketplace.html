@@ -1,0 +1,395 @@
+<template>
+  <style>
+    @font-face {
+      font-family: "Instrument Serif";
+      src: url("assets/fonts/instrument-serif-latin-400-normal.woff2") format("woff2");
+      font-weight: 400;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: "Instrument Serif";
+      src: url("assets/fonts/instrument-serif-latin-400-italic.woff2") format("woff2");
+      font-weight: 400;
+      font-style: italic;
+    }
+    @font-face {
+      font-family: "Inter";
+      src: url("assets/fonts/inter-latin-wght-normal.woff2") format("woff2");
+      font-weight: 100 900;
+      font-style: normal;
+    }
+
+    #root {
+      position: absolute;
+      inset: 0;
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      font-family: "Inter", sans-serif;
+      color: #1c1d18;
+    }
+
+    /* ---------- background clip ---------- */
+    [id="05-marketplace-bg"] {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      background: #f4f2ec;
+    }
+    [id="05-marketplace-hill"] {
+      position: absolute;
+      inset: -20px;
+      width: calc(100% + 40px);
+      height: calc(100% + 40px);
+      object-fit: cover;
+      opacity: 0.28;
+      filter: blur(2px);
+    }
+    [class~="05-marketplace-bloom"] {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(140px);
+    }
+    [id="05-marketplace-bloom-rose"] {
+      left: -260px;
+      top: -280px;
+      width: 980px;
+      height: 820px;
+      background: #e8b9c4;
+      opacity: 0.45;
+    }
+    [id="05-marketplace-bloom-sky"] {
+      left: 1180px;
+      top: -240px;
+      width: 1000px;
+      height: 760px;
+      background: #cfe0ea;
+      opacity: 0.55;
+    }
+    [id="05-marketplace-bloom-mint"] {
+      left: 420px;
+      top: 660px;
+      width: 1200px;
+      height: 700px;
+      background: #dcebe1;
+      opacity: 0.5;
+    }
+
+    /* ---------- marketplace plate (3D page scroll) ---------- */
+    [id="05-marketplace-stage"] {
+      position: absolute;
+      left: 792px;
+      top: 104px;
+      width: 1064px;
+      height: 724px;
+      perspective: 1800px;
+      transform-origin: 50% 50%;
+    }
+    [id="05-marketplace-plate"] {
+      position: absolute;
+      inset: 0;
+      padding: 12px;
+      box-sizing: border-box;
+      border-radius: 28px;
+      background: rgba(255, 255, 255, 0.62);
+      backdrop-filter: blur(24px) saturate(1.1);
+      -webkit-backdrop-filter: blur(24px) saturate(1.1);
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      transform-style: preserve-3d;
+      transform-origin: 50% 60%;
+      /* left-leaning card (negative rotateY) casts shadow to the right */
+      box-shadow:
+        0 1px 2px rgba(28, 29, 24, 0.03),
+        44px 36px 90px -24px rgba(28, 29, 24, 0.22);
+    }
+    [id="05-marketplace-viewport"] {
+      position: relative;
+      width: 1040px;
+      height: 700px;
+      border-radius: 18px;
+      overflow: hidden;
+      background: #f4f2ec;
+      box-shadow: inset 0 0 0 1px rgba(28, 29, 24, 0.08);
+    }
+    /* crop: content column of the 3840x2160 capture (image px x 980-3300), scale 0.44828 */
+    [id="05-marketplace-shot"] {
+      position: absolute;
+      left: -439.3px;
+      top: -89.7px;
+      width: 1721.4px;
+      height: 968.3px;
+      max-width: none;
+    }
+
+    /* ---------- stats ---------- */
+    [id="05-marketplace-hero"] {
+      position: absolute;
+      left: 120px;
+      top: 146px;
+      width: 620px;
+      height: 190px;
+    }
+    [id="05-marketplace-hero-num"] {
+      display: inline-block;
+      font-family: "Instrument Serif", serif;
+      font-size: 200px;
+      line-height: 0.9;
+      letter-spacing: -0.03em;
+      font-variant-numeric: tabular-nums;
+      color: #1c1d18;
+      transform-origin: 0% 85%;
+      white-space: nowrap;
+    }
+    [class~="05-marketplace-label"] {
+      position: absolute;
+      font-family: "Inter", sans-serif;
+      font-size: 20px;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #63665d;
+      white-space: nowrap;
+    }
+    [id="05-marketplace-hero-label"] {
+      left: 126px;
+      top: 352px;
+    }
+    [id="05-marketplace-rule"] {
+      position: absolute;
+      left: 124px;
+      top: 418px;
+      width: 560px;
+      height: 1px;
+      background: rgba(28, 29, 24, 0.14);
+      transform-origin: 0% 50%;
+    }
+    [class~="05-marketplace-sub"] {
+      position: absolute;
+      top: 440px;
+      width: 260px;
+      height: 112px;
+    }
+    [id="05-marketplace-vendors"] {
+      left: 120px;
+    }
+    [id="05-marketplace-caps"] {
+      left: 410px;
+      transform-origin: 20% 80%;
+    }
+    [class~="05-marketplace-sub-num"] {
+      display: inline-block;
+      font-family: "Instrument Serif", serif;
+      font-size: 112px;
+      line-height: 0.96;
+      letter-spacing: -0.02em;
+      font-variant-numeric: tabular-nums;
+      color: #1c1d18;
+      transform-origin: 0% 85%;
+    }
+    [id="05-marketplace-caps-num"] {
+      color: #3f7d5c;
+    }
+    [id="05-marketplace-vendors-label"] {
+      left: 126px;
+      top: 564px;
+    }
+    [id="05-marketplace-caps-label"] {
+      left: 6px;
+      top: 124px;
+    }
+
+    /* ---------- model chips ---------- */
+    [id="05-marketplace-chips"] {
+      position: absolute;
+      left: 120px;
+      top: 640px;
+      width: 700px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px 14px;
+    }
+    [class~="05-marketplace-chip"] {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      height: 60px;
+      padding: 0 26px 0 20px;
+      box-sizing: border-box;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.62);
+      backdrop-filter: blur(24px) saturate(1.1);
+      -webkit-backdrop-filter: blur(24px) saturate(1.1);
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      box-shadow:
+        0 1px 2px rgba(28, 29, 24, 0.03),
+        0 18px 50px -20px rgba(28, 29, 24, 0.2);
+      font-family: "Inter", sans-serif;
+      font-size: 22px;
+      font-weight: 500;
+      color: #1c1d18;
+      white-space: nowrap;
+    }
+    [class~="05-marketplace-dot"] {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #3f7d5c;
+      flex: none;
+    }
+    [class~="05-marketplace-sep"] {
+      color: #7c7e73;
+    }
+    [class~="05-marketplace-metric"] {
+      color: #3f7d5c;
+      font-weight: 600;
+    }
+    [class~="05-marketplace-chip-proof"] {
+      background: #dcebe1;
+      border-color: rgba(63, 125, 92, 0.18);
+      color: #2a543d;
+    }
+  </style>
+
+  <div id="root" data-composition-id="05-marketplace" data-width="1920" data-height="1080" data-duration="5.892">
+    <div id="05-marketplace-bg" class="clip" data-start="0" data-duration="5.892" data-track-index="0">
+      <img id="05-marketplace-hill" src="assets/dawn-hill.jpg" alt="" />
+      <div id="05-marketplace-bloom-rose" class="05-marketplace-bloom"></div>
+      <div id="05-marketplace-bloom-sky" class="05-marketplace-bloom"></div>
+      <div id="05-marketplace-bloom-mint" class="05-marketplace-bloom"></div>
+    </div>
+
+    <div id="05-marketplace-stage">
+      <div id="05-marketplace-plate">
+        <div id="05-marketplace-viewport">
+          <img id="05-marketplace-shot" src="assets/ui2x-marketplace-full.jpg" alt="" />
+        </div>
+      </div>
+    </div>
+
+    <div id="05-marketplace-hero"><span id="05-marketplace-hero-num">0</span></div>
+    <div id="05-marketplace-hero-label" class="05-marketplace-label">Listings</div>
+
+    <div id="05-marketplace-rule"></div>
+
+    <div id="05-marketplace-vendors" class="05-marketplace-sub">
+      <span id="05-marketplace-vendors-num" class="05-marketplace-sub-num">0</span>
+    </div>
+    <div id="05-marketplace-vendors-label" class="05-marketplace-label">Vendors</div>
+
+    <div id="05-marketplace-caps" class="05-marketplace-sub">
+      <span id="05-marketplace-caps-num" class="05-marketplace-sub-num">0</span>
+      <div id="05-marketplace-caps-label" class="05-marketplace-label">Capabilities</div>
+    </div>
+
+    <div id="05-marketplace-chips">
+      <div class="05-marketplace-chip"><span class="05-marketplace-dot"></span>YOLO11s<span class="05-marketplace-sep">·</span><span class="05-marketplace-metric">0.72 mAP</span></div>
+      <div class="05-marketplace-chip"><span class="05-marketplace-dot"></span>YOLO11n<span class="05-marketplace-sep">·</span><span class="05-marketplace-metric">0.63 mAP</span></div>
+      <div class="05-marketplace-chip"><span class="05-marketplace-dot"></span>Faster R-CNN</div>
+      <div class="05-marketplace-chip"><span class="05-marketplace-dot"></span>OWL-ViT<span class="05-marketplace-sep">·</span>open vocab</div>
+      <div class="05-marketplace-chip 05-marketplace-chip-proof">
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
+          <circle cx="11" cy="11" r="10" fill="#3F7D5C" />
+          <path d="M6.5 11.4l3 3 6-6.4" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        benchmarked on COCO
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <script>
+    (function () {
+      var ID = "05-marketplace";
+      var $ = function (id) {
+        return document.getElementById(ID + "-" + id);
+      };
+      var tl = gsap.timeline({ paused: true });
+      var DUR = 5.492;
+
+      // ---- background: one finite drift per bloom ----
+      tl.fromTo($("bloom-rose"), { x: 0, y: 0 }, { x: 70, y: 40, duration: DUR, ease: "sine.inOut" }, 0);
+      tl.fromTo($("bloom-sky"), { x: 0, y: 0 }, { x: -60, y: 50, duration: DUR, ease: "sine.inOut" }, 0);
+      tl.fromTo($("bloom-mint"), { x: 0, y: 0 }, { x: -50, y: -40, duration: DUR, ease: "sine.inOut" }, 0);
+
+      // ---- Scene 1 (0.0-1.8): plate rises into 3D tilt, page scrolls; 1,186 counts up ----
+      var plate = $("plate");
+      tl.fromTo(
+        plate,
+        { y: 320, rotationX: 24, rotationY: -10, opacity: 0 },
+        { y: 0, rotationX: 14, rotationY: -10, opacity: 1, duration: 1.2, ease: "expo.out" },
+        0,
+      );
+
+      var shot = $("shot");
+      // multi-step scroll, same ease, non-overlapping windows (max travel 178px)
+      tl.fromTo(shot, { y: 0 }, { y: -95, duration: 1.6, ease: "power3.out" }, 0.55);
+      tl.to(shot, { y: -170, duration: 1.6, ease: "power3.out" }, 2.75);
+
+      // counting-dynamic-scale: value + scale share timing and ease
+      function countUp(el, target, at, dur, startScale) {
+        var state = { v: 0 };
+        tl.fromTo(
+          state,
+          { v: 0 },
+          {
+            v: target,
+            duration: dur,
+            ease: "power3.out",
+            onUpdate: function () {
+              el.textContent = Math.round(state.v).toLocaleString("en-US");
+            },
+          },
+          at,
+        );
+        tl.fromTo(el, { scale: startScale }, { scale: 1, duration: dur, ease: "power3.out" }, at);
+      }
+
+      var heroNum = $("hero-num");
+      tl.fromTo($("hero"), { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power2.out" }, 0.05);
+      countUp(heroNum, 1186, 0.1, 1.5, 0.5);
+      tl.fromTo(
+        $("hero-label"),
+        { opacity: 0, y: 14 },
+        { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" },
+        0.45,
+      );
+
+      // ---- Scene 2 (1.8-3.0): 22 vendors, then 38 capabilities pops beside ----
+      tl.fromTo($("rule"), { scaleX: 0 }, { scaleX: 1, duration: 0.7, ease: "power3.out" }, 1.7);
+
+      tl.fromTo($("vendors"), { opacity: 0 }, { opacity: 1, duration: 0.25, ease: "power2.out" }, 1.8);
+      countUp($("vendors-num"), 22, 1.8, 1.0, 0.55);
+      tl.fromTo(
+        $("vendors-label"),
+        { opacity: 0, y: 12 },
+        { opacity: 1, y: 0, duration: 0.45, ease: "power2.out" },
+        1.95,
+      );
+
+      tl.fromTo(
+        $("caps"),
+        { opacity: 0, y: 50, scale: 0.9 },
+        { opacity: 1, y: 0, scale: 1, duration: 0.6, ease: "back.out(1.5)" },
+        2.4,
+      );
+      countUp($("caps-num"), 38, 2.4, 0.75, 0.6);
+
+      // ---- Scene 3 (3.0-5.5): tilt-to-flatten + bookend push; model chips spring in ----
+      tl.to(plate, { rotationX: 4, rotationY: -3, duration: 1.5, ease: "power3.inOut" }, 3.0);
+      var stage = $("stage");
+      tl.fromTo(stage, { scale: 1 }, { scale: 1.045, duration: 1.0, ease: "power2.out" }, 3.0);
+      tl.to(stage, { scale: 1, duration: 1.3, ease: "power2.inOut" }, 4.0);
+
+      var chips = document.querySelectorAll('[id="05-marketplace-chips"] [class~="05-marketplace-chip"]');
+      tl.fromTo(
+        chips,
+        { opacity: 0, y: 60, scale: 0.88 },
+        { opacity: 1, y: 0, scale: 1, duration: 0.6, ease: "back.out(1.5)", stagger: 0.1 },
+        3.15,
+      );
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines[ID] = tl;
+    })();
+  </script>
+</template>

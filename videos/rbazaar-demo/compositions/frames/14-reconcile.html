@@ -1,0 +1,574 @@
+<template>
+  <style>
+    @font-face {
+      font-family: "Instrument Serif";
+      src: url("assets/fonts/instrument-serif-latin-400-normal.woff2") format("woff2");
+      font-weight: 400;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: "Instrument Serif";
+      src: url("assets/fonts/instrument-serif-latin-400-italic.woff2") format("woff2");
+      font-weight: 400;
+      font-style: italic;
+    }
+    @font-face {
+      font-family: "Inter";
+      src: url("assets/fonts/inter-latin-wght-normal.woff2") format("woff2");
+      font-weight: 100 900;
+      font-style: normal;
+    }
+
+    #root {
+      position: absolute;
+      inset: 0;
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      font-family: "Inter", sans-serif;
+      color: #1c1d18;
+    }
+
+    /* ---------- background clip ---------- */
+    .\31 4-reconcile-bg {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      background: #f4f2ec;
+    }
+    .\31 4-reconcile-hill {
+      position: absolute;
+      inset: -12px;
+      width: calc(100% + 24px);
+      height: calc(100% + 24px);
+      object-fit: cover;
+      opacity: 0.28;
+      filter: blur(2px);
+    }
+    .\31 4-reconcile-bloom {
+      position: absolute;
+      width: 900px;
+      height: 900px;
+      border-radius: 50%;
+      filter: blur(140px);
+    }
+    .\31 4-reconcile-bloom-rose { left: -220px; top: -300px; background: #e8b9c4; opacity: 0.5; }
+    .\31 4-reconcile-bloom-sky { left: 1180px; top: -160px; background: #cfe0ea; opacity: 0.55; }
+    .\31 4-reconcile-bloom-mint { left: 520px; top: 560px; background: #dcebe1; opacity: 0.45; }
+
+    /* ---------- stage ---------- */
+    .\31 4-reconcile-stage {
+      position: absolute;
+      inset: 0;
+    }
+    .\31 4-reconcile-glass {
+      background: rgba(255, 255, 255, 0.62);
+      backdrop-filter: blur(24px) saturate(1.1);
+      -webkit-backdrop-filter: blur(24px) saturate(1.1);
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      box-shadow: 0 1px 2px rgba(28, 29, 24, 0.03), 0 24px 80px -24px rgba(28, 29, 24, 0.18);
+    }
+    .\31 4-reconcile-label {
+      position: absolute;
+      left: 0;
+      top: 150px;
+      width: 1920px;
+      text-align: center;
+      font-size: 20px;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #4C4D46;
+    }
+
+    /* flight row */
+    .\31 4-reconcile-path {
+      position: absolute;
+      left: 320px;
+      top: 320px;
+      width: 1280px;
+      height: 20px;
+    }
+    .\31 4-reconcile-node {
+      position: absolute;
+      top: 278px;
+      width: 104px;
+      height: 104px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .\31 4-reconcile-node-robot { left: 198px; }
+    .\31 4-reconcile-node-vendor { left: 1618px; }
+    .\31 4-reconcile-node-label {
+      position: absolute;
+      top: 122px;
+      left: -48px;
+      width: 200px;
+      text-align: center;
+      font-size: 18px;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #4C4D46;
+    }
+    .\31 4-reconcile-arrive {
+      position: absolute;
+      right: -6px;
+      top: -6px;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: #3f7d5c;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 6px 18px -6px rgba(42, 84, 61, 0.5);
+    }
+
+    .\31 4-reconcile-packet {
+      position: absolute;
+      left: 0;
+      top: 282px;
+      height: 96px;
+      padding: 0 30px 0 22px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      white-space: nowrap;
+    }
+    .\31 4-reconcile-ring {
+      position: absolute;
+      inset: -1px;
+      border-radius: 999px;
+      border: 2.5px solid #e7a977;
+      opacity: 0;
+    }
+    .\31 4-reconcile-ring-sage { border-color: #3f7d5c; }
+    .\31 4-reconcile-coin {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: #3f7d5c;
+      box-shadow: inset 0 0 0 5px rgba(255, 255, 255, 0.28);
+      flex: none;
+    }
+    .\31 4-reconcile-amt {
+      font-family: "Instrument Serif", serif;
+      font-size: 46px;
+      line-height: 1;
+      letter-spacing: -0.01em;
+    }
+    .\31 4-reconcile-unit {
+      font-size: 20px;
+      font-weight: 500;
+      color: #4C4D46;
+    }
+    .\31 4-reconcile-to {
+      font-size: 22px;
+      font-weight: 500;
+      color: #63665d;
+    }
+    .\31 4-reconcile-crack {
+      position: absolute;
+      right: 26px;
+      top: -22px;
+      width: 40px;
+      height: 44px;
+    }
+
+    /* status chips */
+    .\31 4-reconcile-status {
+      position: absolute;
+      left: 0;
+      top: 424px;
+      width: 1920px;
+      height: 56px;
+      display: grid;
+      place-items: center;
+    }
+    .\31 4-reconcile-chip {
+      grid-area: 1 / 1;
+      height: 56px;
+      padding: 0 24px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 22px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .\31 4-reconcile-chip-peach {
+      background: rgba(244, 226, 208, 0.9);
+      border: 1px solid rgba(231, 169, 119, 0.75);
+      color: #87522b;
+    }
+    .\31 4-reconcile-chip-sage {
+      background: #dcebe1;
+      border: 1px solid rgba(63, 125, 92, 0.35);
+      color: #2a543d;
+    }
+    .\31 4-reconcile-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #e7a977;
+    }
+
+    /* chain scan */
+    .\31 4-reconcile-chain {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1920px;
+      height: 1080px;
+      transform-origin: 960px 660px;
+    }
+    .\31 4-reconcile-tile {
+      position: absolute;
+      top: 560px;
+      width: 132px;
+      height: 92px;
+      border-radius: 18px;
+      overflow: hidden;
+    }
+    .\31 4-reconcile-bar {
+      position: absolute;
+      left: 20px;
+      height: 8px;
+      border-radius: 4px;
+      background: rgba(28, 29, 24, 0.12);
+    }
+    .\31 4-reconcile-bar-a { top: 30px; width: 84px; }
+    .\31 4-reconcile-bar-b { top: 50px; width: 54px; }
+    .\31 4-reconcile-hit {
+      position: absolute;
+      inset: 0;
+      border-radius: 18px;
+      background: #3f7d5c;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+    }
+    .\31 4-reconcile-bracket {
+      position: absolute;
+      left: 0;
+      top: 666px;
+      width: 432px;
+      height: 56px;
+    }
+    .\31 4-reconcile-bracket-label {
+      position: absolute;
+      left: 0;
+      top: 26px;
+      width: 432px;
+      text-align: center;
+      font-size: 17px;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #2a543d;
+    }
+    .\31 4-reconcile-lens {
+      position: absolute;
+      left: 0;
+      top: 556px;
+      width: 124px;
+      height: 124px;
+    }
+    .\31 4-reconcile-call-row {
+      position: absolute;
+      left: 0;
+      top: 756px;
+      width: 1920px;
+      height: 60px;
+      display: grid;
+      place-items: center;
+    }
+    .\31 4-reconcile-call {
+      height: 60px;
+      padding: 0 28px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      font-family: monospace;
+      font-size: 22px;
+      font-weight: 500;
+      color: #1c1d18;
+      white-space: pre;
+    }
+    .\31 4-reconcile-result {
+      position: relative;
+      display: inline-block;
+      min-width: 64px;
+    }
+    .\31 4-reconcile-res-pending { color: #4C4D46; }
+    .\31 4-reconcile-res-used {
+      position: absolute;
+      left: 0;
+      top: 0;
+      color: #3f7d5c;
+      font-weight: 700;
+    }
+
+    /* payoff */
+    .\31 4-reconcile-payoff-row {
+      position: absolute;
+      left: 0;
+      top: 528px;
+      width: 1920px;
+      display: flex;
+      justify-content: center;
+    }
+    .\31 4-reconcile-payoff {
+      width: 820px;
+      padding: 36px 48px 38px;
+      border-radius: 28px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .\31 4-reconcile-shield {
+      width: 120px;
+      height: 132px;
+    }
+    .\31 4-reconcile-title {
+      margin-top: 18px;
+      font-family: "Instrument Serif", serif;
+      font-size: 52px;
+      line-height: 1.04;
+      letter-spacing: -0.01em;
+      color: #1c1d18;
+    }
+    .\31 4-reconcile-word { display: inline-block; }
+    .\31 4-reconcile-em { font-style: italic; color: #3f7d5c; }
+    .\31 4-reconcile-sub {
+      margin-top: 12px;
+      font-size: 24px;
+      line-height: 1.4;
+      color: #63665d;
+    }
+  </style>
+
+  <div id="root" data-composition-id="14-reconcile" data-width="1920" data-height="1080" data-duration="6.96">
+    <!-- full-bleed ground -->
+    <div class="clip 14-reconcile-bg" data-start="0" data-duration="6.96" data-track-index="0">
+      <img class="14-reconcile-hill" src="assets/dawn-hill.jpg" alt="" />
+      <div id="14-reconcile-bloom-rose" class="14-reconcile-bloom 14-reconcile-bloom-rose"></div>
+      <div id="14-reconcile-bloom-sky" class="14-reconcile-bloom 14-reconcile-bloom-sky"></div>
+      <div id="14-reconcile-bloom-mint" class="14-reconcile-bloom 14-reconcile-bloom-mint"></div>
+    </div>
+
+    <div class="clip 14-reconcile-stage" data-start="0" data-duration="6.96" data-track-index="1">
+      <div id="14-reconcile-label" class="14-reconcile-label">Reconciliation</div>
+
+      <!-- flight row -->
+      <svg id="14-reconcile-path" class="14-reconcile-path" viewBox="0 0 1280 20">
+        <line x1="4" y1="10" x2="1276" y2="10" stroke="rgba(28,29,24,0.24)" stroke-width="5" stroke-linecap="round" stroke-dasharray="0.1 18" />
+      </svg>
+
+      <div id="14-reconcile-robot" class="14-reconcile-node 14-reconcile-node-robot 14-reconcile-glass">
+        <svg width="54" height="54" viewBox="0 0 54 54" fill="none" stroke="#3f7d5c" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="27" y1="6" x2="27" y2="14" />
+          <circle cx="27" cy="5" r="2.6" fill="#3f7d5c" stroke="none" />
+          <rect x="10" y="14" width="34" height="26" rx="9" />
+          <circle cx="20.5" cy="27" r="3" fill="#3f7d5c" stroke="none" />
+          <circle cx="33.5" cy="27" r="3" fill="#3f7d5c" stroke="none" />
+          <line x1="18" y1="47" x2="36" y2="47" />
+        </svg>
+        <div class="14-reconcile-node-label">robot</div>
+      </div>
+
+      <div id="14-reconcile-vendor" class="14-reconcile-node 14-reconcile-node-vendor 14-reconcile-glass">
+        <svg width="56" height="54" viewBox="0 0 56 54" fill="none" stroke="#3f7d5c" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M8 20 L12 8 H44 L48 20" />
+          <path d="M8 20 C8 25 16 25 18 20 C20 25 26 25 28 20 C30 25 36 25 38 20 C40 25 48 25 48 20" />
+          <path d="M12 25 V46 H44 V25" />
+          <rect x="23" y="33" width="10" height="13" rx="2" />
+        </svg>
+        <div class="14-reconcile-node-label">vendor</div>
+        <div id="14-reconcile-arrive" class="14-reconcile-arrive">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 10.5 L8.5 14 L15.5 6" /></svg>
+        </div>
+      </div>
+
+      <div id="14-reconcile-packet" class="14-reconcile-packet 14-reconcile-glass">
+        <div id="14-reconcile-ring-peach" class="14-reconcile-ring"></div>
+        <div id="14-reconcile-ring-sage" class="14-reconcile-ring 14-reconcile-ring-sage"></div>
+        <div id="14-reconcile-coin" class="14-reconcile-coin"></div>
+        <span class="14-reconcile-amt">0.0006</span>
+        <span class="14-reconcile-unit">AUSD</span>
+        <svg width="26" height="18" viewBox="0 0 26 18" fill="none" stroke="#63665d" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9 H23 M16 2 L23 9 L16 16" /></svg>
+        <span class="14-reconcile-to">vendor</span>
+        <svg id="14-reconcile-crack" class="14-reconcile-crack" viewBox="0 0 40 44" fill="none">
+          <path id="14-reconcile-crack-path" d="M22 2 L14 15 L25 21 L15 33 L21 42" stroke="#c9824e" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="60" stroke-dashoffset="60" />
+        </svg>
+      </div>
+
+      <!-- status chip (peach -> sage swap at the same center) -->
+      <div class="14-reconcile-status">
+        <div id="14-reconcile-chip-peach" class="14-reconcile-chip 14-reconcile-chip-peach">
+          <div id="14-reconcile-dot" class="14-reconcile-dot"></div>
+          <span>uncertain · allowance held</span>
+        </div>
+        <div id="14-reconcile-chip-sage" class="14-reconcile-chip 14-reconcile-chip-sage">
+          <span>settled</span>
+          <svg width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#3f7d5c" /><path d="M7 12.5 L10.5 16 L17 8.5" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" /></svg>
+          <span>· tx recovered</span>
+        </div>
+      </div>
+
+      <!-- chain scan (working theater) -->
+      <div id="14-reconcile-chain" class="14-reconcile-chain">
+        <div class="14-reconcile-tile 14-reconcile-glass" style="left: 294px"><div class="14-reconcile-bar 14-reconcile-bar-a"></div><div class="14-reconcile-bar 14-reconcile-bar-b"></div></div>
+        <div class="14-reconcile-tile 14-reconcile-glass" style="left: 444px"><div class="14-reconcile-bar 14-reconcile-bar-a"></div><div class="14-reconcile-bar 14-reconcile-bar-b"></div></div>
+        <div class="14-reconcile-tile 14-reconcile-glass" style="left: 594px"><div class="14-reconcile-bar 14-reconcile-bar-a"></div><div class="14-reconcile-bar 14-reconcile-bar-b"></div></div>
+        <div class="14-reconcile-tile 14-reconcile-glass" style="left: 744px"><div class="14-reconcile-bar 14-reconcile-bar-a"></div><div class="14-reconcile-bar 14-reconcile-bar-b"></div></div>
+        <div class="14-reconcile-tile 14-reconcile-glass" style="left: 894px"><div class="14-reconcile-bar 14-reconcile-bar-a"></div><div class="14-reconcile-bar 14-reconcile-bar-b"></div></div>
+        <div class="14-reconcile-tile 14-reconcile-glass" style="left: 1044px"><div class="14-reconcile-bar 14-reconcile-bar-a"></div><div class="14-reconcile-bar 14-reconcile-bar-b"></div></div>
+        <div class="14-reconcile-tile 14-reconcile-glass" style="left: 1194px"><div class="14-reconcile-bar 14-reconcile-bar-a"></div><div class="14-reconcile-bar 14-reconcile-bar-b"></div></div>
+        <div class="14-reconcile-tile 14-reconcile-glass" style="left: 1344px">
+          <div class="14-reconcile-bar 14-reconcile-bar-a"></div><div class="14-reconcile-bar 14-reconcile-bar-b"></div>
+          <div id="14-reconcile-hit" class="14-reconcile-hit">
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none"><path id="14-reconcile-hit-check" d="M10 21 L17 28 L30 13" stroke="#fff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="32" stroke-dashoffset="32" /></svg>
+          </div>
+        </div>
+        <div class="14-reconcile-tile 14-reconcile-glass" style="left: 1494px"><div class="14-reconcile-bar 14-reconcile-bar-a"></div><div class="14-reconcile-bar 14-reconcile-bar-b"></div></div>
+
+        <div id="14-reconcile-bracket" class="14-reconcile-bracket">
+          <svg width="432" height="18" viewBox="0 0 432 18" fill="none"><path d="M2 2 V14 H430 V2" stroke="#3f7d5c" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" /></svg>
+          <div class="14-reconcile-bracket-label">200-block window</div>
+        </div>
+
+        <svg id="14-reconcile-lens" class="14-reconcile-lens" viewBox="0 0 124 124" fill="none">
+          <line x1="80" y1="80" x2="112" y2="112" stroke="#1c1d18" stroke-opacity="0.82" stroke-width="11" stroke-linecap="round" />
+          <circle cx="50" cy="50" r="40" fill="rgba(255,255,255,0.38)" stroke="#2a543d" stroke-width="6" />
+          <path d="M28 40 C31 31 38 26 46 25" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-opacity="0.9" />
+        </svg>
+
+        <div class="14-reconcile-call-row">
+          <div id="14-reconcile-call" class="14-reconcile-call 14-reconcile-glass">authorizationState(robot, nonce) → <span class="14-reconcile-result"><span id="14-reconcile-res-pending" class="14-reconcile-res-pending">…</span><span id="14-reconcile-res-used" class="14-reconcile-res-used">used</span></span></div>
+        </div>
+      </div>
+
+      <!-- payoff: shield badge -->
+      <div class="14-reconcile-payoff-row">
+        <div id="14-reconcile-payoff" class="14-reconcile-payoff 14-reconcile-glass">
+          <svg id="14-reconcile-shield" class="14-reconcile-shield" viewBox="0 0 120 132" fill="none">
+            <path d="M60 6 L106 22 V62 C106 94 86 116 60 126 C34 116 14 94 14 62 V22 Z" fill="#3f7d5c" />
+            <path d="M60 18 L96 30 V62 C96 87 81 104 60 113" stroke="#fff" stroke-opacity="0.22" stroke-width="3" stroke-linecap="round" />
+            <path id="14-reconcile-shield-check" d="M40 66 L54 80 L82 50" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="64" stroke-dashoffset="64" />
+          </svg>
+          <div class="14-reconcile-title"><span class="14-reconcile-word">never</span> <span class="14-reconcile-word">pays</span> <span class="14-reconcile-word 14-reconcile-em">twice</span></div>
+          <div id="14-reconcile-sub" class="14-reconcile-sub">no double spend · no lost receipt</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <script>
+    (function () {
+      const $ = (id) => document.getElementById("14-reconcile-" + id);
+      const root = document.querySelector('[data-composition-id="14-reconcile"]');
+      const tiles = root.getElementsByClassName("14-reconcile-tile");
+      const words = root.getElementsByClassName("14-reconcile-word");
+      const spring = "back.out(1.5)";
+
+      const tl = gsap.timeline({ paused: true });
+
+      // ---------- atmosphere: one finite drift per bloom ----------
+      tl.fromTo($("bloom-rose"), { x: 0, y: 0 }, { x: 60, y: 30, duration: 6.36, ease: "sine.inOut" }, 0);
+      tl.fromTo($("bloom-sky"), { x: 0, y: 0 }, { x: -50, y: 40, duration: 6.36, ease: "sine.inOut" }, 0);
+      tl.fromTo($("bloom-mint"), { x: 0, y: 0 }, { x: 40, y: -36, duration: 6.36, ease: "sine.inOut" }, 0);
+
+      // ---------- Scene 1 (0.0–1.8): the payment flies and freezes ----------
+      tl.fromTo($("label"), { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, 0);
+      tl.fromTo($("path"), { clipPath: "inset(0% 100% 0% 0%)" }, { clipPath: "inset(0% 0% 0% 0%)", duration: 0.8, ease: "power2.out" }, 0.05);
+      tl.fromTo($("robot"), { opacity: 0, y: 40, scale: 0.88 }, { opacity: 1, y: 0, scale: 1, duration: 0.55, ease: spring }, 0.0);
+      tl.fromTo($("vendor"), { opacity: 0, y: 40, scale: 0.88 }, { opacity: 1, y: 0, scale: 1, duration: 0.55, ease: spring }, 0.1);
+      tl.fromTo($("arrive"), { opacity: 0, scale: 0.4 }, { opacity: 0, scale: 0.4, duration: 0.01 }, 0);
+
+      // packet pops beside the robot, then flies right and halts hard at center
+      tl.fromTo($("packet"), { xPercent: -50, x: 540, opacity: 0, scale: 0.9 }, { xPercent: -50, x: 540, opacity: 1, scale: 1, duration: 0.45, ease: spring }, 0.08);
+      tl.to($("packet"), { x: 960, duration: 0.72, ease: "power1.in" }, 0.45);
+      // freeze glitch: deterministic jitter frames
+      tl.set($("packet"), { x: 970, skewX: -4 }, 1.17);
+      tl.set($("packet"), { x: 953, skewX: 3 }, 1.21);
+      tl.set($("packet"), { x: 964, skewX: -1.5 }, 1.25);
+      tl.set($("packet"), { x: 958, skewX: 0 }, 1.29);
+      tl.set($("packet"), { x: 960 }, 1.33);
+      tl.fromTo($("ring-peach"), { opacity: 0 }, { opacity: 1, duration: 0.18, ease: "power2.out" }, 1.17);
+      tl.fromTo($("ring-sage"), { opacity: 0 }, { opacity: 0, duration: 0.01 }, 0);
+      tl.fromTo($("coin"), { backgroundColor: "#3f7d5c" }, { backgroundColor: "#bdb9ad", duration: 0.25, ease: "power2.out" }, 1.17);
+      tl.fromTo($("crack-path"), { strokeDashoffset: 60 }, { strokeDashoffset: 0, duration: 0.24, ease: "power2.out" }, 1.2);
+
+      // status chip: peach "uncertain"
+      tl.fromTo($("chip-peach"), { opacity: 0, y: 30, scale: 0.9 }, { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: spring }, 1.36);
+      tl.fromTo($("chip-sage"), { opacity: 0, scale: 0.86 }, { opacity: 0, scale: 0.86, duration: 0.01 }, 0);
+      // diegetic "pending" pulse — finite, killed at the resolve beat
+      [1.75, 2.2, 2.65].forEach((t) => {
+        tl.to($("dot"), { scale: 1.55, opacity: 0.4, duration: 0.2, ease: "sine.out" }, t);
+        tl.to($("dot"), { scale: 1, opacity: 1, duration: 0.22, ease: "sine.in" }, t + 0.2);
+      });
+
+      // ---------- Scene 2 (1.8–3.6): the chain is scanned in windows ----------
+      tl.fromTo(tiles, { opacity: 0, y: 56, scale: 0.9 }, { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: spring, stagger: 0.045 }, 1.8);
+
+      tl.fromTo($("bracket"), { opacity: 0, x: 294, y: 16 }, { opacity: 1, x: 294, y: 0, duration: 0.4, ease: spring }, 2.12);
+      tl.fromTo($("lens"), { opacity: 0, x: 310, scale: 0.8, transformOrigin: "50px 50px" }, { opacity: 1, x: 310, scale: 1, duration: 0.4, ease: spring }, 2.1);
+      // window 1 sweep
+      tl.to($("lens"), { x: 610, duration: 0.3, ease: "power1.inOut" }, 2.28);
+      // window 2: bracket steps, lens sweeps
+      tl.to($("bracket"), { x: 744, duration: 0.26, ease: "back.out(1.4)" }, 2.58);
+      tl.to($("lens"), { x: 760, duration: 0.12, ease: "power2.out" }, 2.58);
+      tl.to($("lens"), { x: 1060, duration: 0.22, ease: "power1.inOut" }, 2.7);
+      // window 3: bracket steps, lens lands on the hit block
+      tl.to($("bracket"), { x: 1194, duration: 0.26, ease: "back.out(1.4)" }, 2.9);
+      tl.to($("lens"), { x: 1210, duration: 0.1, ease: "power2.out" }, 2.9);
+      tl.to($("lens"), { x: 1360, duration: 0.16, ease: "power2.out" }, 3.0);
+
+      // mono call chip, result lands as the hit is found
+      tl.fromTo($("call"), { opacity: 0, y: 40, scale: 0.92 }, { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: spring }, 2.4);
+      tl.fromTo($("res-used"), { opacity: 0, scale: 0.7 }, { opacity: 0, scale: 0.7, duration: 0.01 }, 0);
+      tl.set($("res-pending"), { opacity: 0 }, 3.12);
+      tl.to($("res-used"), { opacity: 1, scale: 1, duration: 0.35, ease: "back.out(1.6)" }, 3.12);
+
+      // hit block flips to sage + check
+      tl.fromTo($("hit"), { opacity: 0, scale: 0.7 }, { opacity: 1, scale: 1, duration: 0.4, ease: "back.out(1.7)" }, 3.12);
+      tl.fromTo($("hit-check"), { strokeDashoffset: 32 }, { strokeDashoffset: 0, duration: 0.25, ease: "power2.out" }, 3.2);
+
+      // status swap peach -> sage at the same center; the packet heals
+      tl.to($("chip-peach"), { opacity: 0, scale: 0.92, duration: 0.16, ease: "power2.in" }, 3.24);
+      tl.to($("chip-sage"), { opacity: 1, scale: 1, duration: 0.45, ease: "back.out(1.6)" }, 3.3);
+      tl.to($("crack-path"), { opacity: 0, duration: 0.2, ease: "power2.out" }, 3.3);
+      tl.to($("ring-peach"), { opacity: 0, duration: 0.2, ease: "power2.out" }, 3.3);
+      tl.to($("coin"), { backgroundColor: "#3f7d5c", duration: 0.25, ease: "power2.out" }, 3.3);
+
+      // ---------- Scene 3 (3.6–6.36): flight completes, shield lands ----------
+      // within-scene swap: chain theater zooms through as the payoff takes the space
+      tl.to($("chain"), { opacity: 0, scale: 1.06, filter: "blur(8px)", duration: 0.4, ease: "power2.in" }, 3.6);
+      tl.to($("packet"), { x: 1370, duration: 0.7, ease: "power2.inOut" }, 3.6);
+      tl.to($("ring-sage"), { opacity: 1, duration: 0.25, ease: "power2.out" }, 4.18);
+      tl.to($("vendor"), { scale: 1.08, duration: 0.14, ease: "power2.out" }, 4.26);
+      tl.to($("vendor"), { scale: 1, duration: 0.4, ease: "back.out(2)" }, 4.4);
+      tl.to($("arrive"), { opacity: 1, scale: 1, duration: 0.4, ease: "back.out(1.7)" }, 4.3);
+
+      tl.fromTo($("payoff"), { opacity: 0, y: 60, scale: 0.94 }, { opacity: 1, y: 0, scale: 1, duration: 0.8, ease: "expo.out" }, 3.85);
+      tl.fromTo($("shield"), { opacity: 0, scale: 0.6, y: 20 }, { opacity: 1, scale: 1, y: 0, duration: 0.6, ease: "back.out(1.6)" }, 3.95);
+      tl.fromTo($("shield-check"), { strokeDashoffset: 64 }, { strokeDashoffset: 0, duration: 0.35, ease: "power2.out" }, 4.25);
+      tl.fromTo(words, { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.55, ease: "power3.out", stagger: 0.09 }, 4.12);
+      tl.fromTo($("sub"), { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }, 4.6);
+
+      // hold: one gentle finite float on the hero card
+      tl.to($("payoff"), { y: -5, duration: 1.4, ease: "sine.inOut" }, 4.95);
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["14-reconcile"] = tl;
+    })();
+  </script>
+</template>

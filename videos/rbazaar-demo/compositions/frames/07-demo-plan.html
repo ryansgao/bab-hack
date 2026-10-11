@@ -1,0 +1,662 @@
+<template>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <style>
+    @font-face {
+      font-family: "Instrument Serif";
+      src: url("assets/fonts/instrument-serif-latin-400-normal.woff2") format("woff2");
+      font-weight: 400;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: "Instrument Serif";
+      src: url("assets/fonts/instrument-serif-latin-400-italic.woff2") format("woff2");
+      font-weight: 400;
+      font-style: italic;
+    }
+    @font-face {
+      font-family: "Inter";
+      src: url("assets/fonts/inter-latin-wght-normal.woff2") format("woff2");
+      font-weight: 100 900;
+      font-style: normal;
+    }
+
+    #root {
+      position: absolute;
+      inset: 0;
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      font-family: "Inter", sans-serif;
+      color: #1c1d18;
+    }
+
+    /* ---------- background clip ---------- */
+    .f07-bg {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      background: #f4f2ec;
+    }
+    .f07-bg-hill {
+      position: absolute;
+      left: -40px;
+      top: -24px;
+      width: 2000px;
+      height: 1128px;
+      object-fit: cover;
+      opacity: 0.28;
+      filter: blur(2px);
+    }
+    .f07-bloom {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(140px);
+    }
+    .f07-bloom-rose { left: -160px; top: -220px; width: 900px; height: 760px; background: #e8b9c4; opacity: 0.45; }
+    .f07-bloom-sky { left: 1180px; top: -160px; width: 980px; height: 820px; background: #cfe0ea; opacity: 0.5; }
+    .f07-bloom-mint { left: 520px; top: 560px; width: 1100px; height: 700px; background: #dcebe1; opacity: 0.42; }
+
+    /* ---------- stage + camera ---------- */
+    .f07-stage {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+    }
+    .f07-world {
+      position: absolute;
+      inset: 0;
+      transform-origin: 50% 50%;
+      will-change: transform;
+    }
+    .f07-plate {
+      position: absolute;
+      left: 203.2px;
+      top: 48px;
+      width: 1513.6px;
+      height: 858.4px;
+      padding: 8px;
+      border-radius: 28px;
+      background: rgba(255, 255, 255, 0.62);
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      box-shadow: 0 1px 2px rgba(28, 29, 24, 0.03), 0 24px 80px -24px rgba(28, 29, 24, 0.18),
+        0 40px 120px -40px rgba(28, 29, 24, 0.16);
+      box-sizing: border-box;
+    }
+    .f07-screen {
+      position: absolute;
+      left: 7px;
+      top: 7px;
+      width: 1497.6px;
+      height: 842.4px;
+      border-radius: 21px;
+      overflow: hidden;
+      background: #f4f2ec;
+      box-shadow: inset 0 0 0 1px rgba(28, 29, 24, 0.08);
+    }
+    .f07-page {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1920px;
+      height: 1080px;
+      transform-origin: 0 0;
+      transform: scale(0.78);
+    }
+    .f07-scroller {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1920px;
+      height: 1291px;
+    }
+    .f07-layer {
+      position: absolute;
+      left: 0;
+      width: 1920px;
+      height: 1080px;
+    }
+    .f07-layer-exec { top: 0; }
+    .f07-layer-prov { top: 211px; }
+    .f07-shot {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1920px;
+      height: 1080px;
+      display: block;
+    }
+
+    /* plan rows: blurred "forming" ground + sharp slices */
+    .f07-plan-blur {
+      position: absolute;
+      left: 494px;
+      top: 84px;
+      width: 442px;
+      height: 876px;
+      overflow: hidden;
+    }
+    .f07-plan-blur img {
+      position: absolute;
+      left: -494px;
+      top: -84px;
+      width: 1920px;
+      height: 1080px;
+      filter: blur(14px) saturate(0.9);
+    }
+    .f07-slice {
+      position: absolute;
+      left: 496px;
+      width: 436px;
+      overflow: hidden;
+      transform-origin: 50% 50%;
+    }
+    .f07-slice img {
+      position: absolute;
+      left: -496px;
+      width: 1920px;
+      height: 1080px;
+    }
+    .f07-veil-prov {
+      position: absolute;
+      left: 942px;
+      top: 58px;
+      width: 978px;
+      height: 1022px;
+      background: rgba(244, 242, 236, 0.78);
+    }
+    .f07-veil-plan {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 944px;
+      height: 1291px;
+      background: rgba(244, 242, 236, 0.5);
+    }
+
+    /* selected ring + score glow */
+    .f07-ring-svg {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1920px;
+      height: 1291px;
+      overflow: visible;
+    }
+    .f07-ring {
+      fill: none;
+      stroke: #3f7d5c;
+      stroke-width: 3.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .f07-halo {
+      position: absolute;
+      left: 962px;
+      top: 393px;
+      width: 662px;
+      height: 166px;
+      border-radius: 18px;
+      box-shadow: 0 0 0 6px rgba(63, 125, 92, 0.14), 0 0 48px 6px rgba(63, 125, 92, 0.32);
+    }
+    .f07-score {
+      position: absolute;
+      left: 1460px;
+      top: 475px;
+      height: 19px;
+      padding: 0 4px;
+      font-size: 12.5px;
+      line-height: 19px;
+      font-weight: 500;
+      letter-spacing: 0.01em;
+      color: #2a2b26;
+      background: rgb(248, 249, 244);
+      border-radius: 4px;
+      transform-origin: 30% 50%;
+      white-space: nowrap;
+    }
+
+    /* excluded overlays (providers coords) */
+    .f07-wash {
+      position: absolute;
+      left: 969px;
+      width: 648px;
+      border-radius: 14px;
+      background: rgba(244, 242, 236, 0.5);
+    }
+    .f07-strike-svg {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1920px;
+      height: 1080px;
+      overflow: visible;
+    }
+    .f07-strike {
+      fill: none;
+      stroke: #c8553d;
+      stroke-width: 3.5;
+      stroke-linecap: round;
+    }
+    .f07-xpill {
+      position: absolute;
+      right: 288px; /* right edge at x 1632 */
+      height: 40px;
+      margin-top: -20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 18px 0 13px;
+      border-radius: 999px;
+      background: #fbefeb;
+      border: 1.5px solid rgba(200, 85, 61, 0.45);
+      color: #c8553d;
+      font-size: 21px;
+      font-weight: 600;
+      white-space: nowrap;
+      box-shadow: 0 10px 28px -12px rgba(200, 85, 61, 0.45);
+    }
+    .f07-xpill svg { width: 15px; height: 15px; }
+
+    /* ---------- screen-space overlays ---------- */
+    .f07-glass {
+      background: rgba(255, 255, 255, 0.72);
+      backdrop-filter: blur(24px) saturate(1.1);
+      -webkit-backdrop-filter: blur(24px) saturate(1.1);
+      border: 1px solid rgba(255, 255, 255, 0.8);
+      box-shadow: 0 1px 2px rgba(28, 29, 24, 0.03), 0 24px 80px -24px rgba(28, 29, 24, 0.22);
+    }
+    .f07-status-wrap {
+      position: absolute;
+      left: 0;
+      top: 0;
+      transform-origin: 0 0;
+    }
+    .f07-status {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      height: 64px;
+      padding: 0 28px 0 18px;
+      border-radius: 999px;
+      font-size: 24px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .f07-status-icon {
+      position: relative;
+      width: 32px;
+      height: 32px;
+    }
+    .f07-status-icon svg {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 32px;
+      height: 32px;
+    }
+    .f07-status-labels {
+      display: grid;
+      width: 282px;
+    }
+    .f07-status-labels > span {
+      grid-area: 1 / 1;
+      justify-self: start;
+    }
+    .f07-status b { font-weight: 600; }
+    .f07-status .f07-dim { color: #63665d; }
+
+    .f07-criteria {
+      position: absolute;
+      left: 0;
+      top: 22px;
+      width: 1920px;
+      display: flex;
+      justify-content: center;
+    }
+    .f07-tray {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      height: 80px;
+      padding: 0 10px 0 30px;
+      border-radius: 999px;
+    }
+    .f07-crit-label {
+      font-size: 18px;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      color: #7c7e73;
+      margin-right: 10px;
+    }
+    .f07-pill {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      height: 60px;
+      padding: 0 28px 0 22px;
+      border-radius: 999px;
+      font-size: 26px;
+      font-weight: 500;
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid rgba(28, 29, 24, 0.08);
+      box-shadow: 0 10px 24px -14px rgba(28, 29, 24, 0.25);
+    }
+    .f07-pill i {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #3f7d5c;
+    }
+    .f07-word {
+      display: inline-block;
+      transform-origin: 50% 50%;
+    }
+
+    .f07-reason {
+      position: absolute;
+      left: 1272px;
+      height: 54px;
+      margin-top: -27px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 24px 0 18px;
+      border-radius: 999px;
+      font-size: 22px;
+      font-weight: 500;
+      color: #1c1d18;
+      white-space: nowrap;
+    }
+    .f07-reason i {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #c8553d;
+    }
+    .f07-stamp {
+      position: absolute;
+      right: 100px;
+      top: 822px;
+      height: 70px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 0 30px 0 18px;
+      border-radius: 999px;
+      font-size: 24px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .f07-stamp svg { width: 34px; height: 34px; }
+    .f07-stamp .f07-num {
+      font-family: "Instrument Serif", serif;
+      font-size: 40px;
+      line-height: 1;
+      color: #3f7d5c;
+      margin-right: 2px;
+    }
+    .f07-stamp .f07-dim { color: #63665d; }
+  </style>
+
+  <div id="root" data-composition-id="07-demo-plan" data-width="1920" data-height="1080" data-duration="10.039">
+    <!-- full-bleed ground -->
+    <div class="clip f07-bg" data-start="0" data-duration="10.039" data-track-index="0">
+      <img class="f07-bg-hill" src="assets/dawn-hill.jpg" alt="" />
+      <div class="f07-bloom f07-bloom-rose"></div>
+      <div class="f07-bloom f07-bloom-sky"></div>
+      <div class="f07-bloom f07-bloom-mint"></div>
+    </div>
+
+    <div class="clip f07-stage" data-start="0" data-duration="10.039" data-track-index="1">
+      <!-- camera world -->
+      <div class="f07-world" id="07-demo-plan-world">
+        <div class="f07-plate" id="07-demo-plan-plate">
+          <div class="f07-screen">
+            <div class="f07-page">
+              <div class="f07-scroller" id="07-demo-plan-scroller">
+                <!-- mission page: execution plan -->
+                <div class="f07-layer f07-layer-exec">
+                  <img class="f07-shot" src="assets/mission-execplan.jpg" alt="" />
+                  <div class="f07-plan-blur"><img src="assets/mission-execplan.jpg" alt="" /></div>
+                  <div class="f07-slice f07-row" style="top: 86px; height: 130px"><img src="assets/mission-execplan.jpg" alt="" style="top: -86px" /></div>
+                  <div class="f07-slice f07-row" style="top: 216px; height: 130px"><img src="assets/mission-execplan.jpg" alt="" style="top: -216px" /></div>
+                  <div class="f07-slice f07-row" style="top: 346px; height: 130px"><img src="assets/mission-execplan.jpg" alt="" style="top: -346px" /></div>
+                  <div class="f07-slice f07-row" style="top: 476px; height: 131px"><img src="assets/mission-execplan.jpg" alt="" style="top: -476px" /></div>
+                  <div class="f07-slice f07-row" style="top: 607px; height: 130px"><img src="assets/mission-execplan.jpg" alt="" style="top: -607px" /></div>
+                  <div class="f07-slice f07-row" style="top: 737px; height: 117px"><img src="assets/mission-execplan.jpg" alt="" style="top: -737px" /></div>
+                  <div class="f07-slice f07-run" style="top: 854px; height: 106px"><img src="assets/mission-execplan.jpg" alt="" style="top: -854px" /></div>
+                  <div class="f07-veil-prov" id="07-demo-plan-veil-prov"></div>
+                </div>
+
+                <!-- mission page: provider comparison (scrolled view, aligned +211) -->
+                <div class="f07-layer f07-layer-prov" id="07-demo-plan-prov">
+                  <img class="f07-shot" src="assets/mission-providers.jpg" alt="" />
+                  <div class="f07-wash" style="top: 683px; height: 135px"></div>
+                  <div class="f07-wash" style="top: 831px; height: 135px"></div>
+                  <div class="f07-wash" style="top: 979px; height: 101px"></div>
+                  <svg class="f07-strike-svg" viewBox="0 0 1920 1080">
+                    <line class="f07-strike" x1="1012" y1="704" x2="1458" y2="704" />
+                    <line class="f07-strike" x1="1012" y1="852" x2="1458" y2="852" />
+                    <line class="f07-strike" x1="1012" y1="1000" x2="1458" y2="1000" />
+                  </svg>
+                  <div class="f07-xpill" style="top: 711px">
+                    <svg viewBox="0 0 16 16"><path d="M3 3 L13 13 M13 3 L3 13" stroke="#C8553D" stroke-width="2.4" stroke-linecap="round" fill="none" /></svg>excluded
+                  </div>
+                  <div class="f07-xpill" style="top: 859px">
+                    <svg viewBox="0 0 16 16"><path d="M3 3 L13 13 M13 3 L3 13" stroke="#C8553D" stroke-width="2.4" stroke-linecap="round" fill="none" /></svg>excluded
+                  </div>
+                  <div class="f07-xpill" style="top: 1007px">
+                    <svg viewBox="0 0 16 16"><path d="M3 3 L13 13 M13 3 L3 13" stroke="#C8553D" stroke-width="2.4" stroke-linecap="round" fill="none" /></svg>excluded
+                  </div>
+                </div>
+
+                <div class="f07-veil-plan" id="07-demo-plan-veil-plan"></div>
+
+                <!-- selected card ring + score -->
+                <div class="f07-halo" id="07-demo-plan-halo"></div>
+                <svg class="f07-ring-svg" viewBox="0 0 1920 1291">
+                  <rect class="f07-ring" id="07-demo-plan-ring" x="962" y="393" width="662" height="166" rx="18" ry="18" />
+                </svg>
+                <span class="f07-score f07-word" data-word="score" data-max-scale="0.42">0.277</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- screen-space overlays -->
+      <div class="f07-status-wrap" id="07-demo-plan-status-wrap">
+        <div class="f07-status f07-glass" id="07-demo-plan-status">
+          <div class="f07-status-icon">
+            <svg id="07-demo-plan-spinner" viewBox="0 0 32 32">
+              <circle cx="16" cy="16" r="11" fill="none" stroke="rgba(63,125,92,0.18)" stroke-width="3.5" />
+              <g id="07-demo-plan-spin-g">
+                <circle cx="16" cy="16" r="11" fill="none" stroke="#3F7D5C" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="22 60" />
+              </g>
+            </svg>
+            <svg id="07-demo-plan-check" viewBox="0 0 32 32">
+              <circle cx="16" cy="16" r="15" fill="#3F7D5C" />
+              <path id="07-demo-plan-check-path" d="M9.5 16.5 L14 21 L22.5 11.5" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </div>
+          <div class="f07-status-labels">
+            <span id="07-demo-plan-label-a"><b>Claude</b> <span class="f07-dim">· building skill graph</span></span>
+            <span id="07-demo-plan-label-b"><b>6 skills</b> <span class="f07-dim">· 1 bounty</span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="f07-criteria">
+        <div class="f07-tray f07-glass" id="07-demo-plan-tray">
+          <div class="f07-crit-label">CRITERIA</div>
+          <div class="f07-pill f07-cpill"><i></i><span class="f07-word" data-word="price" data-max-scale="0.08">price</span></div>
+          <div class="f07-pill f07-cpill"><i></i><span class="f07-word" data-word="speed" data-max-scale="0.08">speed</span></div>
+          <div class="f07-pill f07-cpill"><i></i><span class="f07-word" data-word="quality" data-max-scale="0.08">quality</span></div>
+          <div class="f07-pill f07-cpill"><i></i><span class="f07-word" data-word="risk" data-max-scale="0.08">risk</span></div>
+        </div>
+      </div>
+
+      <div class="f07-reason f07-glass" style="top: 634px"><i></i>different execution mode</div>
+      <div class="f07-reason f07-glass" style="top: 767px"><i></i>object class unsupported</div>
+
+      <div class="f07-stamp f07-glass" id="07-demo-plan-stamp">
+        <svg viewBox="0 0 34 34">
+          <circle cx="17" cy="17" r="16" fill="#3F7D5C" />
+          <path d="M10 17.5 L15 22.5 L24 12" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <span><span class="f07-num">16</span> providers scored <span class="f07-dim">·</span> <b style="font-weight: 600; color: #2a543d">1 selected</b></span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var ID = "07-demo-plan";
+      var D = 9.539;
+      var root = document.querySelector('[data-composition-id="07-demo-plan"]');
+      var q = function (s) { return root.querySelector(s); };
+      var qa = function (s) { return Array.prototype.slice.call(root.querySelectorAll(s)); };
+      var byId = function (s) { return root.querySelector('[id="' + ID + "-" + s + '"]'); };
+
+      var tl = gsap.timeline({ paused: true });
+
+      /* ---- background: blooms drift on ONE finite tween ---- */
+      tl.fromTo(q(".f07-bloom-rose"), { x: 0, y: 0 }, { x: 60, y: 30, duration: D, ease: "sine.inOut" }, 0);
+      tl.fromTo(q(".f07-bloom-sky"), { x: 0, y: 0 }, { x: -50, y: 40, duration: D, ease: "sine.inOut" }, 0);
+      tl.fromTo(q(".f07-bloom-mint"), { x: 0, y: 0 }, { x: 40, y: -30, duration: D, ease: "sine.inOut" }, 0);
+
+      /* ---- virtual camera (viewport-change, single wrapper, T = -offset x S) ---- */
+      var world = byId("world");
+      var cam = { s: 1, x: 0, y: 0 };
+      function applyCamera() {
+        world.style.transform = "translate(" + cam.x + "px, " + cam.y + "px) scale(" + cam.s + ")";
+      }
+      applyCamera();
+      // Scene 2: glide right onto the Selected card — focus (1227, 440) at S 1.4
+      var CAM2 = { s: 1.4, x: -(1227 - 960) * 1.4, y: -(440 - 540) * 1.4 };
+      // Scene 3: settle back to frame the provider list — focus (1227, 559) at S 1.15
+      var CAM3 = { s: 1.15, x: -(1227 - 960) * 1.15, y: -(559 - 540) * 1.15 };
+      tl.fromTo(cam, { s: 1, x: 0, y: 0 }, { s: CAM2.s, x: CAM2.x, y: CAM2.y, duration: 1.25, ease: "power3.inOut", onUpdate: applyCamera }, 1.8);
+      tl.fromTo(cam, { s: CAM2.s, x: CAM2.x, y: CAM2.y }, { s: CAM3.s, x: CAM3.x, y: CAM3.y, duration: 1.05, ease: "power3.inOut", onUpdate: applyCamera, immediateRender: false }, 6.0);
+
+      /* ---- Scene 1: plate + working chip + plan rows cascade ---- */
+      tl.fromTo(byId("plate"), { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.9, ease: "expo.out" }, 0);
+
+      var statusWrap = byId("status-wrap");
+      var status = byId("status");
+      tl.fromTo(statusWrap, { x: 766, y: 22, scale: 1 }, { x: 48, y: 34, scale: 0.86, duration: 0.85, ease: "power3.inOut" }, 1.85);
+      tl.fromTo(status, { xPercent: -50, y: 50, scale: 0.88, opacity: 0 }, { xPercent: -50, y: 0, scale: 1, opacity: 1, duration: 0.6, ease: "back.out(1.5)" }, 0.08);
+      tl.fromTo(status, { xPercent: -50 }, { xPercent: 0, duration: 0.85, ease: "power3.inOut", immediateRender: false }, 1.85);
+
+      // spinner: finite, timeline-driven rotation (svg-icon-enrichment)
+      var spinG = byId("spin-g");
+      var spin = { r: 0 };
+      tl.fromTo(spin, { r: 0 }, {
+        r: 1080, duration: 1.55, ease: "none",
+        onUpdate: function () { spinG.setAttribute("transform", "rotate(" + spin.r + " 16 16)"); }
+      }, 0.08);
+      // flip: spinner -> check (scale swap at same center), label swap
+      tl.fromTo(byId("spinner"), { scale: 1, opacity: 1 }, { scale: 0.4, opacity: 0, duration: 0.18, ease: "power2.in", transformOrigin: "50% 50%" }, 1.62);
+      tl.fromTo(byId("check"), { scale: 0.4, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.45, ease: "back.out(1.7)", transformOrigin: "50% 50%" }, 1.7);
+      var checkPath = byId("check-path");
+      var cLen = checkPath.getTotalLength();
+      checkPath.style.strokeDasharray = cLen + " " + (cLen + 20);
+      tl.fromTo(checkPath, { strokeDashoffset: cLen + 10 }, { strokeDashoffset: 0, duration: 0.35, ease: "power2.out" }, 1.74);
+      tl.fromTo(byId("label-a"), { y: 0, opacity: 1 }, { y: -16, opacity: 0, duration: 0.22, ease: "power2.in" }, 1.62);
+      tl.fromTo(q(".f07-status-labels"), { width: 282 }, { width: 176, duration: 0.5, ease: "power3.inOut" }, 1.66);
+      tl.fromTo(byId("label-b"), { y: 16, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: "back.out(1.5)" }, 1.72);
+
+      // six plan rows: clip-mask wipe + soft pop, staggered top -> bottom
+      var rows = qa(".f07-row");
+      rows.forEach(function (row, i) {
+        var t = 0.32 + i * 0.18;
+        tl.fromTo(row, { clipPath: "inset(0% 100% 0% 0%)" }, { clipPath: "inset(0% 0% 0% 0%)", duration: 0.5, ease: "power2.out" }, t);
+        tl.fromTo(row, { y: 16, scale: 0.97 }, { y: 0, scale: 1, duration: 0.55, ease: "back.out(1.5)" }, t);
+      });
+      var run = q(".f07-run");
+      tl.fromTo(run, { clipPath: "inset(0% 100% 0% 0%)" }, { clipPath: "inset(0% 0% 0% 0%)", duration: 0.45, ease: "power2.out" }, 1.42);
+      tl.fromTo(run, { y: 14, scale: 0.97 }, { y: 0, scale: 1, duration: 0.5, ease: "back.out(1.5)" }, 1.42);
+
+      /* ---- Scene 2: provider panel undims, criteria pills, selected ring ---- */
+      tl.fromTo(byId("veil-prov"), { opacity: 1 }, { opacity: 0, duration: 0.8, ease: "power2.out" }, 1.85);
+      tl.fromTo(q(".f07-score"), { opacity: 0 }, { opacity: 1, duration: 0.8, ease: "power2.out" }, 1.85);
+      tl.fromTo(byId("veil-plan"), { opacity: 0 }, { opacity: 1, duration: 0.9, ease: "power2.out" }, 2.0);
+
+      tl.fromTo(byId("tray"), { y: -40, scale: 0.94, opacity: 0 }, { y: 0, scale: 1, opacity: 1, duration: 0.6, ease: "power3.out" }, 2.3);
+      var pillTimes = [2.6, 3.3, 3.9, 4.5];
+      qa(".f07-cpill").forEach(function (p, i) {
+        tl.fromTo(p, { y: 56, scale: 0.88, opacity: 0 }, { y: 0, scale: 1, opacity: 1, duration: 0.55, ease: "back.out(1.5)" }, pillTimes[i] - 0.05);
+      });
+
+      // sage ring draws around the Selected card (svg-path-draw)
+      var ring = byId("ring");
+      var rLen = ring.getTotalLength();
+      ring.style.strokeDasharray = rLen + " " + (rLen + 20);
+      tl.fromTo(ring, { strokeDashoffset: rLen + 10 }, { strokeDashoffset: 0, duration: 0.7, ease: "power2.out" }, 4.65);
+      tl.fromTo(byId("halo"), { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power1.out" }, 5.0);
+
+      // asr-keyword-glow: one linear driver over all spoken words (+ the score)
+      var TIMINGS = {
+        price: { start: 2.6, end: 3.05 },
+        speed: { start: 3.3, end: 3.7 },
+        quality: { start: 3.9, end: 4.35 },
+        risk: { start: 4.5, end: 4.85 },
+        score: { start: 4.95, end: 5.9 }
+      };
+      var ATTACK_DUR = 0.15, RELEASE = 0.4, REST_LEVEL = 0.22, MAX_BLUR = 20;
+      var REST_RGB = { r: 28, g: 29, b: 24 }, ACTIVE_RGB = { r: 63, g: 125, b: 92 };
+      function envelope(time, start, end) {
+        if (time < start) return 0;
+        if (time < end) return Math.min((time - start) / ATTACK_DUR, 1);
+        var releaseEnd = end + RELEASE;
+        if (time < releaseEnd) return 1 - ((time - end) / RELEASE) * (1 - REST_LEVEL);
+        return REST_LEVEL;
+      }
+      function lerp(a, b, t) { return Math.round(a + (b - a) * t); }
+      var words = qa(".f07-word");
+      var driver = { t: 0 };
+      tl.fromTo(driver, { t: 0 }, {
+        t: D, duration: D, ease: "none",
+        onUpdate: function () {
+          words.forEach(function (el) {
+            var timing = TIMINGS[el.dataset.word];
+            if (!timing) return;
+            var env = envelope(driver.t, timing.start, timing.end);
+            var boost = parseFloat(el.dataset.maxScale);
+            el.style.textShadow = "0 0 " + (MAX_BLUR * env) + "px rgba(63,125,92," + (0.75 * env) + ")";
+            el.style.transform = "scale(" + (1 + boost * env) + ")";
+            el.style.color = "rgb(" + lerp(REST_RGB.r, ACTIVE_RGB.r, env) + "," + lerp(REST_RGB.g, ACTIVE_RGB.g, env) + "," + lerp(REST_RGB.b, ACTIVE_RGB.b, env) + ")";
+          });
+        }
+      }, 0);
+
+      /* ---- Scene 3: crossfade to scrolled provider view, strike the excluded ---- */
+      tl.fromTo(byId("prov"), { opacity: 0 }, { opacity: 1, duration: 0.45, ease: "power1.inOut" }, 5.6);
+      tl.fromTo(byId("scroller"), { y: 0 }, { y: -211, duration: 1.05, ease: "power3.inOut" }, 6.0);
+
+      var strikes = qa(".f07-strike");
+      var washes = qa(".f07-wash");
+      var xpills = qa(".f07-xpill");
+      [6.95, 7.3, 7.65].forEach(function (t, i) {
+        var len = strikes[i].getTotalLength();
+        strikes[i].style.strokeDasharray = len + " " + (len + 20);
+        tl.fromTo(washes[i], { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power1.out" }, t);
+        tl.fromTo(strikes[i], { strokeDashoffset: len + 10 }, { strokeDashoffset: 0, duration: 0.42, ease: "power2.out" }, t);
+        tl.fromTo(xpills[i], { scale: 0.6, opacity: 0, transformOrigin: "100% 50%" }, { scale: 1, opacity: 1, duration: 0.45, ease: "back.out(1.6)", transformOrigin: "100% 50%" }, t + 0.3);
+      });
+
+      var reasons = qa(".f07-reason");
+      [7.3, 7.7].forEach(function (t, i) {
+        tl.fromTo(reasons[i], { x: -40, scale: 0.9, opacity: 0 }, { x: 0, scale: 1, opacity: 1, duration: 0.6, ease: "back.out(1.5)" }, t);
+      });
+
+      var stamp = byId("stamp");
+      tl.fromTo(stamp, { y: 60, scale: 0.88, opacity: 0 }, { y: 0, scale: 1, opacity: 1, duration: 0.65, ease: "back.out(1.5)" }, 8.25);
+      // airy hero float on the final stamp over the hold (finite, 5px)
+      tl.fromTo(stamp, { y: 0 }, { y: -5, duration: 0.6, ease: "sine.inOut", immediateRender: false }, 8.9);
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["07-demo-plan"] = tl;
+    })();
+  </script>
+</template>

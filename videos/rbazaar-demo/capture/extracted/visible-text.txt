@@ -1,0 +1,32 @@
+[span] rBazaar
+[span] Missions
+[span] Marketplace
+[span] Bounties
+[span] Simulation studio
+[span] Wallet & receipts
+[span] Recent missions
+[p] No recent missions
+[h1] Model weights for robots, paid per call
+[p] A marketplace for physical AI. Developers sell VLAs, expert models, and policy layers. Your robot rents exactly the ones a task needs and pays per inference.
+[span] Upload reference files
+[span] Parameters
+[span] $1.00
+[span] skill limit
+[label] Spending limit (USD)
+[label] Inference deadline
+[option] 100 ms
+[option] 800 ms
+[option] 3 seconds
+[option] 10 seconds
+[option] 30 seconds
+[label] Execution mode
+[option] Simulation · USD estimates
+[option] Real providers · AUSD testnet
+[label] Automatic bounty reward (USD)
+[label] Automatically post bounties for missing skills
+[strong] Describe a task
+[span] Tell your robot what to do. Claude splits it into steps like perception, grasp planning, and control.
+[strong] Route to models
+[span] Each step goes to the VLA, expert, or layer that best fits your robot’s hardware and budget. Missing one? Post a bounty.
+[strong] Pay per inference
+[span] Weights run on demand, and each call settles as an AUSD micropayment with a receipt.

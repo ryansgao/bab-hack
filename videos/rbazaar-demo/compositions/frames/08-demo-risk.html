@@ -1,0 +1,676 @@
+<template>
+  <style>
+    @font-face {
+      font-family: "Instrument Serif";
+      src: url("assets/fonts/instrument-serif-latin-400-normal.woff2") format("woff2");
+      font-weight: 400;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: "Instrument Serif";
+      src: url("assets/fonts/instrument-serif-latin-400-italic.woff2") format("woff2");
+      font-weight: 400;
+      font-style: italic;
+    }
+    @font-face {
+      font-family: "Inter";
+      src: url("assets/fonts/inter-latin-wght-normal.woff2") format("woff2");
+      font-weight: 100 900;
+      font-style: normal;
+    }
+
+    #root {
+      position: absolute;
+      inset: 0;
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      font-family: "Inter", sans-serif;
+      color: #1c1d18;
+    }
+
+    /* ---------- background ground (own clip) ---------- */
+    .f-08-demo-risk-bg {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      background: #f4f2ec;
+    }
+    .f-08-demo-risk-bg-photo {
+      position: absolute;
+      left: -20px;
+      top: -20px;
+      width: 1960px;
+      height: 1120px;
+      object-fit: cover;
+      opacity: 0.28;
+      filter: blur(2px);
+    }
+    .f-08-demo-risk-bloom {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(140px);
+    }
+    .f-08-demo-risk-bloom-rose {
+      left: 140px;
+      top: 560px;
+      width: 760px;
+      height: 520px;
+      background: #e8b9c4;
+      opacity: 0.5;
+    }
+    .f-08-demo-risk-bloom-mint {
+      left: 1060px;
+      top: 600px;
+      width: 820px;
+      height: 520px;
+      background: #dcebe1;
+      opacity: 0.55;
+    }
+    .f-08-demo-risk-bloom-sky {
+      left: 1160px;
+      top: 20px;
+      width: 720px;
+      height: 520px;
+      background: #cfe0ea;
+      opacity: 0.45;
+    }
+
+    /* ---------- content layer ---------- */
+    .f-08-demo-risk-layer {
+      position: absolute;
+      inset: 0;
+      perspective: 1600px;
+      perspective-origin: 960px 740px;
+    }
+
+    .f-08-demo-risk-glass {
+      background: rgba(255, 255, 255, 0.62);
+      backdrop-filter: blur(24px) saturate(1.1);
+      -webkit-backdrop-filter: blur(24px) saturate(1.1);
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      box-shadow:
+        0 1px 2px rgba(28, 29, 24, 0.03),
+        0 24px 80px -24px rgba(28, 29, 24, 0.18);
+    }
+
+    /* footage window plate: video rect is x110 y150 1000x405 (hoisted, static, above) */
+    .f-08-demo-risk-plate {
+      position: absolute;
+      left: 100px;
+      top: 140px;
+      width: 1020px;
+      height: 425px;
+      border-radius: 22px;
+      border: 1px solid rgba(28, 29, 24, 0.08);
+      background: rgba(255, 255, 255, 0.62);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      box-shadow:
+        0 1px 2px rgba(28, 29, 24, 0.04),
+        0 30px 90px -26px rgba(28, 29, 24, 0.28);
+    }
+
+    /* alert chip on the plate's top border (stays above y150) */
+    .f-08-demo-risk-alert-chip {
+      position: absolute;
+      left: 132px;
+      top: 100px;
+      height: 46px;
+      padding: 0 20px 0 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.9);
+      border: 1.5px solid rgba(200, 85, 61, 0.55);
+      box-shadow: 0 14px 34px -14px rgba(200, 85, 61, 0.45);
+      color: #c8553d;
+      font-size: 22px;
+      font-weight: 600;
+      white-space: nowrap;
+      transform-origin: 30% 100%;
+    }
+    .f-08-demo-risk-alert-chip svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    /* person badge docked on the plate's right border (x >= 1112, clear of video) */
+    .f-08-demo-risk-person {
+      position: absolute;
+      left: 1112px;
+      top: 277px;
+      width: 150px;
+      height: 150px;
+      border-radius: 50%;
+      border: 3px solid #c8553d;
+      background: rgba(255, 255, 255, 0.62);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      box-shadow: 0 22px 60px -20px rgba(200, 85, 61, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .f-08-demo-risk-person svg {
+      width: 82px;
+      height: 82px;
+    }
+
+    /* risk gauge */
+    .f-08-demo-risk-gauge {
+      position: absolute;
+      left: 1330px;
+      top: 150px;
+      width: 470px;
+      height: 320px;
+      transform-origin: 50% 60%;
+    }
+    .f-08-demo-risk-gauge-inner {
+      position: absolute;
+      inset: 0;
+      border-radius: 28px;
+      transform-origin: 50% 60%;
+    }
+    .f-08-demo-risk-gauge-halo {
+      position: absolute;
+      inset: -2px;
+      border-radius: 30px;
+      border: 2px solid #c8553d;
+      opacity: 0;
+    }
+    .f-08-demo-risk-gauge-label {
+      position: absolute;
+      left: 30px;
+      top: 26px;
+      font-size: 20px;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #63665d;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .f-08-demo-risk-gauge-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #c8553d;
+    }
+    .f-08-demo-risk-gauge-svg {
+      position: absolute;
+      left: 35px;
+      top: 70px;
+      width: 400px;
+      height: 220px;
+      overflow: visible;
+    }
+    .f-08-demo-risk-arc-track {
+      fill: none;
+      stroke: rgba(28, 29, 24, 0.08);
+      stroke-width: 22;
+      stroke-linecap: round;
+    }
+    .f-08-demo-risk-arc-value {
+      fill: none;
+      stroke: rgb(63, 125, 92);
+      stroke-width: 22;
+      stroke-linecap: round;
+      stroke-dasharray: 1 1;
+      stroke-dashoffset: 0.93;
+    }
+    .f-08-demo-risk-needle {
+      fill: rgb(63, 125, 92);
+    }
+    .f-08-demo-risk-gauge-end {
+      position: absolute;
+      top: 284px;
+      font-size: 16px;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #63665d;
+    }
+    .f-08-demo-risk-gauge-num-wrap {
+      position: absolute;
+      left: 135px;
+      top: 182px;
+      width: 200px;
+      height: 92px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .f-08-demo-risk-gauge-num {
+      display: inline-block;
+      font-family: "Instrument Serif", serif;
+      font-size: 88px;
+      line-height: 1;
+      letter-spacing: -0.02em;
+      font-variant-numeric: tabular-nums;
+      color: rgb(28, 29, 24);
+      transform-origin: 50% 100%;
+    }
+
+    .f-08-demo-risk-speed-chip {
+      position: absolute;
+      left: 1430px;
+      top: 498px;
+      width: 270px;
+      height: 48px;
+      border-radius: 999px;
+      background: #dcebe1;
+      color: #2a543d;
+      font-size: 22px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      white-space: nowrap;
+      box-shadow: 0 14px 34px -16px rgba(42, 84, 61, 0.35);
+    }
+    .f-08-demo-risk-speed-chip svg {
+      width: 22px;
+      height: 22px;
+    }
+
+    /* comparison split: real listing crops (ui2x-market-pedestrian.jpg @ 0.54 of image px) */
+    .f-08-demo-risk-wing {
+      position: absolute;
+      top: 584px;
+      width: 397.44px;
+      transform-style: preserve-3d;
+    }
+    .f-08-demo-risk-wing-lite {
+      left: 412px;
+    }
+    .f-08-demo-risk-wing-pro {
+      left: 1109px;
+    }
+    .f-08-demo-risk-card {
+      position: relative;
+      width: 100%;
+      transform-style: preserve-3d;
+      will-change: transform;
+    }
+    .f-08-demo-risk-shot {
+      position: relative;
+      width: 100%;
+      border-radius: 13px;
+      overflow: hidden;
+      background: #fbfbf8;
+      border: 1px solid rgba(255, 255, 255, 0.7);
+    }
+    /* shadows fall with the facing direction: left card shadow right, right card shadow left */
+    .f-08-demo-risk-wing-lite .f-08-demo-risk-shot {
+      box-shadow:
+        0 1px 2px rgba(28, 29, 24, 0.04),
+        18px 26px 60px -20px rgba(28, 29, 24, 0.28);
+    }
+    .f-08-demo-risk-wing-pro .f-08-demo-risk-shot {
+      box-shadow:
+        0 1px 2px rgba(28, 29, 24, 0.04),
+        -18px 26px 60px -20px rgba(28, 29, 24, 0.28);
+    }
+    .f-08-demo-risk-crop {
+      width: 100%;
+      background-image: url("assets/ui2x-market-pedestrian.jpg");
+      background-repeat: no-repeat;
+      background-size: 2073.6px 1166.4px;
+    }
+    .f-08-demo-risk-crop + .f-08-demo-risk-crop {
+      border-top: 1px solid rgba(28, 29, 24, 0.05);
+    }
+    .f-08-demo-risk-lite-head {
+      height: 71.28px;
+      background-position: -543.24px -328.32px;
+    }
+    .f-08-demo-risk-lite-body {
+      height: 77.76px;
+      background-position: -543.24px -523.8px;
+    }
+    .f-08-demo-risk-pro-head {
+      height: 71.28px;
+      background-position: -957.96px -326.16px;
+    }
+    .f-08-demo-risk-pro-body {
+      height: 225.72px;
+      background-position: -957.96px -521.64px;
+    }
+    .f-08-demo-risk-ring {
+      position: absolute;
+      inset: -6px;
+      border-radius: 18px;
+      border: 2.5px solid #3f7d5c;
+      box-shadow:
+        0 0 36px 4px rgba(63, 125, 92, 0.35),
+        inset 0 0 18px rgba(63, 125, 92, 0.12);
+    }
+
+    /* pills live on the parent layer, never inside the tilted cards */
+    .f-08-demo-risk-upgrade {
+      position: absolute;
+      left: 884px;
+      top: 618px;
+      width: 150px;
+      height: 42px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 19px;
+      font-weight: 500;
+      color: #2a543d;
+    }
+    .f-08-demo-risk-upgrade svg {
+      width: 22px;
+      height: 22px;
+    }
+    .f-08-demo-risk-pill-lite {
+      position: absolute;
+      left: 799px;
+      top: 682px;
+      height: 38px;
+      padding: 0 16px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 17px;
+      font-weight: 500;
+      color: #63665d;
+      white-space: nowrap;
+      transform-origin: 0% 50%;
+    }
+    .f-08-demo-risk-pill-lite-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #c8553d;
+    }
+    .f-08-demo-risk-pill-pro {
+      position: absolute;
+      left: 869px;
+      top: 754px;
+      width: 250px;
+      height: 44px;
+      border-radius: 999px;
+      background: #3f7d5c;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 19px;
+      font-weight: 600;
+      white-space: nowrap;
+      transform-origin: 100% 50%;
+      box-shadow: 0 16px 36px -14px rgba(42, 84, 61, 0.55);
+    }
+    .f-08-demo-risk-pill-pro svg {
+      width: 20px;
+      height: 20px;
+    }
+  </style>
+
+  <div
+    id="root"
+    data-composition-id="08-demo-risk"
+    data-start="0"
+    data-duration="7.159"
+    data-width="1920"
+    data-height="1080"
+  >
+    <div class="f-08-demo-risk-bg clip" data-start="0" data-duration="7.159" data-track-index="0">
+      <img class="f-08-demo-risk-bg-photo" src="assets/dawn-hill.jpg" alt="" />
+      <div class="f-08-demo-risk-bloom f-08-demo-risk-bloom-sky"></div>
+      <div class="f-08-demo-risk-bloom f-08-demo-risk-bloom-rose"></div>
+      <div class="f-08-demo-risk-bloom f-08-demo-risk-bloom-mint"></div>
+    </div>
+
+    <div class="f-08-demo-risk-layer clip" data-start="0" data-duration="7.159" data-track-index="1">
+      <!-- Scene 1: footage window plate (video is hoisted above it) -->
+      <div class="f-08-demo-risk-plate"></div>
+
+      <div class="f-08-demo-risk-alert-chip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#C8553D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3.5 L21.5 20 H2.5 Z" />
+          <line x1="12" y1="9.5" x2="12" y2="14" />
+          <circle cx="12" cy="17" r="0.6" fill="#C8553D" />
+        </svg>
+        <span>person in cell · 1.1 m</span>
+      </div>
+
+      <div class="f-08-demo-risk-person">
+        <svg viewBox="0 0 100 100">
+          <circle cx="50" cy="32" r="16" fill="#C8553D" />
+          <path d="M20 88 C20 64 33 53 50 53 C67 53 80 64 80 88 Z" fill="#C8553D" />
+        </svg>
+      </div>
+
+      <!-- Scene 2: risk gauge -->
+      <div class="f-08-demo-risk-gauge">
+        <div class="f-08-demo-risk-gauge-inner f-08-demo-risk-glass">
+          <div class="f-08-demo-risk-gauge-label"><span class="f-08-demo-risk-gauge-dot"></span>Task risk</div>
+          <svg class="f-08-demo-risk-gauge-svg" viewBox="0 0 400 220">
+            <path class="f-08-demo-risk-arc-track" d="M 32 200 A 168 168 0 0 1 368 200" />
+            <path class="f-08-demo-risk-arc-value" pathLength="1" d="M 32 200 A 168 168 0 0 1 368 200" />
+            <g class="f-08-demo-risk-needle-g">
+              <polygon class="f-08-demo-risk-needle" points="200,46 192,90 208,90" />
+            </g>
+          </svg>
+          <div class="f-08-demo-risk-gauge-end" style="left: 42px">Low</div>
+          <div class="f-08-demo-risk-gauge-end" style="right: 40px">High</div>
+          <div class="f-08-demo-risk-gauge-num-wrap"><span class="f-08-demo-risk-gauge-num">0.07</span></div>
+          <div class="f-08-demo-risk-gauge-halo"></div>
+        </div>
+      </div>
+
+      <div class="f-08-demo-risk-speed-chip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#2A543D" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 17 A8 8 0 0 1 20 17" />
+          <line x1="12" y1="17" x2="8" y2="12" />
+        </svg>
+        <span>arm speed capped</span>
+      </div>
+
+      <!-- Scene 3: split-tilt listing cards (real crops) -->
+      <div class="f-08-demo-risk-wing f-08-demo-risk-wing-lite">
+        <div class="f-08-demo-risk-card f-08-demo-risk-card-lite">
+          <div class="f-08-demo-risk-shot f-08-demo-risk-shot-lite">
+            <div class="f-08-demo-risk-crop f-08-demo-risk-lite-head"></div>
+            <div class="f-08-demo-risk-crop f-08-demo-risk-lite-body"></div>
+          </div>
+        </div>
+      </div>
+      <div class="f-08-demo-risk-wing f-08-demo-risk-wing-pro">
+        <div class="f-08-demo-risk-card f-08-demo-risk-card-pro">
+          <div class="f-08-demo-risk-ring"></div>
+          <div class="f-08-demo-risk-shot f-08-demo-risk-shot-pro">
+            <div class="f-08-demo-risk-crop f-08-demo-risk-pro-head"></div>
+            <div class="f-08-demo-risk-crop f-08-demo-risk-pro-body"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="f-08-demo-risk-upgrade f-08-demo-risk-glass">
+        <span>upgrade</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#2A543D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="4" y1="12" x2="19" y2="12" />
+          <polyline points="13,6 19,12 13,18" />
+        </svg>
+      </div>
+
+      <!-- Scene 4: inner-edge pills -->
+      <div class="f-08-demo-risk-pill-lite f-08-demo-risk-glass">
+        <span class="f-08-demo-risk-pill-lite-dot"></span>
+        <span>was selected · below risk floor</span>
+      </div>
+      <div class="f-08-demo-risk-pill-pro">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="5,12.5 10,17 19,7" />
+        </svg>
+        <span>Selected · risk 0.74</span>
+      </div>
+    </div>
+
+    <!-- approved frame video hoisted by assemble-index -->
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <script>
+    (function () {
+      const root = document.querySelector('[data-composition-id="08-demo-risk"]');
+      const $ = (sel) => root.querySelector(sel);
+      const tl = gsap.timeline({ paused: true });
+      const DUR = 6.659;
+
+      // ---- ambient: blooms drift on one finite tween each ----
+      tl.to($(".f-08-demo-risk-bloom-rose"), { x: 46, y: -18, duration: DUR, ease: "sine.inOut" }, 0);
+      tl.to($(".f-08-demo-risk-bloom-mint"), { x: -44, y: 14, duration: DUR, ease: "sine.inOut" }, 0);
+      tl.to($(".f-08-demo-risk-bloom-sky"), { x: -24, y: 30, duration: DUR, ease: "sine.inOut" }, 0);
+
+      // ---- Scene 1 (0.0–1.2) "A person steps in." ----
+      // plate settles DOWN from slightly larger so it always frames the static video rect
+      tl.fromTo(
+        $(".f-08-demo-risk-plate"),
+        { opacity: 0, scale: 1.035 },
+        { opacity: 1, scale: 1, duration: 0.6, ease: "expo.out" },
+        0,
+      );
+      // person badge slides in from the right and docks on the plate's right border
+      tl.fromTo(
+        $(".f-08-demo-risk-person"),
+        { opacity: 0, x: 260, scale: 0.9 },
+        { opacity: 1, x: 0, scale: 1, duration: 0.7, ease: "back.out(1.5)" },
+        0.35,
+      );
+      // alert chip pops on the plate's top border (drops from above, never into the video rect)
+      tl.fromTo(
+        $(".f-08-demo-risk-alert-chip"),
+        { opacity: 0, y: -22, scale: 0.86 },
+        { opacity: 1, y: 0, scale: 1, duration: 0.55, ease: "back.out(1.6)" },
+        0.62,
+      );
+
+      // ---- Scene 2 (1.2–2.0) "Risk spikes" ----
+      tl.fromTo(
+        $(".f-08-demo-risk-gauge"),
+        { opacity: 0, y: 50, scale: 0.9 },
+        { opacity: 1, y: 0, scale: 1, duration: 0.6, ease: "back.out(1.4)" },
+        1.12,
+      );
+      const SWEEP_AT = 1.32;
+      const SWEEP = 0.95;
+      const V0 = 0.07;
+      const V1 = 0.74;
+      const num = $(".f-08-demo-risk-gauge-num");
+      // function getter/setter target: GSAP writes the value directly (no callback),
+      // so the readout stays correct under suppressed-event seeks
+      let riskNow = V0;
+      const riskReadout = {
+        v: function (x) {
+          if (x === undefined) return riskNow;
+          riskNow = x;
+          num.textContent = x.toFixed(2);
+        },
+      };
+      tl.fromTo(riskReadout, { v: V0 }, { v: V1, duration: SWEEP, ease: "power3.out" }, SWEEP_AT);
+      tl.fromTo(num, { scale: 0.72 }, { scale: 1, duration: SWEEP, ease: "power3.out" }, SWEEP_AT);
+      tl.fromTo(
+        num,
+        { color: "rgb(28, 29, 24)" },
+        { color: "rgb(200, 85, 61)", duration: SWEEP, ease: "power3.out" },
+        SWEEP_AT,
+      );
+      tl.fromTo(
+        $(".f-08-demo-risk-arc-value"),
+        { strokeDashoffset: 1 - V0, stroke: "rgb(63, 125, 92)" },
+        { strokeDashoffset: 1 - V1, stroke: "rgb(200, 85, 61)", duration: SWEEP, ease: "power3.out" },
+        SWEEP_AT,
+      );
+      tl.fromTo(
+        $(".f-08-demo-risk-needle-g"),
+        { rotation: (V0 - 0.5) * 180, svgOrigin: "200 200" },
+        { rotation: (V1 - 0.5) * 180, svgOrigin: "200 200", duration: SWEEP, ease: "power3.out" },
+        SWEEP_AT,
+      );
+      tl.fromTo(
+        $(".f-08-demo-risk-needle"),
+        { fill: "rgb(63, 125, 92)" },
+        { fill: "rgb(200, 85, 61)", duration: SWEEP, ease: "power3.out" },
+        SWEEP_AT,
+      );
+      // impact on landing: small punch + alert halo
+      const LAND = SWEEP_AT + 0.78;
+      tl.to($(".f-08-demo-risk-gauge-inner"), { scale: 1.035, duration: 0.12, ease: "power2.out" }, LAND);
+      tl.to($(".f-08-demo-risk-gauge-inner"), { scale: 1, duration: 0.45, ease: "power2.out" }, LAND + 0.12);
+      tl.fromTo(
+        $(".f-08-demo-risk-gauge-halo"),
+        { opacity: 0.85, scale: 1 },
+        { opacity: 0, scale: 1.07, duration: 0.7, ease: "power2.out", immediateRender: false },
+        LAND,
+      );
+
+      // ---- Scene 3 (2.0–3.6) "so Scout upgrades on the fly" — split-tilt entry ----
+      const TILT = 14;
+      const OVER = 8;
+      tl.fromTo(
+        $(".f-08-demo-risk-card-lite"),
+        { x: -320, rotateY: TILT + OVER, scale: 0.88, opacity: 0 },
+        { x: 0, rotateY: TILT, scale: 1, opacity: 1, duration: 0.9, ease: "power3.out" },
+        2.05,
+      );
+      tl.fromTo(
+        $(".f-08-demo-risk-card-pro"),
+        { x: 320, rotateY: -TILT - OVER, scale: 0.88, opacity: 0 },
+        { x: 0, rotateY: -TILT, scale: 1, opacity: 1, duration: 0.9, ease: "power3.out" },
+        2.25,
+      );
+      tl.fromTo(
+        $(".f-08-demo-risk-upgrade"),
+        { opacity: 0, y: 34, scale: 0.9 },
+        { opacity: 1, y: 0, scale: 1, duration: 0.55, ease: "back.out(1.5)" },
+        2.95,
+      );
+      // phase-opposed single finite float on the wings (separate layer from the entry)
+      tl.to($(".f-08-demo-risk-wing-lite"), { y: -5, duration: DUR - 3.2, ease: "sine.inOut" }, 3.2);
+      tl.to($(".f-08-demo-risk-wing-pro"), { y: 4, duration: DUR - 3.2, ease: "sine.inOut" }, 3.2);
+
+      // ---- Scene 4 (3.6–6.7) "to the sharper two-cent detector" ----
+      tl.to($(".f-08-demo-risk-shot-lite"), { opacity: 0.55, duration: 0.5, ease: "power2.out" }, 3.65);
+      tl.fromTo(
+        $(".f-08-demo-risk-pill-lite"),
+        { opacity: 0, x: -18 },
+        { opacity: 1, x: 0, duration: 0.5, ease: "power3.out" },
+        3.75,
+      );
+      // the one strong overshoot: Selected pill at the Pro card's inner edge
+      tl.fromTo(
+        $(".f-08-demo-risk-pill-pro"),
+        { opacity: 0, scale: 0.6 },
+        { opacity: 1, scale: 1, duration: 0.6, ease: "back.out(2.2)" },
+        4.25,
+      );
+      tl.fromTo(
+        $(".f-08-demo-risk-ring"),
+        { opacity: 0, scale: 1.04 },
+        { opacity: 1, scale: 1, duration: 0.6, ease: "power2.out" },
+        4.32,
+      );
+      tl.fromTo(
+        $(".f-08-demo-risk-speed-chip"),
+        { opacity: 0, y: 40, scale: 0.9 },
+        { opacity: 1, y: 0, scale: 1, duration: 0.55, ease: "back.out(1.5)" },
+        4.9,
+      );
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["08-demo-risk"] = tl;
+    })();
+  </script>
+</template>

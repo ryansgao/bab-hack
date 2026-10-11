@@ -1,0 +1,377 @@
+<template>
+  <style>
+    @font-face {
+      font-family: "Instrument Serif";
+      src: url("assets/fonts/instrument-serif-latin-400-normal.woff2") format("woff2");
+      font-weight: 400;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: "Instrument Serif";
+      src: url("assets/fonts/instrument-serif-latin-400-italic.woff2") format("woff2");
+      font-weight: 400;
+      font-style: italic;
+    }
+    @font-face {
+      font-family: "Inter";
+      src: url("assets/fonts/inter-latin-wght-normal.woff2") format("woff2");
+      font-weight: 100 900;
+      font-style: normal;
+    }
+
+    #root {
+      position: absolute;
+      inset: 0;
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      color: #1c1d18;
+      font-family: "Inter", sans-serif;
+    }
+
+    /* ---------- background clip (full-bleed ground) ---------- */
+    .\31 5-outro-bg {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+    }
+    .\31 5-outro-base {
+      position: absolute;
+      inset: 0;
+      background: #f4f2ec;
+    }
+    .\31 5-outro-atmos {
+      position: absolute;
+      inset: 0;
+    }
+    .\31 5-outro-photo {
+      position: absolute;
+      inset: -12px;
+      width: calc(100% + 24px);
+      height: calc(100% + 24px);
+      object-fit: cover;
+      filter: blur(2px);
+      opacity: 0.28;
+    }
+    .\31 5-outro-bloom {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(140px);
+    }
+    .\31 5-outro-bloom-rose {
+      width: 820px;
+      height: 820px;
+      left: -160px;
+      top: -260px;
+      background: #e8b9c4;
+      opacity: 0.5;
+    }
+    .\31 5-outro-bloom-sky {
+      width: 900px;
+      height: 900px;
+      right: -220px;
+      top: -180px;
+      background: #cfe0ea;
+      opacity: 0.55;
+    }
+    .\31 5-outro-bloom-mint {
+      width: 980px;
+      height: 760px;
+      left: 470px;
+      top: 560px;
+      background: #dcebe1;
+      opacity: 0.5;
+    }
+
+    /* ---------- content stage ---------- */
+    .\31 5-outro-stage {
+      position: absolute;
+      inset: 0;
+    }
+    .\31 5-outro-col {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 200px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transform-origin: 50% 40%;
+    }
+
+    /* lockup: mark + wordmark */
+    .\31 5-outro-lockup {
+      display: flex;
+      align-items: center;
+      gap: 40px;
+      height: 184px;
+    }
+    .\31 5-outro-mark {
+      position: relative;
+      z-index: 2;
+      width: 164px;
+      height: 164px;
+      flex: 0 0 auto;
+    }
+    .\31 5-outro-mark svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+    .\31 5-outro-mark-tile {
+      filter: drop-shadow(0 18px 36px rgba(42, 84, 61, 0.22));
+    }
+    .\31 5-outro-stroke {
+      fill: none;
+      stroke: #f4f2ec;
+      stroke-width: 1.6;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-dasharray: 1 2;
+      stroke-dashoffset: 1;
+    }
+    .\31 5-outro-wm-clip {
+      position: relative;
+      z-index: 1;
+      clip-path: inset(-30% 100% -40% 0%);
+    }
+    .\31 5-outro-wm {
+      display: block;
+      font-family: "Instrument Serif", serif;
+      font-weight: 400;
+      font-size: 168px;
+      line-height: 0.92;
+      letter-spacing: -0.025em;
+      color: #1c1d18;
+      white-space: nowrap;
+      padding-bottom: 8px;
+    }
+
+    /* tagline */
+    .\31 5-outro-tag {
+      margin-top: 60px;
+      font-family: "Instrument Serif", serif;
+      font-weight: 400;
+      font-size: 80px;
+      line-height: 1;
+      letter-spacing: -0.015em;
+      color: #1c1d18;
+      white-space: nowrap;
+    }
+    .\31 5-outro-word {
+      display: inline-block;
+    }
+    .\31 5-outro-em {
+      font-style: italic;
+      color: #3f7d5c;
+    }
+
+    /* chips */
+    .\31 5-outro-chips {
+      margin-top: 64px;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+    .\31 5-outro-chip {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      height: 58px;
+      padding: 0 28px;
+      border-radius: 999px;
+      font-family: "Inter", sans-serif;
+      font-size: 22px;
+      font-weight: 500;
+      color: #1c1d18;
+      background: rgba(255, 255, 255, 0.62);
+      backdrop-filter: blur(24px) saturate(1.1);
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      box-shadow:
+        0 1px 2px rgba(28, 29, 24, 0.03),
+        0 18px 50px -20px rgba(28, 29, 24, 0.18);
+      white-space: nowrap;
+    }
+    .\31 5-outro-chip-ausd {
+      background: #dcebe1;
+      color: #2a543d;
+      border-color: rgba(63, 125, 92, 0.18);
+    }
+    .\31 5-outro-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      flex: 0 0 auto;
+    }
+
+    /* repo url */
+    .\31 5-outro-url {
+      margin-top: 44px;
+      font-family: monospace;
+      font-size: 24px;
+      font-weight: 500;
+      letter-spacing: 0.01em;
+      color: #63665d;
+    }
+  </style>
+
+  <div id="root" data-composition-id="15-outro" data-width="1920" data-height="1080">
+    <!-- Full-bleed ground: cream + dawn-hill + drifting blooms -->
+    <div
+      id="15-outro-bg"
+      class="clip 15-outro-bg"
+      data-start="0"
+      data-duration="5.349"
+      data-track-index="0"
+    >
+      <div class="15-outro-base"></div>
+      <div id="15-outro-atmos" class="15-outro-atmos">
+        <img id="15-outro-photo" class="15-outro-photo" src="assets/dawn-hill.jpg" alt="" />
+        <div id="15-outro-bloom-rose" class="15-outro-bloom 15-outro-bloom-rose"></div>
+        <div id="15-outro-bloom-sky" class="15-outro-bloom 15-outro-bloom-sky"></div>
+        <div id="15-outro-bloom-mint" class="15-outro-bloom 15-outro-bloom-mint"></div>
+      </div>
+    </div>
+
+    <!-- Content: lockup, tagline, chips, url -->
+    <div
+      id="15-outro-stage"
+      class="clip 15-outro-stage"
+      data-start="0"
+      data-duration="5.349"
+      data-track-index="1"
+    >
+      <div id="15-outro-col" class="15-outro-col">
+        <div class="15-outro-lockup">
+          <div id="15-outro-mark" class="15-outro-mark">
+            <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-label="rBazaar mark">
+              <g id="15-outro-tile" class="15-outro-mark-tile" style="transform-origin: 16px 16px">
+                <rect width="32" height="32" rx="9" fill="#4c7e60" />
+              </g>
+              <path
+                id="15-outro-s1"
+                class="15-outro-stroke"
+                pathLength="1"
+                d="m8 12 8-4 8 4-8 4-8-4Z"
+              />
+              <path id="15-outro-s2" class="15-outro-stroke" pathLength="1" d="m8 16 8 4 8-4" />
+              <path id="15-outro-s3" class="15-outro-stroke" pathLength="1" d="M8 20l8 4 8-4" />
+            </svg>
+          </div>
+          <div id="15-outro-wm-clip" class="15-outro-wm-clip">
+            <span id="15-outro-wm" class="15-outro-wm">rBazaar</span>
+          </div>
+        </div>
+
+        <div class="15-outro-tag">
+          <span id="15-outro-w0" class="15-outro-word">Skills</span>
+          <span id="15-outro-w1" class="15-outro-word">for</span>
+          <span id="15-outro-w2" class="15-outro-word">every</span>
+          <span id="15-outro-w3" class="15-outro-word">robot,</span>
+          <span id="15-outro-w4" class="15-outro-word">paid</span>
+          <span id="15-outro-w5" class="15-outro-word"><span class="15-outro-em">per</span></span>
+          <span id="15-outro-w6" class="15-outro-word"><span class="15-outro-em">call</span>.</span>
+        </div>
+
+        <div class="15-outro-chips">
+          <div id="15-outro-c0" class="15-outro-chip 15-outro-chip-ausd">
+            <span class="15-outro-dot" style="background: #3f7d5c"></span>Agora AUSD
+          </div>
+          <div id="15-outro-c1" class="15-outro-chip">x402</div>
+          <div id="15-outro-c2" class="15-outro-chip">
+            <span class="15-outro-dot" style="background: #f0b90b"></span>BNB Chain
+          </div>
+          <div id="15-outro-c3" class="15-outro-chip">
+            <span class="15-outro-dot" style="background: #0052ff"></span>Base Sepolia
+          </div>
+          <div id="15-outro-c4" class="15-outro-chip">Claude</div>
+        </div>
+
+        <div id="15-outro-url" class="15-outro-url">github.com/ryansgao/bab-hack</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <script>
+    (function () {
+      var el = function (id) {
+        return document.getElementById("15-outro-" + id);
+      };
+      var DUR = 5.349;
+      // Measured: wordmark "rBazaar" (Instrument Serif 168px, -0.025em) width + 40px gap.
+      // The mark starts dead-center, then slides left by half of (gap + wordmark) into the lockup.
+      var WM_W = 418;
+      var MARK_START_X = (40 + WM_W) / 2;
+
+      var tl = gsap.timeline({ paused: true });
+
+      /* ---------- background: one finite drift, photo rises to ~40% ---------- */
+      tl.fromTo(el("photo"), { opacity: 0.28 }, { opacity: 0.4, duration: 2.2, ease: "power1.inOut" }, 0);
+      tl.fromTo(el("bloom-rose"), { x: 0, y: 0 }, { x: 70, y: 36, duration: DUR, ease: "sine.inOut" }, 0);
+      tl.fromTo(el("bloom-sky"), { x: 0, y: 0 }, { x: -60, y: 44, duration: DUR, ease: "sine.inOut" }, 0);
+      tl.fromTo(el("bloom-mint"), { x: 0, y: 0 }, { x: 48, y: -40, duration: DUR, ease: "sine.inOut" }, 0);
+
+      /* ---------- Scene 1 (0.0–1.0): mark blooms + draws, wordmark slides out ---------- */
+      // green square blooms from zero (gentle spring, slight rotation)
+      tl.fromTo(
+        el("tile"),
+        { scale: 0, rotation: -12, opacity: 0 },
+        { scale: 1, rotation: 0, opacity: 1, duration: 0.6, ease: "back.out(1.5)" },
+        0.04
+      );
+      // layer strokes draw on, top diamond first, then the two chevrons
+      tl.fromTo(el("s1"), { strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: 0.42, ease: "power2.out" }, 0.22);
+      tl.fromTo(el("s2"), { strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: 0.32, ease: "power2.out" }, 0.38);
+      tl.fromTo(el("s3"), { strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: 0.32, ease: "power2.out" }, 0.5);
+      // mark slides left into the lockup as the wordmark slides out from behind it
+      tl.fromTo(el("mark"), { x: MARK_START_X }, { x: 0, duration: 0.8, ease: "power3.out" }, 0.5);
+      tl.fromTo(
+        el("wm-clip"),
+        { clipPath: "inset(-30% 100% -40% 0%)" },
+        { clipPath: "inset(-30% -6% -40% 0%)", duration: 0.8, ease: "power3.out" },
+        0.52
+      );
+      tl.fromTo(el("wm"), { x: -160 }, { x: 0, duration: 0.85, ease: "expo.out" }, 0.52);
+
+      /* ---------- Scene 2 (1.0–3.3): tagline rises word-by-word on the VO ---------- */
+      var cues = [1.0, 1.24, 1.47, 1.86, 2.25, 2.57, 2.8]; // Skills · for · every · robot · paid · per · call
+      cues.forEach(function (t, i) {
+        tl.fromTo(
+          el("w" + i),
+          { y: 44, opacity: 0 },
+          { y: 0, opacity: 1, duration: 0.7, ease: "power3.out" },
+          t - 0.06
+        );
+      });
+
+      /* ---------- Scene 3 (3.3–5.35): chips spring in, url fades up ---------- */
+      for (var c = 0; c < 5; c++) {
+        tl.fromTo(
+          el("c" + c),
+          { y: 56, scale: 0.88, opacity: 0 },
+          { y: 0, scale: 1, opacity: 1, duration: 0.6, ease: "back.out(1.5)" },
+          3.3 + c * 0.09
+        );
+      }
+      tl.fromTo(el("url"), { y: 18, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: "power2.out" }, 3.95);
+
+      // life in the hold: near-imperceptible scale-up on the whole lockup column
+      tl.fromTo(el("col"), { scale: 1 }, { scale: 1.025, duration: DUR - 1.0, ease: "none" }, 1.0);
+
+      /* ---------- final exit (film's only real one): soft fade to the cream canvas ---------- */
+      var EXIT = DUR - 0.5;
+      tl.fromTo(
+        el("stage"),
+        { opacity: 1, y: 0, filter: "blur(0px)" },
+        { opacity: 0, y: -24, filter: "blur(6px)", duration: 0.5, ease: "power2.inOut" },
+        EXIT
+      );
+      tl.fromTo(el("atmos"), { opacity: 1 }, { opacity: 0, duration: 0.5, ease: "power1.inOut" }, EXIT);
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["15-outro"] = tl;
+    })();
+  </script>
+</template>

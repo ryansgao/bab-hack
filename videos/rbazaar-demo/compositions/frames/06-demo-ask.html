@@ -1,0 +1,527 @@
+<template>
+  <style>
+    @font-face {
+      font-family: "Instrument Serif";
+      src: url("assets/fonts/instrument-serif-latin-400-normal.woff2") format("woff2");
+      font-weight: 400;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: "Instrument Serif";
+      src: url("assets/fonts/instrument-serif-latin-400-italic.woff2") format("woff2");
+      font-weight: 400;
+      font-style: italic;
+    }
+    @font-face {
+      font-family: "Inter";
+      src: url("assets/fonts/inter-latin-wght-normal.woff2") format("woff2");
+      font-weight: 100 900;
+      font-style: normal;
+    }
+
+    #root {
+      position: absolute;
+      inset: 0;
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      font-family: "Inter", sans-serif;
+      color: #1c1d18;
+    }
+
+    /* ---------- background clip ---------- */
+    .\0000306-demo-ask-bg {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      background: #f4f2ec;
+    }
+    .\0000306-demo-ask-hill {
+      position: absolute;
+      inset: -12px;
+      width: calc(100% + 24px);
+      height: calc(100% + 24px);
+      object-fit: cover;
+      opacity: 0.28;
+      filter: blur(2px);
+    }
+    .\0000306-demo-ask-bloom {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(140px);
+    }
+    .\0000306-demo-ask-bloom-rose {
+      left: -160px;
+      top: -220px;
+      width: 900px;
+      height: 760px;
+      background: #e8b9c4;
+      opacity: 0.45;
+    }
+    .\0000306-demo-ask-bloom-sky {
+      right: -200px;
+      top: 80px;
+      width: 960px;
+      height: 820px;
+      background: #cfe0ea;
+      opacity: 0.5;
+    }
+    .\0000306-demo-ask-bloom-mint {
+      left: 520px;
+      bottom: -360px;
+      width: 1000px;
+      height: 700px;
+      background: #dcebe1;
+      opacity: 0.55;
+    }
+
+    /* ---------- camera ---------- */
+    .\0000306-demo-ask-stage {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+    }
+    .\0000306-demo-ask-zoom-outer,
+    .\0000306-demo-ask-zoom-inner {
+      position: absolute;
+      inset: 0;
+      transform-origin: 50% 50%;
+      will-change: transform;
+    }
+
+    /* ---------- glass app window (92% of frame) ---------- */
+    .\0000306-demo-ask-window {
+      position: absolute;
+      left: 76.8px;
+      top: 43.2px;
+      width: 1766.4px;
+      height: 993.6px;
+      border-radius: 22px;
+      overflow: hidden;
+      background: #f4f2ec;
+      border: 1px solid rgba(28, 29, 24, 0.08);
+      box-shadow:
+        0 1px 2px rgba(28, 29, 24, 0.03),
+        0 40px 120px -36px rgba(28, 29, 24, 0.26),
+        0 0 0 6px rgba(255, 255, 255, 0.35);
+      transform-origin: 50% 50%;
+    }
+    /* the app is authored in its own 1920x1080 CSS px and scaled into the window */
+    .\0000306-demo-ask-app {
+      position: absolute;
+      left: -1px;
+      top: -1px;
+      width: 1920px;
+      height: 1080px;
+      transform: scale(0.92);
+      transform-origin: 0 0;
+    }
+    .\0000306-demo-ask-shot {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1920px;
+      height: 1080px;
+    }
+
+    /* cream patch that hides the screenshot's placeholder once typing starts */
+    .\0000306-demo-ask-patch {
+      position: absolute;
+      left: 761px;
+      top: 389px;
+      width: 374px;
+      height: 21px;
+      border-radius: 4px;
+      background: linear-gradient(90deg, #f8faf7 0%, #f9faf8 50%, #fafaf8 100%);
+      opacity: 0;
+    }
+
+    /* typed mission — Inter, matched to the real composer */
+    .\0000306-demo-ask-type {
+      position: absolute;
+      left: 763px;
+      top: 386.5px;
+      font-family: "Inter", sans-serif;
+      font-size: 14px;
+      font-weight: 400;
+      line-height: 22.5px;
+      color: #1c1d18;
+      white-space: pre;
+    }
+    .\0000306-demo-ask-text {
+      white-space: pre;
+    }
+    .\0000306-demo-ask-caret {
+      display: inline-block;
+      width: 1.6px;
+      height: 18px;
+      margin-left: 1px;
+      vertical-align: -4px;
+      background: #1c1d18;
+      border-radius: 1px;
+      opacity: 0;
+    }
+
+    /* send button overlay (sits exactly on the screenshot's grey button) */
+    .\0000306-demo-ask-burst {
+      position: absolute;
+      left: 1353.25px;
+      top: 463.75px;
+      width: 35px;
+      height: 35px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(42, 84, 61, 0.9) 0%, rgba(63, 125, 92, 0.5) 45%, rgba(63, 125, 92, 0) 72%);
+      filter: blur(6px);
+      opacity: 0;
+    }
+    .\0000306-demo-ask-send {
+      position: absolute;
+      left: 1353.25px;
+      top: 463.75px;
+      width: 35px;
+      height: 35px;
+      border-radius: 50%;
+      background: #3f7d5c;
+      box-shadow: 0 6px 16px -6px rgba(42, 84, 61, 0.55);
+      transform-origin: 50% 50%;
+      opacity: 0;
+    }
+    .\0000306-demo-ask-arrow,
+    .\0000306-demo-ask-spinner {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 35px;
+      height: 35px;
+      transform-origin: 50% 50%;
+    }
+    .\0000306-demo-ask-spinner {
+      opacity: 0;
+    }
+
+    .\0000306-demo-ask-ripple {
+      position: absolute;
+      left: 1353.25px;
+      top: 463.75px;
+      width: 35px;
+      height: 35px;
+      border-radius: 50%;
+      border: 1.5px solid #3f7d5c;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* soft custom cursor (tip at its own 0,0) */
+    .\0000306-demo-ask-cursor {
+      position: absolute;
+      left: 1370px;
+      top: 483px;
+      width: 18px;
+      height: 21px;
+      transform-origin: 0 0;
+      filter: drop-shadow(0 3px 5px rgba(28, 29, 24, 0.25));
+      opacity: 0;
+      pointer-events: none;
+      z-index: 10;
+    }
+    .\0000306-demo-ask-cursor svg {
+      position: absolute;
+      left: -1.6px;
+      top: -1.6px;
+      width: 18px;
+      height: 21.3px;
+      overflow: visible;
+    }
+
+    /* LIVE DEMO chip — glass pill straddling the window's top edge */
+    .\0000306-demo-ask-chip {
+      position: absolute;
+      left: 300px;
+      top: 22px;
+      height: 44px;
+      padding: 0 22px 0 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.78);
+      border: 1px solid rgba(255, 255, 255, 0.9);
+      box-shadow:
+        0 1px 2px rgba(28, 29, 24, 0.04),
+        0 14px 36px -14px rgba(28, 29, 24, 0.28);
+      font-family: "Inter", sans-serif;
+      font-size: 17px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      color: #2a543d;
+      text-transform: uppercase;
+      white-space: nowrap;
+      transform-origin: 20% 50%;
+    }
+    .\0000306-demo-ask-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #3f7d5c;
+      box-shadow: 0 0 0 4px rgba(63, 125, 92, 0.18);
+    }
+  </style>
+
+  <div id="root" data-composition-id="06-demo-ask" data-width="1920" data-height="1080" data-duration="7.007">
+    <!-- full-bleed ground -->
+    <div
+      id="06-demo-ask-bg"
+      class="clip 06-demo-ask-bg"
+      data-start="0"
+      data-duration="7.007"
+      data-track-index="0"
+    >
+      <img class="06-demo-ask-hill" src="assets/dawn-hill.jpg" alt="" />
+      <div id="06-demo-ask-bloom-rose" class="06-demo-ask-bloom 06-demo-ask-bloom-rose"></div>
+      <div id="06-demo-ask-bloom-sky" class="06-demo-ask-bloom 06-demo-ask-bloom-sky"></div>
+      <div id="06-demo-ask-bloom-mint" class="06-demo-ask-bloom 06-demo-ask-bloom-mint"></div>
+    </div>
+
+    <!-- the shot -->
+    <div
+      id="06-demo-ask-stage"
+      class="clip 06-demo-ask-stage"
+      data-start="0"
+      data-duration="7.007"
+      data-track-index="1"
+    >
+      <div id="06-demo-ask-zoom-outer" class="06-demo-ask-zoom-outer">
+        <div id="06-demo-ask-zoom-inner" class="06-demo-ask-zoom-inner">
+          <div id="06-demo-ask-window" class="06-demo-ask-window">
+            <div class="06-demo-ask-app">
+              <img class="06-demo-ask-shot" src="assets/ui2x-home.jpg" alt="rBazaar mission composer" />
+              <div id="06-demo-ask-patch" class="06-demo-ask-patch"></div>
+              <div class="06-demo-ask-type"><span id="06-demo-ask-text" class="06-demo-ask-text"></span><span id="06-demo-ask-caret" class="06-demo-ask-caret"></span></div>
+              <div id="06-demo-ask-burst" class="06-demo-ask-burst"></div>
+              <div id="06-demo-ask-send" class="06-demo-ask-send">
+                <svg id="06-demo-ask-arrow" class="06-demo-ask-arrow" viewBox="0 0 35 35">
+                  <path d="M17.5 25 V10.5 M11.6 16.4 L17.5 10.5 L23.4 16.4" fill="none" stroke="#ffffff" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <svg id="06-demo-ask-spinner" class="06-demo-ask-spinner" viewBox="0 0 35 35">
+                  <circle cx="17.5" cy="17.5" r="7" fill="none" stroke="rgba(255,255,255,0.32)" stroke-width="2.1" />
+                  <path d="M17.5 10.5 A7 7 0 0 1 24.5 17.5" fill="none" stroke="#ffffff" stroke-width="2.1" stroke-linecap="round" />
+                </svg>
+              </div>
+              <div id="06-demo-ask-ripple-1" class="06-demo-ask-ripple"></div>
+              <div id="06-demo-ask-ripple-2" class="06-demo-ask-ripple"></div>
+              <div id="06-demo-ask-cursor" class="06-demo-ask-cursor">
+                <svg viewBox="0 0 22 26">
+                  <path d="M2.6 2.2 C2.1 1.8 1.5 2.1 1.5 2.8 L1.9 21.6 C1.9 22.4 2.8 22.7 3.3 22.1 L8.2 16.9 L14.9 17.3 C15.7 17.3 16.1 16.4 15.5 15.9 Z" fill="#1c1d18" stroke="#ffffff" stroke-width="1.6" stroke-linejoin="round" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <div id="06-demo-ask-chip" class="06-demo-ask-chip">
+            <span class="06-demo-ask-dot"></span>Live demo
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <script>
+    (function () {
+      const ID = "06-demo-ask";
+      const DURATION = 6.507;
+      const $ = (name) => document.getElementById(ID + "-" + name);
+
+      const tl = gsap.timeline({ paused: true });
+
+      // ---------------- layout constants (CSS px) ----------------
+      const W = 1920;
+      const H = 1080;
+      const WIN_X = 76.8;
+      const WIN_Y = 43.2;
+      const APP_SCALE = 0.92;
+      // composer glass box in app px: x 741–1401, y 366–512
+      const COMPOSER_CX = (741 + 1401) / 2;
+      const COMPOSER_CY = (366 + 512) / 2;
+      const TARGET_OFFSET_X = WIN_X + COMPOSER_CX * APP_SCALE - W / 2;
+      const TARGET_OFFSET_Y = WIN_Y + COMPOSER_CY * APP_SCALE - H / 2;
+
+      // ---------------- background drift (one finite tween each) ----------------
+      tl.fromTo($("bloom-rose"), { x: 0, y: 0 }, { x: 60, y: 30, duration: DURATION, ease: "sine.inOut" }, 0);
+      tl.fromTo($("bloom-sky"), { x: 0, y: 0 }, { x: -50, y: 40, duration: DURATION, ease: "sine.inOut" }, 0);
+      tl.fromTo($("bloom-mint"), { x: 0, y: 0 }, { x: 40, y: -30, duration: DURATION, ease: "sine.inOut" }, 0);
+
+      // ---------------- Scene 1 (0.0–0.8): window settles, chip pops ----------------
+      tl.fromTo(
+        $("window"),
+        { scale: 0.94, y: 24, opacity: 0 },
+        { scale: 1, y: 0, opacity: 1, duration: 1.0, ease: "power3.out" },
+        0,
+      );
+      tl.fromTo(
+        $("chip"),
+        { scale: 0.88, y: 46, opacity: 0 },
+        { scale: 1, y: 0, opacity: 1, duration: 0.6, ease: "back.out(1.5)" },
+        0.32,
+      );
+
+      // ---------------- Scene 2: camera targets the composer ----------------
+      // nested wrappers: outer scales about center, inner counter-translates by -offset
+      const ZOOM_AT = 0.8;
+      const ZOOM_DUR = 1.4;
+      tl.fromTo($("zoom-outer"), { scale: 1 }, { scale: 1.95, duration: ZOOM_DUR, ease: "power3.inOut" }, ZOOM_AT);
+      tl.fromTo(
+        $("zoom-inner"),
+        { x: 0, y: 0 },
+        { x: -TARGET_OFFSET_X, y: -TARGET_OFFSET_Y, duration: ZOOM_DUR, ease: "power3.inOut" },
+        ZOOM_AT,
+      );
+      // slow continuous push under the typing, decelerating into a lock before the submit
+      tl.to($("zoom-outer"), { scale: 2.02, duration: 2.6, ease: "power1.out" }, ZOOM_AT + ZOOM_DUR);
+
+      // ---------------- typing schedule (deterministic, character-by-character) ----------------
+      const FULL =
+        "Pick up the red mug on the cluttered workbench and set it on the tray. Slow down if a person\nwalks into the cell.";
+      const T_TYPE_START = 1.5;
+      const T_TYPE_END = 4.65;
+      const weights = [];
+      for (let i = 0; i < FULL.length; i++) {
+        const ch = FULL[i];
+        const prev = i > 0 ? FULL[i - 1] : "";
+        let w = 1 + ((i * 37) % 7) * 0.09; // fixed human-ish jitter
+        if (ch === " " || ch === "\n") w += 0.55;
+        if (prev === ".") w += 3.2; // breath after a sentence
+        if (prev === " " && i > 0 && FULL.slice(i, i + 4) === "tray") w += 0.8;
+        weights.push(w);
+      }
+      weights[0] = 0;
+      const total = weights.reduce((a, b) => a + b, 0);
+      const KEY_T = [];
+      let acc = 0;
+      for (let i = 0; i < FULL.length; i++) {
+        acc += weights[i];
+        KEY_T.push(T_TYPE_START + (acc / total) * (T_TYPE_END - T_TYPE_START));
+      }
+      function countAt(t) {
+        let n = 0;
+        while (n < KEY_T.length && KEY_T[n] <= t) n++;
+        return n;
+      }
+
+      // caret segments: sage while typing the mission's key terms
+      const ACCENT_RANGES = ["red mug", "tray", "Slow down"].map((s) => {
+        const a = FULL.indexOf(s);
+        return [a, a + s.length];
+      });
+      function caretColor(n) {
+        for (const [a, b] of ACCENT_RANGES) if (n > a && n <= b) return "#3f7d5c";
+        return "#1c1d18";
+      }
+
+      const T_CARET_ON = 1.0;
+      const T_PRESS = 5.55;
+      const TYPING_GRACE = 0.22;
+      const BLINK_PERIOD = 1.0;
+
+      const textEl = $("text");
+      const caretEl = $("caret");
+      const patchEl = $("patch");
+      const driver = { t: 0 };
+      tl.fromTo(
+        driver,
+        { t: 0 },
+        {
+          t: DURATION,
+          duration: DURATION,
+          ease: "none",
+          onUpdate: () => {
+            const t = driver.t;
+            const n = countAt(t);
+            textEl.textContent = FULL.slice(0, n);
+            patchEl.style.opacity = n > 0 ? "1" : "0";
+            let on = false;
+            if (t >= T_CARET_ON && t < T_PRESS) {
+              const last = n > 0 ? KEY_T[n - 1] : -1;
+              const typing = n > 0 && t - last < TYPING_GRACE;
+              on = typing || Math.sin(((t - T_CARET_ON) / BLINK_PERIOD) * Math.PI * 2 + Math.PI / 2) > -0.2;
+            }
+            caretEl.style.opacity = on ? "1" : "0";
+            caretEl.style.background = caretColor(n);
+          },
+        },
+        0,
+      );
+
+      // send button wakes up (grey -> sage) on the first keystroke
+      const T_FIRST_KEY = KEY_T[0];
+      tl.fromTo(
+        $("send"),
+        { opacity: 0, scale: 0.86 },
+        { opacity: 1, scale: 1, duration: 0.42, ease: "back.out(1.6)" },
+        T_FIRST_KEY,
+      );
+
+      // ---------------- Scene 3 (4.9–6.5): cursor arrives, press, spinner ----------------
+      const T_CURSOR_IN = 4.85;
+      const MOVE_DUR = 0.55;
+      tl.fromTo($("cursor"), { opacity: 0 }, { opacity: 1, duration: 0.18, ease: "power1.out" }, T_CURSOR_IN);
+      tl.fromTo(
+        $("cursor"),
+        { x: 120, y: 78 },
+        { x: 0, y: 0, duration: MOVE_DUR, ease: "back.out(1.3)" },
+        T_CURSOR_IN,
+      );
+
+      const PRESS_DUR = 0.12;
+      const T_RELEASE = T_PRESS + PRESS_DUR;
+      // press: linear-ish compression (cursor compresses more than the target)
+      tl.to($("cursor"), { scale: 0.84, duration: PRESS_DUR, ease: "power1.in" }, T_PRESS);
+      tl.to(
+        $("send"),
+        { scale: 0.88, backgroundColor: "#2a543d", duration: PRESS_DUR, ease: "power1.in" },
+        T_PRESS,
+      );
+      // release: spring back
+      tl.to($("cursor"), { scale: 1, duration: 0.45, ease: "back.out(2)" }, T_RELEASE);
+      tl.to(
+        $("send"),
+        { scale: 1, backgroundColor: "#3f7d5c", duration: 0.55, ease: "back.out(2)" },
+        T_RELEASE,
+      );
+      // burst glow behind the button
+      tl.fromTo(
+        $("burst"),
+        { scale: 1, opacity: 0 },
+        { scale: 2.6, opacity: 0.55, duration: 0.3, ease: "power2.out" },
+        T_RELEASE,
+      );
+      tl.to($("burst"), { opacity: 0, duration: 0.45, ease: "power2.in" }, T_RELEASE + 0.3);
+      // ripple rings from the click point
+      tl.fromTo(
+        [$("ripple-1"), $("ripple-2")],
+        { scale: 0.9, opacity: 0.75 },
+        { scale: 2.7, opacity: 0, duration: 0.7, ease: "power2.out", stagger: 0.09, immediateRender: false },
+        T_PRESS + 0.04,
+      );
+      // arrow -> spinner swap
+      tl.to($("arrow"), { scale: 0.4, opacity: 0, duration: 0.14, ease: "power2.in" }, T_RELEASE);
+      tl.fromTo(
+        $("spinner"),
+        { scale: 0.5, opacity: 0 },
+        { scale: 1, opacity: 1, duration: 0.32, ease: "back.out(1.6)" },
+        T_RELEASE + 0.08,
+      );
+      tl.fromTo(
+        $("spinner"),
+        { rotation: 0 },
+        { rotation: 540, duration: DURATION - T_RELEASE, ease: "none" },
+        T_RELEASE,
+      );
+      // cursor eases a touch off the button so the spinner reads
+      tl.to($("cursor"), { x: 12, y: 16, duration: 0.5, ease: "power2.out" }, T_RELEASE + 0.3);
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines[ID] = tl;
+    })();
+  </script>
+</template>

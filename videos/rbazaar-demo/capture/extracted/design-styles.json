@@ -1,0 +1,176 @@
+{
+  "typography": [
+    {
+      "role": "display",
+      "fontFamily": "Instrument Serif",
+      "fontSize": "54px",
+      "fontWeight": "400",
+      "lineHeight": "56.16px",
+      "letterSpacing": "-1.7px",
+      "color": "#1C1D18",
+      "sampleText": "Model weights for robots, paid per call"
+    },
+    {
+      "role": "label",
+      "fontFamily": "Inter Variable",
+      "fontSize": "16px",
+      "fontWeight": "400",
+      "lineHeight": "normal",
+      "letterSpacing": "normal",
+      "color": "#7C7E73",
+      "sampleText": "Upload reference files"
+    },
+    {
+      "role": "body",
+      "fontFamily": "Inter Variable",
+      "fontSize": "14px",
+      "fontWeight": "400",
+      "lineHeight": "25.2px",
+      "letterSpacing": "normal",
+      "color": "#63665D",
+      "sampleText": "A marketplace for physical AI. Developers sell VLAs, expert "
+    }
+  ],
+  "spacing": {
+    "observed": [
+      4,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      14,
+      16,
+      18,
+      28
+    ],
+    "baseUnit": 4
+  },
+  "radius": [
+    "9px",
+    "10px",
+    "13px"
+  ],
+  "shadows": [
+    {
+      "value": "rgba(28, 29, 24, 0.23) 0px 20px 55px -20px",
+      "count": 1
+    }
+  ],
+  "buttons": [
+    {
+      "label": "rBazaar",
+      "background": "transparent",
+      "backgroundImage": "",
+      "backdropFilter": "",
+      "color": "#1C1D18",
+      "padding": "0px",
+      "borderRadius": "0px",
+      "border": "0px none rgb(28, 29, 24)",
+      "boxShadow": "none",
+      "fontSize": "16px",
+      "fontWeight": "400",
+      "height": "30px"
+    },
+    {
+      "label": "button",
+      "background": "transparent",
+      "backgroundImage": "",
+      "backdropFilter": "",
+      "color": "#7C7E73",
+      "padding": "0px",
+      "borderRadius": "9px",
+      "border": "0px none rgb(124, 126, 115)",
+      "boxShadow": "none",
+      "fontSize": "16px",
+      "fontWeight": "400",
+      "height": "30px"
+    },
+    {
+      "label": "Missions",
+      "background": "#1C1D18",
+      "backgroundImage": "",
+      "backdropFilter": "",
+      "color": "#1C1D18",
+      "padding": "10px 12px",
+      "borderRadius": "13px",
+      "border": "1px solid rgba(0, 0, 0, 0)",
+      "boxShadow": "none",
+      "fontSize": "13.5px",
+      "fontWeight": "500",
+      "height": "40px"
+    },
+    {
+      "label": "Parameters",
+      "background": "transparent",
+      "backgroundImage": "",
+      "backdropFilter": "",
+      "color": "#63665D",
+      "padding": "7px 9px",
+      "borderRadius": "9px",
+      "border": "0px none rgb(99, 102, 93)",
+      "boxShadow": "none",
+      "fontSize": "12px",
+      "fontWeight": "400",
+      "height": "29px"
+    },
+    {
+      "label": "button",
+      "background": "#A9AFA1",
+      "backgroundImage": "",
+      "backdropFilter": "",
+      "color": "#FFFFFF",
+      "padding": "1px 6px",
+      "borderRadius": "50%",
+      "border": "0px none rgb(255, 255, 255)",
+      "boxShadow": "none",
+      "fontSize": "16px",
+      "fontWeight": "400",
+      "height": "34px"
+    }
+  ],
+  "cards": [],
+  "nav": {
+    "label": "navigation",
+    "background": "transparent",
+    "backgroundImage": "",
+    "backdropFilter": "",
+    "color": "#1C1D18",
+    "padding": "0px",
+    "borderRadius": "0px",
+    "border": "0px none rgb(28, 29, 24)",
+    "boxShadow": "none",
+    "fontSize": "16px",
+    "fontWeight": "400",
+    "height": "216px"
+  },
+  "chips": [],
+  "statCells": [],
+  "tabs": [],
+  "backgrounds": [
+    {
+      "value": "repeating-linear-gradient(90deg, rgba(0, 0, 0, 0) 0px, rgba(0, 0, 0, 0) 11%, rgba(255, 253, 248, 0.33) 16%, rgba(0, 0, 0, 0) 22%)",
+      "area": 12560724
+    },
+    {
+      "value": "radial-gradient(at 30% 55%, rgba(225, 236, 230, 0.72), rgba(0, 0, 0, 0) 56%), radial-gradient(at 90% 54%, rgba(239, 229, 238, 0.667), rgba(0, 0, 0, 0) 55%), radial-gradient(at 65% 5%, rgba(255, 253, 244, 0.7), rgba(0, 0, 0, 0) 55%)",
+      "area": 2073600
+    },
+    {
+      "value": "linear-gradient(rgba(244, 242, 236, 0.4), rgba(0, 0, 0, 0) 32%, rgba(244, 242, 236, 0.16) 68%, rgba(244, 242, 236, 0.56))",
+      "area": 2073600
+    }
+  ],
+  "glass": [
+    {
+      "backdropFilter": "blur(20px) saturate(1.45)",
+      "background": "rgba(255, 255, 255, 0.69)",
+      "border": "1px solid rgba(255, 255, 255, 0.82)",
+      "borderRadius": "24px",
+      "boxShadow": "rgba(28, 29, 24, 0.23) 0px 20px 55px -20px",
+      "area": 96360
+    }
+  ]
+}

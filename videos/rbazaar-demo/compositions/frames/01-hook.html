@@ -1,0 +1,512 @@
+<template>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <style>
+    @font-face {
+      font-family: "Instrument Serif";
+      src: url("assets/fonts/instrument-serif-latin-400-normal.woff2") format("woff2");
+      font-weight: 400;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: "Instrument Serif";
+      src: url("assets/fonts/instrument-serif-latin-400-italic.woff2") format("woff2");
+      font-weight: 400;
+      font-style: italic;
+    }
+    @font-face {
+      font-family: "Inter";
+      src: url("assets/fonts/inter-latin-wght-normal.woff2") format("woff2");
+      font-weight: 100 900;
+      font-style: normal;
+    }
+
+    #root {
+      position: absolute;
+      inset: 0;
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      color: #1c1d18;
+      font-family: "Inter", sans-serif;
+    }
+
+    /* ---------- backdrop clip ---------- */
+    .f01-hook-bg {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      background: #f4f2ec;
+    }
+    .f01-hook-photo {
+      position: absolute;
+      inset: -12px;
+      width: calc(100% + 24px);
+      height: calc(100% + 24px);
+      object-fit: cover;
+      opacity: 0.28;
+      filter: blur(2px);
+    }
+    .f01-hook-bloom {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(140px);
+    }
+    .f01-hook-bloom-rose {
+      left: -260px;
+      top: -220px;
+      width: 980px;
+      height: 820px;
+      background: #e8b9c4;
+      opacity: 0.5;
+    }
+    .f01-hook-bloom-sky {
+      left: 1180px;
+      top: -260px;
+      width: 960px;
+      height: 860px;
+      background: #cfe0ea;
+      opacity: 0.55;
+    }
+    .f01-hook-bloom-mint {
+      left: 820px;
+      top: 560px;
+      width: 1100px;
+      height: 760px;
+      background: #dcebe1;
+      opacity: 0.45;
+    }
+
+    /* ---------- stage clip ---------- */
+    .f01-hook-stage {
+      position: absolute;
+      inset: 0;
+    }
+    .f01-hook-arm {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1920px;
+      height: 1080px;
+      overflow: visible;
+    }
+    .f01-hook-stroke {
+      fill: none;
+      stroke: #3f7d5c;
+      stroke-width: 4;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .f01-hook-limb {
+      fill: rgba(255, 255, 255, 0.6);
+      fill-opacity: 0;
+      stroke: #3f7d5c;
+      stroke-width: 4;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .f01-hook-joint {
+      fill: rgba(255, 255, 255, 0.86);
+      stroke: #3f7d5c;
+      stroke-width: 4;
+    }
+    .f01-hook-joint-dot {
+      fill: #4c7e60;
+    }
+    .f01-hook-icon {
+      fill: none;
+      stroke: #2a543d;
+      stroke-width: 3.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* headline + lines */
+    .f01-hook-h1 {
+      position: absolute;
+      left: 140px;
+      top: 360px;
+      font-family: "Instrument Serif", serif;
+      font-size: 112px;
+      line-height: 0.96;
+      letter-spacing: -0.02em;
+      color: #1c1d18;
+      white-space: nowrap;
+      transform-origin: 0 0;
+    }
+    .f01-hook-w {
+      display: inline-block;
+    }
+    .f01-hook-em {
+      font-style: italic;
+      color: #3f7d5c;
+    }
+    .f01-hook-line2 {
+      position: absolute;
+      left: 140px;
+      top: 380px;
+      height: 84px;
+      display: flex;
+      align-items: center;
+      gap: 30px;
+      white-space: nowrap;
+    }
+    .f01-hook-line2-words {
+      font-family: "Instrument Serif", serif;
+      font-size: 84px;
+      line-height: 1;
+      letter-spacing: -0.015em;
+      color: #1c1d18;
+    }
+    .f01-hook-pill-wrap {
+      display: inline-block;
+    }
+    .f01-hook-pill {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 380px;
+      height: 74px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.62);
+      backdrop-filter: blur(24px) saturate(1.1);
+      -webkit-backdrop-filter: blur(24px) saturate(1.1);
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      box-shadow:
+        0 1px 2px rgba(28, 29, 24, 0.03),
+        0 24px 80px -24px rgba(28, 29, 24, 0.18);
+      font-family: "Inter", sans-serif;
+      font-size: 34px;
+      font-weight: 500;
+      color: #3f7d5c;
+      white-space: nowrap;
+      position: relative;
+    }
+    .f01-hook-tok {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .f01-hook-tok-later {
+      opacity: 0;
+    }
+    .f01-hook-line3 {
+      position: absolute;
+      left: 140px;
+      top: 510px;
+      font-family: "Instrument Serif", serif;
+      font-size: 112px;
+      line-height: 0.96;
+      letter-spacing: -0.02em;
+      color: #1c1d18;
+      white-space: nowrap;
+    }
+  </style>
+
+  <div id="root" data-composition-id="01-hook" data-width="1920" data-height="1080" data-duration="4.612">
+    <!-- full-bleed dawn backdrop -->
+    <div id="01-hook-bg" class="clip f01-hook-bg" data-start="0" data-duration="4.612" data-track-index="0">
+      <img class="f01-hook-photo" src="assets/dawn-hill.jpg" alt="" />
+      <div id="01-hook-bloom-rose" class="f01-hook-bloom f01-hook-bloom-rose"></div>
+      <div id="01-hook-bloom-sky" class="f01-hook-bloom f01-hook-bloom-sky"></div>
+      <div id="01-hook-bloom-mint" class="f01-hook-bloom f01-hook-bloom-mint"></div>
+    </div>
+
+    <div id="01-hook-stage" class="clip f01-hook-stage" data-start="0" data-duration="4.612" data-track-index="1">
+      <!-- line-drawn 6-axis robot arm (right half) -->
+      <svg class="f01-hook-arm" viewBox="0 0 1920 1080" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="01-hook-glow-grad">
+            <stop offset="0" stop-color="#3f7d5c" stop-opacity="1" />
+            <stop offset="0.45" stop-color="#3f7d5c" stop-opacity="0.45" />
+            <stop offset="1" stop-color="#3f7d5c" stop-opacity="0" />
+          </radialGradient>
+          <radialGradient id="01-hook-core-grad" cx="0.4" cy="0.38" r="0.7">
+            <stop offset="0" stop-color="#7fb596" />
+            <stop offset="0.55" stop-color="#3f7d5c" />
+            <stop offset="1" stop-color="#2a543d" />
+          </radialGradient>
+        </defs>
+
+        <!-- glow bloom behind everything -->
+        <circle id="01-hook-glow" cx="1420" cy="372" r="230" fill="url(#01-hook-glow-grad)" opacity="0" />
+
+        <!-- bench + soft contact shadow -->
+        <ellipse id="01-hook-shadow" cx="1500" cy="814" rx="150" ry="10" fill="#1c1d18" opacity="0" />
+        <path id="01-hook-bench" class="f01-hook-stroke" d="M1220 812 L1760 812" />
+
+        <!-- base + turret -->
+        <path id="01-hook-base" class="f01-hook-limb" d="M1420 812 L1440 762 L1560 762 L1580 812 Z" />
+        <path id="01-hook-turret" class="f01-hook-stroke" d="M1500 762 L1500 738" />
+
+        <!-- upper arm + forearm -->
+        <path
+          id="01-hook-upper"
+          class="f01-hook-limb"
+          d="M1517.3 722.0 L1657.3 480.0 A20 20 0 0 0 1622.7 460.0 L1482.7 702.0 A20 20 0 0 0 1517.3 722.0 Z"
+        />
+        <path
+          id="01-hook-fore"
+          class="f01-hook-limb"
+          d="M1646.9 454.5 L1426.9 356.5 A17 17 0 0 0 1413.1 387.5 L1633.1 485.5 A17 17 0 0 0 1646.9 454.5 Z"
+        />
+
+        <!-- wrist assembly (tilts once at the end around the wrist joint) -->
+        <g id="01-hook-wrist">
+          <path
+            id="01-hook-link"
+            class="f01-hook-limb"
+            d="M1417.8 361.2 L1349.8 375.2 A11 11 0 0 0 1354.2 396.8 L1422.2 382.8 A11 11 0 0 0 1417.8 361.2 Z"
+          />
+          <path id="01-hook-palm" class="f01-hook-stroke" d="M1352 386 L1330 386 M1330 340 L1330 432" />
+          <path id="01-hook-finger-top" class="f01-hook-stroke" d="M1330 350 L1278 350 L1266 362" />
+          <path id="01-hook-finger-bot" class="f01-hook-stroke" d="M1330 422 L1278 422 L1266 410" />
+          <circle id="01-hook-j4" class="f01-hook-joint" cx="1352" cy="386" r="14" />
+
+          <!-- per-token gripper icons -->
+          <g id="01-hook-icon-person" opacity="0">
+            <circle class="f01-hook-icon" cx="1292" cy="372" r="9" />
+            <path class="f01-hook-icon" d="M1274 404 Q1274 386 1292 386 Q1310 386 1310 404" />
+          </g>
+          <g id="01-hook-icon-avocado" opacity="0">
+            <path
+              class="f01-hook-icon"
+              style="fill: #dcebe1"
+              d="M1292 360 C1302 360 1304 372 1308 381 C1314 394 1308 410 1292 410 C1276 410 1270 394 1276 381 C1280 372 1282 360 1292 360 Z"
+            />
+            <circle cx="1292" cy="393" r="7.5" fill="#2a543d" />
+          </g>
+          <g id="01-hook-icon-label" opacity="0">
+            <path class="f01-hook-icon" d="M1270 371 L1298 371 L1313 386 L1298 401 L1270 401 Z" />
+            <circle cx="1300" cy="386" r="3.5" fill="#2a543d" />
+            <path class="f01-hook-icon" d="M1277 382 L1289 382 M1277 391 L1286 391" />
+          </g>
+        </g>
+
+        <!-- joints (frosted glass) -->
+        <g id="01-hook-j1">
+          <circle class="f01-hook-joint" cx="1500" cy="712" r="26" />
+          <circle class="f01-hook-joint-dot" cx="1500" cy="712" r="6" />
+        </g>
+        <g id="01-hook-j2">
+          <circle class="f01-hook-joint" cx="1640" cy="470" r="24" />
+          <circle class="f01-hook-joint-dot" cx="1640" cy="470" r="6" />
+        </g>
+        <g id="01-hook-j3">
+          <circle class="f01-hook-joint" cx="1420" cy="372" r="22" />
+          <circle class="f01-hook-joint-dot" cx="1420" cy="372" r="5" />
+        </g>
+
+        <!-- the "brain": glowing frosted orb that lands on the wrist -->
+        <g id="01-hook-orb">
+          <circle cx="1420" cy="372" r="32" fill="rgba(255,255,255,0.9)" stroke="#ffffff" stroke-width="2" />
+          <circle cx="1420" cy="372" r="17" fill="url(#01-hook-core-grad)" />
+          <circle cx="1413" cy="365" r="4.5" fill="#ffffff" opacity="0.85" />
+        </g>
+      </svg>
+
+      <!-- Scene 1 headline -->
+      <div id="01-hook-h1" class="f01-hook-h1">
+        <span id="01-hook-w1" class="f01-hook-w">Your</span>
+        <span id="01-hook-w2" class="f01-hook-w">robot</span>
+        <span id="01-hook-w3" class="f01-hook-w">has</span>
+        <span id="01-hook-w4" class="f01-hook-w">a</span>
+        <span id="01-hook-w5" class="f01-hook-w"><span class="f01-hook-em">body</span>.</span>
+      </div>
+
+      <!-- Scene 2 line with in-place token pill -->
+      <div class="f01-hook-line2">
+        <div class="f01-hook-line2-words">
+          <span id="01-hook-l2w1" class="f01-hook-w">Every</span>
+          <span id="01-hook-l2w2" class="f01-hook-w">new</span>
+          <span id="01-hook-l2w3" class="f01-hook-w">job</span>
+        </div>
+        <div id="01-hook-pill-wrap" class="f01-hook-pill-wrap">
+          <div id="01-hook-pill" class="f01-hook-pill">
+            <span id="01-hook-tok1" class="f01-hook-tok">spot a person</span>
+            <span id="01-hook-tok2" class="f01-hook-tok f01-hook-tok-later">grip an avocado</span>
+            <span id="01-hook-tok3" class="f01-hook-tok f01-hook-tok-later">read a label</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scene 3 resolve -->
+      <div class="f01-hook-line3">
+        <span id="01-hook-l3w1" class="f01-hook-w">needs</span>
+        <span id="01-hook-l3w2" class="f01-hook-w">a</span>
+        <span id="01-hook-l3w3" class="f01-hook-w">new</span>
+        <span id="01-hook-l3w4" class="f01-hook-w"><span class="f01-hook-em">brain</span>.</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const D = 4.112;
+      const $ = (id) => document.getElementById("01-hook-" + id);
+      const tl = gsap.timeline({ paused: true });
+
+      // ---------- backdrop: blooms drift once across the frame ----------
+      tl.fromTo($("bloom-rose"), { x: 0, y: 0 }, { x: 48, y: 22, duration: D, ease: "sine.inOut" }, 0);
+      tl.fromTo($("bloom-sky"), { x: 0, y: 0 }, { x: -40, y: 30, duration: D, ease: "sine.inOut" }, 0);
+      tl.fromTo($("bloom-mint"), { x: 0, y: 0 }, { x: -36, y: -24, duration: D, ease: "sine.inOut" }, 0);
+
+      // ---------- Scene 1 (0–1.66): headline per-word on the VO + arm self-draws ----------
+      const wordIn = (el, at) =>
+        tl.fromTo(
+          el,
+          { opacity: 0, y: 44, filter: "blur(8px)" },
+          { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.5, ease: "power3.out" },
+          at,
+        );
+      // VO: Your 0.06 · robot 0.39 · has 0.88 · a 1.17 · body 1.26
+      wordIn($("w1"), 0.04);
+      wordIn($("w2"), 0.37);
+      wordIn($("w3"), 0.86);
+      wordIn($("w4"), 1.13);
+      wordIn($("w5"), 1.24);
+
+      // svg-path-draw: measured dash lengths
+      const drawIds = ["bench", "base", "turret", "upper", "fore", "link", "palm", "finger-top", "finger-bot"];
+      drawIds.forEach((id) => {
+        const p = $(id);
+        const len = Math.ceil((p.getTotalLength() || 1600) * 1.03);
+        p.style.strokeDasharray = len + " " + len;
+        p.style.strokeDashoffset = String(len);
+      });
+      const draw = (id, at, dur) => tl.to($(id), { strokeDashoffset: 0, duration: dur, ease: "power2.out" }, at);
+      const fillIn = (id, at) =>
+        tl.fromTo($(id), { fillOpacity: 0 }, { fillOpacity: 1, duration: 0.35, ease: "power1.out" }, at);
+
+      draw("bench", 0.08, 0.5);
+      tl.fromTo($("shadow"), { opacity: 0 }, { opacity: 0.07, duration: 0.5, ease: "power1.out" }, 0.3);
+      draw("base", 0.22, 0.42);
+      fillIn("base", 0.6);
+      draw("turret", 0.42, 0.2);
+      draw("upper", 0.5, 0.48);
+      fillIn("upper", 0.95);
+      draw("fore", 0.84, 0.46);
+      fillIn("fore", 1.26);
+      draw("link", 1.12, 0.3);
+      fillIn("link", 1.38);
+      draw("palm", 1.26, 0.26);
+      draw("finger-top", 1.4, 0.24);
+      draw("finger-bot", 1.44, 0.24);
+
+      // joints spring in as the pen passes them (small things: gentle overshoot)
+      const pop = (el, at, from) =>
+        tl.fromTo(
+          el,
+          { opacity: 0, scale: from || 0.6, transformOrigin: "50% 50%" },
+          { opacity: 1, scale: 1, duration: 0.42, ease: "back.out(1.6)" },
+          at,
+        );
+      pop($("j1"), 0.6);
+      pop($("j2"), 0.92);
+      pop($("j3"), 1.22);
+      pop($("j4"), 1.32);
+
+      // ---------- Scene 2 (1.66–2.54): headline lifts + shrinks, token cycles ----------
+      tl.to($("h1"), { y: -140, scale: 0.6, color: "#63665d", duration: 0.55, ease: "power3.out" }, 1.66);
+
+      // VO: Every 1.74 · new 2.06 · job 2.29
+      const lineIn = (el, at) =>
+        tl.fromTo(
+          el,
+          { opacity: 0, y: 36, filter: "blur(6px)" },
+          { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.42, ease: "power3.out" },
+          at,
+        );
+      lineIn($("l2w1"), 1.74);
+      lineIn($("l2w2"), 1.96);
+      lineIn($("l2w3"), 2.12);
+
+      // pill arrives on a soft spring with the first token
+      const T1 = 1.88;
+      const T2 = 2.14;
+      const T3 = 2.4;
+      tl.fromTo(
+        $("pill-wrap"),
+        { opacity: 0, y: 56, scale: 0.88, transformOrigin: "0% 50%" },
+        { opacity: 1, y: 0, scale: 1, duration: 0.45, ease: "back.out(1.5)" },
+        T1,
+      );
+
+      // discrete-text-sequence: hard-cut token states at thresholds (instant sets,
+      // no tween on the text; set-based so it survives event-suppressed seeks)
+      const pillEl = $("pill");
+      const tokens = [$("tok1"), $("tok2"), $("tok3")];
+      [T2, T3].forEach((t, i) => {
+        tl.set(tokens[i], { opacity: 0 }, t);
+        tl.set(tokens[i + 1], { opacity: 1 }, t);
+      });
+      // one pop per token swap
+      [T2, T3].forEach((t) =>
+        tl.fromTo(
+          pillEl,
+          { scale: 0.92 },
+          { scale: 1, duration: 0.24, ease: "back.out(2)", immediateRender: false },
+          t,
+        ),
+      );
+
+      // matching icon springs into the gripper per token (previous one hard-cuts out)
+      const icons = [
+        [$("icon-person"), T1, T2],
+        [$("icon-avocado"), T2, T3],
+        [$("icon-label"), T3, null],
+      ];
+      icons.forEach(([el, tin, tout]) => {
+        tl.fromTo(
+          el,
+          { opacity: 0, scale: 0.45, y: -16, transformOrigin: "50% 50%" },
+          { opacity: 1, scale: 1, y: 0, duration: 0.36, ease: "back.out(1.6)" },
+          tin,
+        );
+        if (tout !== null) tl.set(el, { opacity: 0 }, tout);
+      });
+
+      // ---------- Scene 3 (2.52–4.112): "needs a new brain." + orb lands on the wrist ----------
+      // VO: needs 2.52 · a 2.89 · new 2.98 · brain 3.40
+      lineIn($("l3w1"), 2.5);
+      lineIn($("l3w2"), 2.86);
+      lineIn($("l3w3"), 2.96);
+      tl.fromTo(
+        $("l3w4"),
+        { opacity: 0, y: 30, scale: 0.72, transformOrigin: "40% 75%" },
+        { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: "back.out(1.6)" },
+        3.38,
+      );
+
+      // orb drops onto the wrist joint (gentle landing overshoot)
+      tl.fromTo(
+        $("orb"),
+        { opacity: 0, y: -230, scale: 0.9, transformOrigin: "50% 50%" },
+        { opacity: 1, y: 0, scale: 1, duration: 0.46, ease: "back.out(1.3)" },
+        3.3,
+      );
+      // ambient-glow-bloom (bloom-and-hold): lands with the orb's settle
+      tl.fromTo(
+        $("glow"),
+        { opacity: 0, scale: 0.82, transformOrigin: "50% 50%" },
+        { opacity: 0.32, scale: 1, duration: 0.5, ease: "power2.out" },
+        3.28,
+      );
+
+      // one subtle wrist tilt as it "powers on", then hold
+      tl.fromTo(
+        $("wrist"),
+        { rotation: 0, svgOrigin: "1420 372" },
+        { rotation: 6, svgOrigin: "1420 372", duration: 0.44, ease: "power2.inOut" },
+        3.62,
+      );
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["01-hook"] = tl;
+    })();
+  </script>
+</template>

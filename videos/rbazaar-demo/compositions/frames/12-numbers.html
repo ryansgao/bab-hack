@@ -1,0 +1,486 @@
+<template>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <style>
+    @font-face {
+      font-family: "Instrument Serif";
+      src: url("assets/fonts/instrument-serif-latin-400-normal.woff2") format("woff2");
+      font-weight: 400;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: "Instrument Serif";
+      src: url("assets/fonts/instrument-serif-latin-400-italic.woff2") format("woff2");
+      font-weight: 400;
+      font-style: italic;
+    }
+    @font-face {
+      font-family: "Inter";
+      src: url("assets/fonts/inter-latin-wght-normal.woff2") format("woff2");
+      font-weight: 100 900;
+      font-style: normal;
+    }
+
+    #root {
+      position: relative;
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      font-family: "Inter", sans-serif;
+      color: #1c1d18;
+    }
+
+    /* ---------- background clip ---------- */
+    .f12-numbers-bg {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      background: #f4f2ec;
+    }
+    .f12-numbers-bg-img {
+      position: absolute;
+      left: -20px;
+      top: -20px;
+      width: 1960px;
+      height: 1120px;
+      object-fit: cover;
+      opacity: 0.28;
+      filter: blur(2px);
+    }
+    .f12-numbers-bloom {
+      position: absolute;
+      width: 900px;
+      height: 900px;
+      border-radius: 50%;
+      filter: blur(140px);
+    }
+    #f12-numbers-bloom-rose {
+      left: -160px;
+      top: -260px;
+      background: #e8b9c4;
+      opacity: 0.45;
+    }
+    #f12-numbers-bloom-sky {
+      left: 1180px;
+      top: -200px;
+      background: #cfe0ea;
+      opacity: 0.55;
+    }
+    #f12-numbers-bloom-mint {
+      left: 620px;
+      top: 520px;
+      background: #dcebe1;
+      opacity: 0.5;
+    }
+
+    /* ---------- shared glass ---------- */
+    .f12-numbers-glass {
+      background: rgba(255, 255, 255, 0.62);
+      backdrop-filter: blur(24px) saturate(1.1);
+      -webkit-backdrop-filter: blur(24px) saturate(1.1);
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      box-shadow:
+        0 1px 2px rgba(28, 29, 24, 0.03),
+        0 24px 80px -24px rgba(28, 29, 24, 0.18);
+    }
+    .f12-numbers-label {
+      font-family: "Inter", sans-serif;
+      font-size: 20px;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #5A5B53;
+    }
+
+    /* ---------- scene 1–2: bars stage ---------- */
+    .f12-numbers-bars-stage {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1920px;
+      height: 1080px;
+      transform-origin: 960px 520px;
+    }
+    #f12-numbers-model-label {
+      position: absolute;
+      left: 0;
+      top: 220px;
+      width: 1920px;
+      text-align: center;
+    }
+    .f12-numbers-row {
+      position: absolute;
+      left: 240px;
+      width: 1440px;
+      height: 160px;
+      border-radius: 28px;
+      display: flex;
+      align-items: center;
+      padding: 0 56px;
+      box-sizing: border-box;
+    }
+    #f12-numbers-row-a {
+      top: 320px;
+    }
+    #f12-numbers-row-b {
+      top: 516px;
+    }
+    .f12-numbers-row-name {
+      width: 320px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 32px;
+      font-weight: 500;
+      color: #1c1d18;
+      white-space: nowrap;
+    }
+    .f12-numbers-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      flex: none;
+    }
+    .f12-numbers-track {
+      position: relative;
+      width: 760px;
+      height: 36px;
+      border-radius: 999px;
+      background: #ece9df;
+      box-shadow: inset 0 0 0 1px rgba(28, 29, 24, 0.08);
+      overflow: hidden;
+      flex: none;
+    }
+    .f12-numbers-fill {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      border-radius: 999px;
+      transform-origin: left center;
+    }
+    #f12-numbers-fill-a {
+      background: #3f7d5c;
+    }
+    #f12-numbers-fill-b {
+      background: rgba(124, 126, 115, 0.55);
+    }
+    .f12-numbers-count-wrap {
+      width: 240px;
+      margin-left: auto;
+      display: flex;
+      align-items: baseline;
+      justify-content: flex-end;
+      font-family: "Instrument Serif", serif;
+      font-size: 128px;
+      line-height: 0.9;
+      letter-spacing: -0.02em;
+    }
+    .f12-numbers-count {
+      display: inline-block;
+      font-variant-numeric: tabular-nums;
+      transform-origin: right bottom;
+      text-align: right;
+      min-width: 130px;
+    }
+    .f12-numbers-suffix {
+      display: inline-block;
+      font-size: 80px;
+      margin-left: 4px;
+    }
+    #f12-numbers-wrap-a {
+      color: #3f7d5c;
+    }
+    #f12-numbers-wrap-b {
+      color: #63665d;
+    }
+    #f12-numbers-caption {
+      position: absolute;
+      left: 0;
+      top: 728px;
+      width: 1920px;
+      display: flex;
+      justify-content: center;
+    }
+    .f12-numbers-caption-pill {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 16px 30px;
+      border-radius: 999px;
+      font-size: 26px;
+      color: #63665d;
+    }
+
+    /* ---------- scene 3: 62 stage ---------- */
+    .f12-numbers-hero-stage {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1920px;
+      height: 1080px;
+      transform-origin: 600px 460px;
+    }
+    #f12-numbers-glow {
+      position: absolute;
+      left: 160px;
+      top: 120px;
+      width: 820px;
+      height: 680px;
+      border-radius: 50%;
+      background: radial-gradient(closest-side, rgba(220, 235, 225, 0.95), rgba(220, 235, 225, 0));
+    }
+    #f12-numbers-hero-wrap {
+      position: absolute;
+      left: 160px;
+      top: 210px;
+      width: 820px;
+      display: flex;
+      justify-content: center;
+      font-family: "Instrument Serif", serif;
+      font-size: 400px;
+      line-height: 0.9;
+      letter-spacing: -0.03em;
+      color: #1c1d18;
+    }
+    #f12-numbers-hero {
+      display: inline-block;
+      font-variant-numeric: tabular-nums;
+      transform-origin: center center;
+      min-width: 420px;
+      text-align: center;
+    }
+    #f12-numbers-hero-label {
+      position: absolute;
+      left: 160px;
+      top: 618px;
+      width: 820px;
+      text-align: center;
+      font-size: 30px;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #63665d;
+    }
+    #f12-numbers-hero-label em {
+      font-family: "Instrument Serif", serif;
+      font-style: italic;
+      font-weight: 400;
+      font-size: 40px;
+      letter-spacing: 0;
+      text-transform: none;
+      color: #3f7d5c;
+    }
+    #f12-numbers-checks {
+      position: absolute;
+      left: 1060px;
+      top: 168px;
+      width: 740px;
+      border-radius: 28px;
+      padding: 36px 44px;
+      box-sizing: border-box;
+    }
+    .f12-numbers-check-row {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      min-height: 92px;
+      border-bottom: 1px solid rgba(28, 29, 24, 0.08);
+    }
+    .f12-numbers-check-row:last-child {
+      border-bottom: none;
+    }
+    .f12-numbers-badge {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: #3f7d5c;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: none;
+    }
+    .f12-numbers-badge svg {
+      width: 26px;
+      height: 26px;
+    }
+    .f12-numbers-check-text {
+      font-size: 32px;
+      font-weight: 500;
+      color: #1c1d18;
+      line-height: 1.2;
+    }
+    .f12-numbers-check-sub {
+      display: block;
+      font-size: 22px;
+      font-weight: 400;
+      color: #63665d;
+      margin-top: 4px;
+    }
+    #f12-numbers-chip {
+      position: absolute;
+      left: 120px;
+      top: 790px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 26px;
+      border-radius: 999px;
+      font-size: 22px;
+      font-weight: 500;
+      color: #2a543d;
+      white-space: nowrap;
+    }
+  </style>
+
+  <div id="root" data-composition-id="12-numbers" data-width="1920" data-height="1080" data-duration="7.343">
+    <!-- Full-bleed ground -->
+    <div class="clip f12-numbers-bg" data-start="0" data-duration="7.343" data-track-index="0">
+      <img class="f12-numbers-bg-img" src="assets/dawn-hill.jpg" alt="" />
+      <div class="f12-numbers-bloom" id="f12-numbers-bloom-rose"></div>
+      <div class="f12-numbers-bloom" id="f12-numbers-bloom-sky"></div>
+      <div class="f12-numbers-bloom" id="f12-numbers-bloom-mint"></div>
+    </div>
+
+    <!-- Scene 1–2: matcher vs keyword bars -->
+    <div class="clip f12-numbers-bars-stage" id="f12-numbers-bars-stage" data-start="0" data-duration="3.6" data-track-index="1">
+      <div class="f12-numbers-label" id="f12-numbers-model-label">Matching model · TF-IDF + logistic regression</div>
+
+      <div class="f12-numbers-row f12-numbers-glass" id="f12-numbers-row-a">
+        <div class="f12-numbers-row-name"><span class="f12-numbers-dot" style="background:#3f7d5c"></span>rBazaar matcher</div>
+        <div class="f12-numbers-track"><div class="f12-numbers-fill" id="f12-numbers-fill-a"></div></div>
+        <div class="f12-numbers-count-wrap" id="f12-numbers-wrap-a">
+          <span class="f12-numbers-count" id="f12-numbers-count-a">0</span><span class="f12-numbers-suffix" id="f12-numbers-suffix-a">%</span>
+        </div>
+      </div>
+
+      <div class="f12-numbers-row f12-numbers-glass" id="f12-numbers-row-b">
+        <div class="f12-numbers-row-name"><span class="f12-numbers-dot" style="background:#9a9c92"></span>keyword search</div>
+        <div class="f12-numbers-track"><div class="f12-numbers-fill" id="f12-numbers-fill-b"></div></div>
+        <div class="f12-numbers-count-wrap" id="f12-numbers-wrap-b">
+          <span class="f12-numbers-count" id="f12-numbers-count-b">0</span><span class="f12-numbers-suffix" id="f12-numbers-suffix-b">%</span>
+        </div>
+      </div>
+
+      <div id="f12-numbers-caption">
+        <div class="f12-numbers-caption-pill f12-numbers-glass" id="f12-numbers-caption-pill">
+          <span class="f12-numbers-dot" style="background:#3f7d5c"></span>top-1 on unseen phrasings
+        </div>
+      </div>
+    </div>
+
+    <!-- Scene 3: 62 live checks -->
+    <div class="clip f12-numbers-hero-stage" id="f12-numbers-hero-stage" data-start="3.6" data-duration="3.743" data-track-index="2">
+      <div id="f12-numbers-glow"></div>
+      <div id="f12-numbers-hero-wrap"><span id="f12-numbers-hero">0</span></div>
+      <div id="f12-numbers-hero-label"><em>live</em> on-chain checks</div>
+
+      <div id="f12-numbers-checks" class="f12-numbers-glass">
+        <div class="f12-numbers-check-row">
+          <span class="f12-numbers-badge"><svg viewBox="0 0 24 24"><polyline points="5 12.5 10 17 19 7.5" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" /></svg></span>
+          <span class="f12-numbers-check-text">Replay</span>
+        </div>
+        <div class="f12-numbers-check-row">
+          <span class="f12-numbers-badge"><svg viewBox="0 0 24 24"><polyline points="5 12.5 10 17 19 7.5" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" /></svg></span>
+          <span class="f12-numbers-check-text">Allowance limits</span>
+        </div>
+        <div class="f12-numbers-check-row">
+          <span class="f12-numbers-badge"><svg viewBox="0 0 24 24"><polyline points="5 12.5 10 17 19 7.5" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" /></svg></span>
+          <span class="f12-numbers-check-text">Concurrency</span>
+        </div>
+        <div class="f12-numbers-check-row">
+          <span class="f12-numbers-badge"><svg viewBox="0 0 24 24"><polyline points="5 12.5 10 17 19 7.5" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" /></svg></span>
+          <span class="f12-numbers-check-text">x402 protocol</span>
+        </div>
+        <div class="f12-numbers-check-row">
+          <span class="f12-numbers-badge"><svg viewBox="0 0 24 24"><polyline points="5 12.5 10 17 19 7.5" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" /></svg></span>
+          <span class="f12-numbers-check-text">Reconciliation</span>
+        </div>
+        <div class="f12-numbers-check-row">
+          <span class="f12-numbers-badge"><svg viewBox="0 0 24 24"><polyline points="5 12.5 10 17 19 7.5" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" /></svg></span>
+          <span class="f12-numbers-check-text">Accounting<span class="f12-numbers-check-sub">no AUSD created or lost</span></span>
+        </div>
+      </div>
+
+      <div id="f12-numbers-chip" class="f12-numbers-glass">
+        <span class="f12-numbers-dot" style="background:#3f7d5c"></span>YOLO11s 0.72 mAP · YOLO11n 0.63
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      const $ = (id) => document.getElementById(id);
+
+      // ---------- background: one finite bloom drift across the whole frame ----------
+      tl.fromTo("#f12-numbers-bloom-rose", { x: 0, y: 0 }, { x: 70, y: 40, duration: 6.9, ease: "sine.inOut" }, 0);
+      tl.fromTo("#f12-numbers-bloom-sky", { x: 0, y: 0 }, { x: -60, y: 50, duration: 6.9, ease: "sine.inOut" }, 0);
+      tl.fromTo("#f12-numbers-bloom-mint", { x: 0, y: 0 }, { x: -50, y: -40, duration: 6.9, ease: "sine.inOut" }, 0);
+
+      // ---------- Scene 1 (0.0–1.6): label + two glass tracks ----------
+      tl.fromTo("#f12-numbers-model-label", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.7, ease: "power3.out" }, 0.05);
+      tl.fromTo("#f12-numbers-row-a", { opacity: 0, y: 60 }, { opacity: 1, y: 0, duration: 0.9, ease: "expo.out" }, 0.25);
+      tl.fromTo("#f12-numbers-row-b", { opacity: 0, y: 60 }, { opacity: 1, y: 0, duration: 0.9, ease: "expo.out" }, 0.45);
+      // gentle camera push under the bar beat (front half only)
+      tl.fromTo("#f12-numbers-bars-stage", { scale: 1 }, { scale: 1.03, duration: 3.4, ease: "power1.inOut" }, 0);
+
+      // ---------- Scene 2 (1.6–3.4): bars race + counters (one chord: same start, dur, ease) ----------
+      const COUNT_AT = 1.7;
+      const COUNT_DUR = 1.3;
+      const COUNT_EASE = "power3.out";
+      const ca = $("f12-numbers-count-a");
+      const cb = $("f12-numbers-count-b");
+      const sa = { v: 0 };
+      const sb = { v: 0 };
+
+      tl.fromTo(["#f12-numbers-wrap-a", "#f12-numbers-wrap-b"], { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power2.out" }, COUNT_AT - 0.05);
+      tl.fromTo("#f12-numbers-fill-a", { scaleX: 0 }, { scaleX: 0.75, duration: COUNT_DUR, ease: COUNT_EASE }, COUNT_AT);
+      tl.fromTo("#f12-numbers-fill-b", { scaleX: 0 }, { scaleX: 0.4, duration: COUNT_DUR, ease: COUNT_EASE }, COUNT_AT);
+      tl.fromTo(sa, { v: 0 }, { v: 75, duration: COUNT_DUR, ease: COUNT_EASE, onUpdate: () => { ca.textContent = Math.round(sa.v); } }, COUNT_AT);
+      tl.fromTo(sb, { v: 0 }, { v: 40, duration: COUNT_DUR, ease: COUNT_EASE, onUpdate: () => { cb.textContent = Math.round(sb.v); } }, COUNT_AT);
+      tl.fromTo([ca, cb], { scale: 0.55 }, { scale: 1, duration: COUNT_DUR, ease: COUNT_EASE }, COUNT_AT);
+      // suffix lands after the count
+      tl.fromTo(["#f12-numbers-suffix-a", "#f12-numbers-suffix-b"], { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.4, ease: "back.out(1.6)", stagger: 0.06 }, COUNT_AT + COUNT_DUR);
+      // caption springs in
+      tl.fromTo("#f12-numbers-caption-pill", { opacity: 0, y: 44, scale: 0.9 }, { opacity: 1, y: 0, scale: 1, duration: 0.55, ease: "back.out(1.5)" }, 2.55);
+
+      // ---------- Scene 3 seam (3.4–3.6): forward zoom-through punch ----------
+      tl.fromTo("#f12-numbers-bars-stage", { scale: 1.03, filter: "blur(0px)" }, { scale: 1.24, filter: "blur(18px)", duration: 0.2, ease: "power3.in", immediateRender: false }, 3.4);
+      tl.fromTo("#f12-numbers-bars-stage", { opacity: 1 }, { opacity: 0.15, duration: 0.2, ease: "none", immediateRender: false }, 3.4);
+      // incoming stage continues forward from behind (clip mounts at 3.6)
+      tl.fromTo("#f12-numbers-hero-stage", { opacity: 0.15, scale: 0.75, filter: "blur(18px)" }, { opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.5, ease: "expo.out" }, 3.6);
+
+      // ---------- Scene 3 (3.6–6.9): giant 62 count-up ----------
+      const HERO_AT = 3.6;
+      const HERO_DUR = 1.7;
+      const hero = $("f12-numbers-hero");
+      const sh = { v: 0 };
+      tl.fromTo(sh, { v: 0 }, { v: 62, duration: HERO_DUR, ease: "power3.out", onUpdate: () => { hero.textContent = Math.round(sh.v); } }, HERO_AT);
+      tl.fromTo(hero, { scale: 0.5 }, { scale: 1, duration: HERO_DUR, ease: "power3.out" }, HERO_AT);
+      tl.fromTo("#f12-numbers-glow", { opacity: 0, scale: 0.8 }, { opacity: 0.85, scale: 1, duration: 1.6, ease: "power2.out" }, 3.7);
+      tl.fromTo("#f12-numbers-hero-label", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" }, 3.95);
+
+      // checklist panel (large → smooth settle), then rows cascade with spring-pop checks
+      tl.fromTo("#f12-numbers-checks", { opacity: 0, x: 70 }, { opacity: 1, x: 0, duration: 0.8, ease: "expo.out" }, 3.95);
+      const rows = gsap.utils.toArray("#f12-numbers-checks .f12-numbers-check-row");
+      rows.forEach((row, i) => {
+        const at = 4.3 + i * 0.18;
+        tl.fromTo(row, { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.55, ease: "back.out(1.5)" }, at);
+        tl.fromTo(row.querySelector(".f12-numbers-badge"), { opacity: 0, scale: 0.6 }, { opacity: 1, scale: 1, duration: 0.45, ease: "back.out(1.7)" }, at + 0.1);
+      });
+
+      // YOLO chip springs in bottom-left
+      tl.fromTo("#f12-numbers-chip", { opacity: 0, y: 50, scale: 0.9 }, { opacity: 1, y: 0, scale: 1, duration: 0.55, ease: "back.out(1.5)" }, 5.6);
+
+      // hold: one finite airy drift on the checklist card
+      tl.fromTo("#f12-numbers-checks", { y: 0 }, { y: -5, duration: 1.3, ease: "sine.inOut" }, 5.55);
+
+      window.__timelines["12-numbers"] = tl;
+    })();
+  </script>
+</template>

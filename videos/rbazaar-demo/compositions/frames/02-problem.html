@@ -1,0 +1,562 @@
+<template>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <style>
+    @font-face {
+      font-family: "Instrument Serif";
+      src: url("assets/fonts/instrument-serif-latin-400-normal.woff2") format("woff2");
+      font-weight: 400;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: "Instrument Serif";
+      src: url("assets/fonts/instrument-serif-latin-400-italic.woff2") format("woff2");
+      font-weight: 400;
+      font-style: italic;
+    }
+    @font-face {
+      font-family: "Inter";
+      src: url("assets/fonts/inter-latin-wght-normal.woff2") format("woff2");
+      font-weight: 100 900;
+      font-style: normal;
+    }
+
+    #root {
+      position: absolute;
+      inset: 0;
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      font-family: "Inter", sans-serif;
+      color: #1c1d18;
+    }
+
+    /* ---------- background clip ---------- */
+    [id="02-problem-bg"] {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      background: #f4f2ec;
+    }
+    [id="02-problem-hill"] {
+      position: absolute;
+      left: -24px;
+      top: -24px;
+      width: 1968px;
+      height: 1128px;
+      object-fit: cover;
+      opacity: 0.28;
+      filter: blur(2px);
+    }
+    [class~="02-problem-bloom"] {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(130px);
+    }
+
+    /* ---------- scene / camera ---------- */
+    [id="02-problem-scene"] {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+    }
+    [id="02-problem-camera"] {
+      position: absolute;
+      inset: 0;
+      transform-origin: 960px 440px;
+      will-change: transform;
+    }
+    [id="02-problem-clutter"] {
+      position: absolute;
+      inset: 0;
+    }
+
+    /* every placed item: anchored at the stage focus (960, 440); GSAP bakes xPercent/yPercent -50 */
+    [class~="02-problem-item"] {
+      position: absolute;
+      left: 960px;
+      top: 440px;
+      will-change: transform;
+    }
+
+    /* ---------- model cards ---------- */
+    [class~="02-problem-card"] {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 14px 28px 14px 14px;
+      border-radius: 22px;
+      white-space: nowrap;
+      background: rgba(255, 255, 255, 0.62);
+      backdrop-filter: blur(24px) saturate(1.1);
+      -webkit-backdrop-filter: blur(24px) saturate(1.1);
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      box-shadow:
+        0 1px 2px rgba(28, 29, 24, 0.03),
+        0 24px 80px -24px rgba(28, 29, 24, 0.18);
+    }
+    [class~="02-problem-near"] {
+      z-index: 3;
+    }
+    [class~="02-problem-mid"] {
+      z-index: 2;
+    }
+    [class~="02-problem-far"] {
+      z-index: 1;
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+      background: rgba(255, 255, 255, 0.55);
+      filter: blur(3px);
+    }
+    [class~="02-problem-ico"] {
+      width: 56px;
+      height: 56px;
+      flex: none;
+      border-radius: 14px;
+      background: #dcebe1;
+      display: grid;
+      place-items: center;
+    }
+    [class~="02-problem-ico"] svg {
+      width: 30px;
+      height: 30px;
+      fill: none;
+      stroke: #3f7d5c;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    [class~="02-problem-name"] {
+      font-size: 23px;
+      font-weight: 600;
+      letter-spacing: -0.005em;
+      line-height: 1.15;
+      color: #1c1d18;
+    }
+    [class~="02-problem-price"] {
+      margin-top: 3px;
+      font-size: 16px;
+      font-weight: 500;
+      line-height: 1.2;
+      color: #5A5B53;
+    }
+
+    /* ---------- robot glyph ---------- */
+    [id="02-problem-robot"] {
+      z-index: 4;
+      width: 214px;
+      height: 214px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: rgba(255, 255, 255, 0.62);
+      backdrop-filter: blur(24px) saturate(1.1);
+      -webkit-backdrop-filter: blur(24px) saturate(1.1);
+      border: 1px solid rgba(255, 255, 255, 0.8);
+      box-shadow:
+        0 0 0 14px rgba(220, 235, 225, 0.55),
+        0 1px 2px rgba(28, 29, 24, 0.03),
+        0 30px 90px -24px rgba(28, 29, 24, 0.22);
+    }
+    [id="02-problem-robot"] svg {
+      width: 136px;
+      height: 136px;
+      fill: none;
+      stroke: #3f7d5c;
+      stroke-width: 5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* ---------- question chips ---------- */
+    [class~="02-problem-chip"] {
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 10px 28px 10px 10px;
+      border-radius: 999px;
+      white-space: nowrap;
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(24px) saturate(1.1);
+      -webkit-backdrop-filter: blur(24px) saturate(1.1);
+      border: 2px solid #3f7d5c;
+      box-shadow:
+        0 1px 2px rgba(28, 29, 24, 0.03),
+        0 20px 60px -20px rgba(28, 29, 24, 0.2);
+      font-size: 28px;
+      font-weight: 500;
+      color: #1c1d18;
+    }
+    [class~="02-problem-chip"] em {
+      font-family: "Instrument Serif", serif;
+      font-style: italic;
+      font-size: 36px;
+      line-height: 1;
+      color: #3f7d5c;
+    }
+    [class~="02-problem-qbadge"] {
+      width: 40px;
+      height: 40px;
+      flex: none;
+      border-radius: 50%;
+      background: #3f7d5c;
+      color: #ffffff;
+      display: grid;
+      place-items: center;
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    /* ---------- the question ---------- */
+    [id="02-problem-qlayer"] {
+      position: absolute;
+      inset: 0;
+    }
+    [id="02-problem-question"] {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 496px;
+      text-align: center;
+      white-space: nowrap;
+      font-family: "Instrument Serif", serif;
+      font-size: 112px;
+      line-height: 1;
+      letter-spacing: -0.02em;
+      color: #1c1d18;
+    }
+    [class~="02-problem-word"] {
+      display: inline-block;
+    }
+    [class~="02-problem-word"] em {
+      font-style: italic;
+      color: #3f7d5c;
+    }
+    [id="02-problem-coin"] {
+      position: relative;
+      display: inline-block;
+      vertical-align: 0.06em;
+      width: 88px;
+      height: 88px;
+      margin-left: 26px;
+      border-radius: 50%;
+      background: #3f7d5c;
+      box-shadow:
+        inset 0 0 0 5px #2a543d,
+        inset 0 0 0 8px rgba(255, 255, 255, 0.35),
+        0 18px 40px -14px rgba(42, 84, 61, 0.5);
+    }
+    [id="02-problem-coin-label"] {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      font-family: "Inter", sans-serif;
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: #ffffff;
+    }
+    [id="02-problem-coin-q"] {
+      position: absolute;
+      top: -10px;
+      right: -14px;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #e7a977;
+      border: 3px solid #f4f2ec;
+      display: grid;
+      place-items: center;
+      font-family: "Inter", sans-serif;
+      font-size: 21px;
+      font-weight: 700;
+      letter-spacing: 0;
+      color: #1c1d18;
+    }
+  </style>
+
+  <div id="root" data-composition-id="02-problem" data-width="1920" data-height="1080" data-duration="6.795">
+    <!-- icon sprite + streak filter (no layout) -->
+    <svg width="0" height="0" aria-hidden="true" style="position: absolute">
+      <defs>
+        <symbol id="02-problem-i-box" viewBox="0 0 24 24"><rect x="3.5" y="5.5" width="17" height="13" rx="2.5" /><circle cx="12" cy="12" r="2.5" /></symbol>
+        <symbol id="02-problem-i-pose" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2" /><path d="M12 7v7M7 10l5 2 5-2M9 21l3-7 3 7" /></symbol>
+        <symbol id="02-problem-i-seg" viewBox="0 0 24 24"><path d="M5 15c0-5 4-9 8-9s6 3 6 6-3 7-8 7-6-1-6-4z" /><path d="M9 14l3-3 3 2" /></symbol>
+        <symbol id="02-problem-i-grip" viewBox="0 0 24 24"><path d="M8 4v6l-3 4v6M16 4v6l3 4v6M8 10h8" /></symbol>
+        <symbol id="02-problem-i-path" viewBox="0 0 24 24"><circle cx="5" cy="18" r="2" /><circle cx="19" cy="6" r="2" /><path d="M7 18h5a3 3 0 0 0 0-6 3 3 0 0 1 0-6h5" /></symbol>
+        <symbol id="02-problem-i-force" viewBox="0 0 24 24"><path d="M4 17a8 8 0 0 1 16 0" /><path d="M12 17l4-5" /></symbol>
+        <symbol id="02-problem-i-policy" viewBox="0 0 24 24"><path d="M5 7l5 5-5 5M12 17h7" /></symbol>
+        <symbol id="02-problem-i-depth" viewBox="0 0 24 24"><path d="M3 18l6-8 4 5 3-3 5 6z" /></symbol>
+        <symbol id="02-problem-i-guard" viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6z" /><path d="M9 12l2 2 4-4" /></symbol>
+      </defs>
+      <filter id="02-problem-streak" x="-10%" y="-10%" width="120%" height="120%">
+        <feGaussianBlur id="02-problem-streak-blur" in="SourceGraphic" stdDeviation="0 0" />
+      </filter>
+    </svg>
+
+    <!-- full-bleed ground -->
+    <div id="02-problem-bg" class="clip" data-start="0" data-duration="6.795" data-track-index="0">
+      <img id="02-problem-hill" src="assets/dawn-hill.jpg" alt="" />
+      <div class="02-problem-bloom" style="left: -120px; top: -260px; width: 860px; height: 860px; background: #e8b9c4; opacity: 0.5" data-dx="46" data-dy="22"></div>
+      <div class="02-problem-bloom" style="left: 1140px; top: -200px; width: 920px; height: 920px; background: #cfe0ea; opacity: 0.5" data-dx="-38" data-dy="28"></div>
+      <div class="02-problem-bloom" style="left: 620px; top: 560px; width: 820px; height: 820px; background: #dcebe1; opacity: 0.45" data-dx="30" data-dy="-24"></div>
+    </div>
+
+    <!-- camera world -->
+    <div id="02-problem-scene" class="clip" data-start="0" data-duration="6.795" data-track-index="1">
+      <div id="02-problem-camera">
+        <div id="02-problem-clutter" data-layout-ignore>
+          <!-- Scene 1 cards, DOM order = cluster -> outward -->
+          <div class="02-problem-item 02-problem-card 02-problem-s1 02-problem-near" data-x="-150" data-y="320" data-s="1">
+            <div class="02-problem-ico"><svg><use href="#02-problem-i-seg" /></svg></div>
+            <div><div class="02-problem-name">YOLO11 Seg</div><div class="02-problem-price">0.004 AUSD / call</div></div>
+          </div>
+          <div class="02-problem-item 02-problem-card 02-problem-s1 02-problem-mid" data-x="-190" data-y="-330" data-s="0.86">
+            <div class="02-problem-ico"><svg><use href="#02-problem-i-box" /></svg></div>
+            <div><div class="02-problem-name">OWL-ViT</div><div class="02-problem-price">0.020 AUSD / call</div></div>
+          </div>
+          <div class="02-problem-item 02-problem-card 02-problem-s1 02-problem-mid" data-x="240" data-y="-340" data-s="0.86">
+            <div class="02-problem-ico"><svg><use href="#02-problem-i-pose" /></svg></div>
+            <div><div class="02-problem-name">YOLO11 Pose</div><div class="02-problem-price">0.004 AUSD / call</div></div>
+          </div>
+          <div class="02-problem-item 02-problem-card 02-problem-s1 02-problem-mid" data-x="270" data-y="330" data-s="0.86">
+            <div class="02-problem-ico"><svg><use href="#02-problem-i-grip" /></svg></div>
+            <div><div class="02-problem-name">Grasp planner</div><div class="02-problem-price">0.020 AUSD / call</div></div>
+          </div>
+          <div class="02-problem-item 02-problem-card 02-problem-s1 02-problem-far" data-x="-430" data-y="-380" data-s="0.72">
+            <div class="02-problem-ico"><svg><use href="#02-problem-i-policy" /></svg></div>
+            <div><div class="02-problem-name">VLA policy</div><div class="02-problem-price">0.020 AUSD / call</div></div>
+          </div>
+          <div class="02-problem-item 02-problem-card 02-problem-s1 02-problem-near" data-x="-570" data-y="-220" data-s="1">
+            <div class="02-problem-ico"><svg><use href="#02-problem-i-box" /></svg></div>
+            <div><div class="02-problem-name">YOLO11n</div><div class="02-problem-price">0.004 AUSD / call</div></div>
+          </div>
+          <div class="02-problem-item 02-problem-card 02-problem-s1 02-problem-near" data-x="580" data-y="-240" data-s="1">
+            <div class="02-problem-ico"><svg><use href="#02-problem-i-box" /></svg></div>
+            <div><div class="02-problem-name">YOLO11s</div><div class="02-problem-price">0.020 AUSD / call</div></div>
+          </div>
+          <div class="02-problem-item 02-problem-card 02-problem-s1 02-problem-far" data-x="480" data-y="400" data-s="0.72">
+            <div class="02-problem-ico"><svg><use href="#02-problem-i-policy" /></svg></div>
+            <div><div class="02-problem-name">ACT policy</div><div class="02-problem-price">0.020 AUSD / call</div></div>
+          </div>
+          <div class="02-problem-item 02-problem-card 02-problem-s1 02-problem-near" data-x="-610" data-y="150" data-s="1">
+            <div class="02-problem-ico"><svg><use href="#02-problem-i-box" /></svg></div>
+            <div><div class="02-problem-name">Faster R-CNN</div><div class="02-problem-price">0.020 AUSD / call</div></div>
+          </div>
+          <div class="02-problem-item 02-problem-card 02-problem-s1 02-problem-mid" data-x="630" data-y="180" data-s="0.86">
+            <div class="02-problem-ico"><svg><use href="#02-problem-i-box" /></svg></div>
+            <div><div class="02-problem-name">SSD Lite</div><div class="02-problem-price">0.004 AUSD / call</div></div>
+          </div>
+          <div class="02-problem-item 02-problem-card 02-problem-s1 02-problem-far" data-x="-830" data-y="-30" data-s="0.72">
+            <div class="02-problem-ico"><svg><use href="#02-problem-i-force" /></svg></div>
+            <div><div class="02-problem-name">Force controller</div><div class="02-problem-price">0.004 AUSD / call</div></div>
+          </div>
+          <div class="02-problem-item 02-problem-card 02-problem-s1 02-problem-far" data-x="850" data-y="-20" data-s="0.72">
+            <div class="02-problem-ico"><svg><use href="#02-problem-i-path" /></svg></div>
+            <div><div class="02-problem-name">A* planner</div><div class="02-problem-price">0.004 AUSD / call</div></div>
+          </div>
+
+          <!-- Scene 2 cards: pile in from the edges (data-at = entrance time, data-fx/fy = entry vector) -->
+          <div class="02-problem-item 02-problem-card 02-problem-s2 02-problem-near" data-x="-760" data-y="300" data-s="1" data-at="1.55" data-fx="-1" data-fy="0.3">
+            <div class="02-problem-ico"><svg><use href="#02-problem-i-guard" /></svg></div>
+            <div><div class="02-problem-name">Pedestrian Guard Lite</div><div class="02-problem-price">0.004 AUSD / call</div></div>
+          </div>
+          <div class="02-problem-item 02-problem-card 02-problem-s2 02-problem-mid" data-x="740" data-y="-380" data-s="0.86" data-at="1.82" data-fx="0.6" data-fy="-1">
+            <div class="02-problem-ico"><svg><use href="#02-problem-i-policy" /></svg></div>
+            <div><div class="02-problem-name">Diffusion policy</div><div class="02-problem-price">0.020 AUSD / call</div></div>
+          </div>
+          <div class="02-problem-item 02-problem-card 02-problem-s2 02-problem-near" data-x="760" data-y="300" data-s="1" data-at="2.62" data-fx="1" data-fy="0.3">
+            <div class="02-problem-ico"><svg><use href="#02-problem-i-guard" /></svg></div>
+            <div><div class="02-problem-name">Pedestrian Guard Pro</div><div class="02-problem-price">0.020 AUSD / call</div></div>
+          </div>
+          <div class="02-problem-item 02-problem-card 02-problem-s2 02-problem-mid" data-x="-730" data-y="-340" data-s="0.86" data-at="3.25" data-fx="-1" data-fy="-0.5">
+            <div class="02-problem-ico"><svg><use href="#02-problem-i-seg" /></svg></div>
+            <div><div class="02-problem-name">SAM 2</div><div class="02-problem-price">0.020 AUSD / call</div></div>
+          </div>
+          <div class="02-problem-item 02-problem-card 02-problem-s2 02-problem-mid" data-x="30" data-y="-390" data-s="0.86" data-at="3.5" data-fx="0" data-fy="-1">
+            <div class="02-problem-ico"><svg><use href="#02-problem-i-depth" /></svg></div>
+            <div><div class="02-problem-name">Depth Anything</div><div class="02-problem-price">0.004 AUSD / call</div></div>
+          </div>
+          <div class="02-problem-item 02-problem-card 02-problem-s2 02-problem-mid" data-x="60" data-y="405" data-s="0.86" data-at="3.85" data-fx="0" data-fy="1">
+            <div class="02-problem-ico"><svg><use href="#02-problem-i-grip" /></svg></div>
+            <div><div class="02-problem-name">Pick &amp; place</div><div class="02-problem-price">0.004 AUSD / call</div></div>
+          </div>
+
+          <!-- question chips (pop on the VO words) -->
+          <div class="02-problem-item 02-problem-chip" data-x="285" data-y="-115" data-at="2.3">
+            <span class="02-problem-qbadge">?</span><span>fits my <em>arm</em>?</span>
+          </div>
+          <div class="02-problem-item 02-problem-chip" data-x="-300" data-y="15" data-at="2.92">
+            <span class="02-problem-qbadge">?</span><span>my <em>sensors</em>?</span>
+          </div>
+          <div class="02-problem-item 02-problem-chip" data-x="265" data-y="135" data-at="3.8">
+            <span class="02-problem-qbadge">?</span><span>my <em>budget</em>?</span>
+          </div>
+        </div>
+
+        <!-- focal: frosted robot-arm glyph (line-drawn sage) -->
+        <div id="02-problem-robot" class="02-problem-item">
+          <svg viewBox="0 0 120 120" aria-hidden="true">
+            <path d="M28 106 H92" />
+            <rect x="42" y="90" width="36" height="16" rx="4" />
+            <path d="M60 86 L44 52 L82 34" />
+            <circle cx="60" cy="86" r="7" fill="#dcebe1" />
+            <circle cx="44" cy="52" r="6.5" fill="#dcebe1" />
+            <circle cx="82" cy="34" r="5.5" fill="#dcebe1" />
+            <path d="M86 37 L94 44 M94 44 L101 39 M94 44 L99 53" />
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- the payoff question, outside the camera so the push never scales it -->
+    <div id="02-problem-qlayer" class="clip" data-start="0" data-duration="6.795" data-track-index="2">
+      <div id="02-problem-question"><span class="02-problem-word" data-at="4.55">And</span> <span class="02-problem-word" data-at="4.66">how</span> <span class="02-problem-word" data-at="4.76">does</span> <span class="02-problem-word" data-at="4.94">a</span> <span class="02-problem-word" data-at="5.02">robot</span> <span class="02-problem-word" data-at="5.37"><em>pay</em>?</span><span id="02-problem-coin"><span id="02-problem-coin-label">AUSD</span><span id="02-problem-coin-q">?</span></span></div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const D = 6.395;
+      const tl = gsap.timeline({ paused: true });
+      const byId = (id) => document.getElementById(id);
+      const byClass = (c) => Array.from(document.querySelectorAll('[class~="' + c + '"]'));
+      const num = (el, k) => Number(el.dataset[k]);
+
+      const SPRING = "back.out(1.4)"; // gentle overshoot (< ~8%) — sanctioned bouncy grammar for small things
+      const PUSH_AT = 4.45; // VO "and how does a robot pay?" begins at 4.51
+      const SHOVE_DUR = 0.6;
+
+      // ---------- background blooms: ONE finite drift ----------
+      const blooms = byClass("02-problem-bloom");
+      tl.fromTo(
+        blooms,
+        { x: 0, y: 0 },
+        { x: (i, el) => num(el, "dx"), y: (i, el) => num(el, "dy"), duration: D, ease: "sine.inOut" },
+        0,
+      );
+
+      // ---------- camera: slow zoom-out under accumulation -> quick push-in -> forward creep ----------
+      const camera = byId("02-problem-camera");
+      const phase = { scale: 1 };
+      tl.to(phase, { scale: 0.92, duration: PUSH_AT - 1.3, ease: "sine.inOut" }, 1.3);
+      tl.to(phase, { scale: 1.07, duration: SHOVE_DUR, ease: "expo.out" }, PUSH_AT);
+      tl.to(phase, { scale: 1.085, duration: D - (PUSH_AT + SHOVE_DUR), ease: "none" }, PUSH_AT + SHOVE_DUR);
+      const drift = { p: 0 };
+      const writeCamera = () => {
+        const dx = Math.sin(drift.p) * 4;
+        const dy = Math.sin(drift.p * 1.3) * 2;
+        camera.style.transform = "scale(" + phase.scale + ") translate(" + dx + "px, " + dy + "px)";
+      };
+      tl.to(drift, { p: Math.PI * 2, duration: D, ease: "none", onUpdate: writeCamera }, 0);
+
+      // ---------- robot glyph (focal) ----------
+      const robot = byId("02-problem-robot");
+      tl.fromTo(
+        robot,
+        { xPercent: -50, yPercent: -50, x: 0, y: 24, scale: 0.88, opacity: 0 },
+        { y: 0, scale: 1, opacity: 1, duration: 0.5, ease: SPRING },
+        0,
+      );
+      tl.fromTo(robot, { y: 0 }, { y: -6, duration: PUSH_AT - 1.0, ease: "sine.inOut", immediateRender: false }, 1.0);
+      tl.fromTo(
+        robot,
+        { y: -6, scale: 1 },
+        { y: -125, scale: 0.78, duration: 0.75, ease: "power3.out", immediateRender: false },
+        PUSH_AT,
+      );
+
+      // ---------- Scene 1: 12 cards spring out from the cluster (center-outward-expansion) ----------
+      byClass("02-problem-s1").forEach((el, i) => {
+        const tx = num(el, "x");
+        const ty = num(el, "y");
+        const s = num(el, "s");
+        const isFar = el.classList.contains("02-problem-far");
+        tl.fromTo(
+          el,
+          { xPercent: -50, yPercent: -50, x: tx * 0.3, y: ty * 0.3, scale: s * 0.6, opacity: 0 },
+          { x: tx, y: ty, scale: s, opacity: isFar ? 0.85 : 1, duration: 0.75, ease: SPRING },
+          0.12 + i * 0.06,
+        );
+      });
+
+      // ---------- Scene 2: 6 more cards pile in from the edges ----------
+      byClass("02-problem-s2").forEach((el) => {
+        const tx = num(el, "x");
+        const ty = num(el, "y");
+        const s = num(el, "s");
+        tl.fromTo(
+          el,
+          { xPercent: -50, yPercent: -50, x: tx + num(el, "fx") * 420, y: ty + num(el, "fy") * 260, scale: s * 0.88, opacity: 0 },
+          { x: tx, y: ty, scale: s, opacity: 1, duration: 0.6, ease: SPRING },
+          num(el, "at"),
+        );
+      });
+
+      // ---------- Scene 2: question chips pop as the VO names them ----------
+      byClass("02-problem-chip").forEach((el) => {
+        const tx = num(el, "x");
+        const ty = num(el, "y");
+        tl.fromTo(
+          el,
+          { xPercent: -50, yPercent: -50, x: tx, y: ty + 54, scale: 0.88, opacity: 0 },
+          { y: ty, scale: 1, opacity: 1, duration: 0.55, ease: SPRING },
+          num(el, "at"),
+        );
+      });
+
+      // ---------- Scene 3: push-in shoves all clutter to the frame edges ----------
+      // edge target = position scaled out onto an ellipse hugging the frame (never inward)
+      const edge = (x, y) => {
+        const k = Math.max(1.12, 1 / Math.sqrt((x / 900) * (x / 900) + (y / 420) * (y / 420)));
+        return [x * k, y * k];
+      };
+      byClass("02-problem-item")
+        .filter((el) => el !== robot)
+        .forEach((el, i) => {
+          const tx = num(el, "x");
+          const ty = num(el, "y");
+          const [ex, ey] = edge(tx, ty);
+          tl.fromTo(
+            el,
+            { x: tx, y: ty },
+            { x: ex, y: ey, duration: SHOVE_DUR, ease: "expo.out", immediateRender: false },
+            PUSH_AT + (i % 4) * 0.012,
+          );
+        });
+
+      // motion-blur envelope on the clutter layer (camera-travel carve-out, depth "B B" axis for a push)
+      const clutter = byId("02-problem-clutter");
+      const blurNode = byId("02-problem-streak-blur");
+      const blur = { v: 0 }; // seeded at 0: the streak lives mid-shot, not at t=0
+      const writeBlur = () => {
+        blurNode.setAttribute("stdDeviation", blur.v + " " + blur.v);
+        clutter.style.filter = blur.v > 0.05 ? "url(#02-problem-streak)" : "none";
+      };
+      writeBlur();
+      tl.to(blur, { v: 12, duration: 0.06, ease: "none", onUpdate: writeBlur }, PUSH_AT);
+      tl.to(blur, { v: 0, duration: SHOVE_DUR - 0.06, ease: "expo.out", onUpdate: writeBlur }, PUSH_AT + 0.06);
+
+      // ---------- Scene 3: serif question builds per word on the VO ----------
+      byClass("02-problem-word").forEach((el) => {
+        tl.fromTo(el, { y: 46, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: "power3.out" }, num(el, "at"));
+      });
+      tl.fromTo(
+        byId("02-problem-coin"),
+        { y: 30, scale: 0.6, rotation: -20, opacity: 0 },
+        { y: 0, scale: 1, rotation: 0, opacity: 1, duration: 0.6, ease: SPRING },
+        5.62,
+      );
+      tl.fromTo(
+        byId("02-problem-coin-q"),
+        { scale: 0, opacity: 0 },
+        { scale: 1, opacity: 1, duration: 0.45, ease: SPRING },
+        5.8,
+      );
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["02-problem"] = tl;
+    })();
+  </script>
+</template>

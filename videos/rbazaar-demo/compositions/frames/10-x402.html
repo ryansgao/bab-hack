@@ -1,0 +1,831 @@
+<template>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <style>
+    @font-face {
+      font-family: "Instrument Serif";
+      src: url("assets/fonts/instrument-serif-latin-400-normal.woff2") format("woff2");
+      font-weight: 400;
+      font-style: normal;
+      font-display: block;
+    }
+    @font-face {
+      font-family: "Instrument Serif";
+      src: url("assets/fonts/instrument-serif-latin-400-italic.woff2") format("woff2");
+      font-weight: 400;
+      font-style: italic;
+      font-display: block;
+    }
+    @font-face {
+      font-family: "Inter";
+      src: url("assets/fonts/inter-latin-wght-normal.woff2") format("woff2");
+      font-weight: 100 900;
+      font-style: normal;
+      font-display: block;
+    }
+
+    #root {
+      position: absolute;
+      inset: 0;
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      font-family: "Inter", sans-serif;
+      color: #1c1d18;
+    }
+    #root * {
+      box-sizing: border-box;
+    }
+
+    /* ---------- background clip (full-bleed, not on #root) ---------- */
+    .\31 0-x402-bg {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      background: #f4f2ec;
+    }
+    .\31 0-x402-bg-img {
+      position: absolute;
+      left: -80px;
+      top: -40px;
+      width: 2080px;
+      height: 1160px;
+      background-image: url("assets/dawn-hill.jpg");
+      background-size: cover;
+      background-position: center;
+      opacity: 0.28;
+      filter: blur(2px);
+    }
+    .\31 0-x402-bloom {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(140px);
+    }
+    .\31 0-x402-bloom-rose { left: -160px; top: -220px; width: 900px; height: 700px; background: #e8b9c4; opacity: 0.5; }
+    .\31 0-x402-bloom-sky { left: 1180px; top: -120px; width: 960px; height: 760px; background: #cfe0ea; opacity: 0.55; }
+    .\31 0-x402-bloom-mint { left: 520px; top: 640px; width: 1000px; height: 620px; background: #dcebe1; opacity: 0.45; }
+
+    /* ---------- stage + camera ---------- */
+    .\31 0-x402-stage {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+    }
+    .\31 0-x402-world {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1920px;
+      height: 1080px;
+      overflow: visible;
+      transform-origin: 960px 540px;
+      will-change: transform;
+    }
+    .\31 0-x402-station {
+      position: absolute;
+      top: 0;
+      width: 1400px;
+      height: 1080px;
+    }
+
+    /* ---------- tokens ---------- */
+    .\31 0-x402-glass {
+      background: rgba(255, 255, 255, 0.62);
+      backdrop-filter: blur(24px) saturate(1.1);
+      -webkit-backdrop-filter: blur(24px) saturate(1.1);
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      border-radius: 28px;
+      box-shadow: 0 1px 2px rgba(28, 29, 24, 0.03), 0 24px 80px -24px rgba(28, 29, 24, 0.18);
+    }
+    .\31 0-x402-label {
+      font-family: "Inter", sans-serif;
+      font-size: 20px;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #7c7e73;
+      white-space: nowrap;
+    }
+    .\31 0-x402-serif {
+      font-family: "Instrument Serif", serif;
+      font-weight: 400;
+    }
+    .\31 0-x402-serif em {
+      font-style: italic;
+      color: #3f7d5c;
+    }
+    .\31 0-x402-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      padding: 13px 24px;
+      border-radius: 999px;
+      font-family: "Inter", sans-serif;
+      font-size: 22px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .\31 0-x402-chip-mint {
+      background: #dcebe1;
+      color: #2a543d;
+    }
+    .\31 0-x402-chip-glass {
+      background: rgba(255, 255, 255, 0.62);
+      border: 1px solid rgba(28, 29, 24, 0.08);
+      color: #1c1d18;
+      box-shadow: 0 12px 40px -18px rgba(28, 29, 24, 0.22);
+    }
+    .\31 0-x402-mono {
+      font-family: monospace;
+      font-size: 22px;
+      font-weight: 500;
+      letter-spacing: 0;
+    }
+    .\31 0-x402-hdr-key {
+      color: #2a543d;
+      font-weight: 700;
+    }
+    .\31 0-x402-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #3f7d5c;
+      flex: none;
+    }
+    .\31 0-x402-dot-peach {
+      background: #e7a977;
+    }
+    .\31 0-x402-center-x {
+      position: absolute;
+      left: 0;
+      right: 0;
+      margin-left: auto;
+      margin-right: auto;
+      width: fit-content;
+    }
+
+    /* ---------- station 0: title ---------- */
+    .\31 0-x402-s0-col {
+      position: absolute;
+      left: 0;
+      top: 222px;
+      width: 1400px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .\31 0-x402-s0-title {
+      margin-top: 20px;
+      font-size: 168px;
+      line-height: 0.92;
+      letter-spacing: -0.025em;
+      white-space: nowrap;
+    }
+    .\31 0-x402-s0-times {
+      color: #7c7e73;
+      font-size: 120px;
+      padding: 0 10px;
+    }
+    .\31 0-x402-ausd {
+      margin-top: 46px;
+      display: flex;
+      align-items: center;
+      gap: 26px;
+      padding: 22px 40px 22px 24px;
+      width: 760px;
+    }
+    .\31 0-x402-coin {
+      width: 88px;
+      height: 88px;
+      border-radius: 50%;
+      background: #3f7d5c;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 56px;
+      line-height: 1;
+      box-shadow: inset 0 0 0 5px rgba(255, 255, 255, 0.22), 0 14px 30px -12px rgba(42, 84, 61, 0.55);
+      flex: none;
+    }
+    .\31 0-x402-ausd-title {
+      font-size: 46px;
+      line-height: 1;
+      letter-spacing: -0.01em;
+    }
+    .\31 0-x402-ausd-sub {
+      margin-top: 10px;
+      font-size: 22px;
+      color: #63665d;
+      white-space: nowrap;
+    }
+    .\31 0-x402-s0-row {
+      margin-top: 28px;
+      display: flex;
+      gap: 18px;
+    }
+
+    /* ---------- station 1: 402 ---------- */
+    .\31 0-x402-endpoint {
+      position: absolute;
+      left: 130px;
+      top: 262px;
+      width: 450px;
+      padding: 34px 36px;
+    }
+    .\31 0-x402-ep-row {
+      margin-top: 22px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .\31 0-x402-method {
+      padding: 7px 14px;
+      border-radius: 10px;
+      background: #3f7d5c;
+      color: #fff;
+      font-family: monospace;
+      font-size: 22px;
+      font-weight: 700;
+    }
+    .\31 0-x402-path {
+      font-family: monospace;
+      font-size: 30px;
+      font-weight: 600;
+    }
+    .\31 0-x402-ep-rule {
+      margin: 28px 0 22px;
+      height: 1px;
+      background: rgba(28, 29, 24, 0.1);
+    }
+    .\31 0-x402-ep-status {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 22px;
+      color: #63665d;
+    }
+    .\31 0-x402-ep-status b {
+      font-family: monospace;
+      font-weight: 700;
+      color: #1c1d18;
+    }
+    .\31 0-x402-glow402 {
+      position: absolute;
+      left: 700px;
+      top: 200px;
+      width: 640px;
+      height: 400px;
+      border-radius: 50%;
+      background: #e7a977;
+      filter: blur(110px);
+    }
+    .\31 0-x402-big402 {
+      position: absolute;
+      left: 670px;
+      top: 196px;
+      font-size: 320px;
+      line-height: 0.86;
+      letter-spacing: -0.035em;
+      transform-origin: 30% 60%;
+    }
+    .\31 0-x402-payreq {
+      position: absolute;
+      left: 684px;
+      top: 498px;
+      font-size: 76px;
+      line-height: 1;
+      letter-spacing: -0.015em;
+      white-space: nowrap;
+    }
+    .\31 0-x402-s1-hdr {
+      top: 668px;
+    }
+
+    /* ---------- station 2: sign ---------- */
+    .\31 0-x402-robot {
+      position: absolute;
+      left: 90px;
+      top: 282px;
+      width: 390px;
+      height: 340px;
+      padding: 34px 36px;
+      display: flex;
+      flex-direction: column;
+    }
+    .\31 0-x402-robot svg {
+      margin-top: 16px;
+      width: 128px;
+      height: 128px;
+    }
+    .\31 0-x402-robot-name {
+      margin-top: 14px;
+      font-size: 46px;
+      line-height: 1;
+    }
+    .\31 0-x402-robot-sub {
+      margin-top: 8px;
+      font-size: 22px;
+      color: #63665d;
+    }
+    .\31 0-x402-s2-hdr {
+      position: absolute;
+      left: 540px;
+      top: 196px;
+    }
+    .\31 0-x402-code {
+      position: absolute;
+      left: 540px;
+      top: 282px;
+      width: 770px;
+      height: 340px;
+      padding: 30px 38px;
+    }
+    .\31 0-x402-code-pre {
+      margin: 0;
+      font-family: monospace;
+      font-size: 27px;
+      line-height: 1.45;
+      font-weight: 500;
+      color: #1c1d18;
+      white-space: pre;
+      min-width: 690px;
+      min-height: 274px;
+    }
+    .\31 0-x402-cursor {
+      display: inline-block;
+      width: 0.55em;
+      height: 1.1em;
+      margin-left: 2px;
+      vertical-align: -0.18em;
+      background: #3f7d5c;
+      border-radius: 2px;
+    }
+    .\31 0-x402-s2-pill {
+      position: absolute;
+      left: 540px;
+      top: 656px;
+    }
+
+    /* ---------- station 3: settle ---------- */
+    .\31 0-x402-facil {
+      position: absolute;
+      left: 0;
+      right: 0;
+      margin: 0 auto;
+      top: 270px;
+      width: fit-content;
+      padding: 40px 72px 40px 46px;
+      display: flex;
+      align-items: center;
+      gap: 40px;
+    }
+    .\31 0-x402-check {
+      width: 132px;
+      height: 132px;
+      border-radius: 50%;
+      background: #3f7d5c;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 18px 40px -16px rgba(42, 84, 61, 0.6);
+      flex: none;
+    }
+    .\31 0-x402-check svg {
+      width: 70px;
+      height: 70px;
+    }
+    .\31 0-x402-facil-title {
+      margin-top: 10px;
+      font-size: 84px;
+      line-height: 0.96;
+      letter-spacing: -0.02em;
+    }
+    .\31 0-x402-base {
+      margin-top: 18px;
+      background: #0052ff;
+      color: #fff;
+    }
+    .\31 0-x402-base-mark {
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      background: #fff;
+    }
+    .\31 0-x402-s3-row {
+      top: 640px;
+      display: flex;
+      gap: 18px;
+    }
+
+    /* ---------- station 4: result ---------- */
+    .\31 0-x402-s4-hdr {
+      top: 230px;
+    }
+    .\31 0-x402-result {
+      position: absolute;
+      left: 370px;
+      top: 318px;
+      width: 660px;
+      padding: 34px;
+      display: flex;
+      align-items: center;
+      gap: 36px;
+    }
+    .\31 0-x402-viz {
+      width: 220px;
+      height: 220px;
+      border-radius: 20px;
+      background: #ece9df;
+      flex: none;
+    }
+    .\31 0-x402-res-title {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      font-size: 76px;
+      line-height: 1;
+      letter-spacing: -0.015em;
+    }
+    .\31 0-x402-res-check {
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      background: #3f7d5c;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: none;
+    }
+    .\31 0-x402-res-check svg {
+      width: 30px;
+      height: 30px;
+    }
+    .\31 0-x402-res-sub {
+      margin-top: 16px;
+      font-size: 26px;
+      color: #63665d;
+    }
+
+    /* ---------- connector track ---------- */
+    .\31 0-x402-line {
+      position: absolute;
+      left: 960px;
+      top: 858px;
+      width: 5600px;
+      height: 4px;
+      border-radius: 4px;
+      background: rgba(63, 125, 92, 0.22);
+    }
+    .\31 0-x402-line-prog {
+      position: absolute;
+      left: 960px;
+      top: 858px;
+      width: 0;
+      height: 4px;
+      border-radius: 4px;
+      background: #3f7d5c;
+    }
+    .\31 0-x402-node {
+      position: absolute;
+      top: 847px;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.9);
+      border: 2px solid rgba(63, 125, 92, 0.55);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .\31 0-x402-node-fill {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #3f7d5c;
+    }
+    .\31 0-x402-packet {
+      position: absolute;
+      left: 0;
+      top: 846px;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #3f7d5c;
+      border: 4px solid #fff;
+      box-shadow: 0 0 0 8px rgba(63, 125, 92, 0.18), 0 10px 26px -6px rgba(42, 84, 61, 0.6);
+    }
+  </style>
+
+  <div id="root" data-composition-id="10-x402" data-width="1920" data-height="1080" data-duration="12.505">
+    <!-- full-bleed ground -->
+    <div id="10-x402-bg" class="clip 10-x402-bg" data-start="0" data-duration="12.505" data-track-index="0">
+      <div id="10-x402-bg-img" class="10-x402-bg-img"></div>
+      <div id="10-x402-bloom-rose" class="10-x402-bloom 10-x402-bloom-rose"></div>
+      <div id="10-x402-bloom-sky" class="10-x402-bloom 10-x402-bloom-sky"></div>
+      <div id="10-x402-bloom-mint" class="10-x402-bloom 10-x402-bloom-mint"></div>
+    </div>
+
+    <!-- stage: one virtual camera over a wide world -->
+    <div id="10-x402-stage" class="clip 10-x402-stage" data-start="0" data-duration="12.505" data-track-index="1">
+      <div id="10-x402-world" class="10-x402-world">
+        <!-- connector -->
+        <div class="10-x402-line" id="10-x402-line"></div>
+        <div class="10-x402-line-prog" id="10-x402-line-prog"></div>
+        <div class="10-x402-node" id="10-x402-node-0" style="left: 947px"><div class="10-x402-node-fill" id="10-x402-nf-0"></div></div>
+        <div class="10-x402-node" id="10-x402-node-1" style="left: 2347px"><div class="10-x402-node-fill" id="10-x402-nf-1"></div></div>
+        <div class="10-x402-node" id="10-x402-node-2" style="left: 3747px"><div class="10-x402-node-fill" id="10-x402-nf-2"></div></div>
+        <div class="10-x402-node" id="10-x402-node-3" style="left: 5147px"><div class="10-x402-node-fill" id="10-x402-nf-3"></div></div>
+        <div class="10-x402-node" id="10-x402-node-4" style="left: 6547px"><div class="10-x402-node-fill" id="10-x402-nf-4"></div></div>
+
+        <!-- Station 0 — title (cx 960) -->
+        <div class="10-x402-station" style="left: 260px">
+          <div class="10-x402-s0-col">
+            <div class="10-x402-label" id="10-x402-s0-label">Under the hood</div>
+            <div class="10-x402-serif 10-x402-s0-title" id="10-x402-s0-title">x402<span class="10-x402-s0-times">×</span><em>AUSD</em></div>
+            <div class="10-x402-glass 10-x402-ausd" id="10-x402-ausd">
+              <div class="10-x402-coin 10-x402-serif" id="10-x402-coin">A</div>
+              <div>
+                <div class="10-x402-serif 10-x402-ausd-title">Agora AUSD</div>
+                <div class="10-x402-ausd-sub" id="10-x402-ausd-sub">fully reserved digital dollar · 6 decimals</div>
+              </div>
+            </div>
+            <div class="10-x402-s0-row">
+              <div class="10-x402-chip 10-x402-chip-glass 10-x402-mono" id="10-x402-addr">0xa901…22dC · Base Sepolia (84532)</div>
+              <div class="10-x402-chip 10-x402-chip-mint" id="10-x402-scheme"><span class="10-x402-dot"></span>x402 v2 · exact scheme</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Station 1 — 402 (cx 2360) -->
+        <div class="10-x402-station" style="left: 1660px">
+          <div class="10-x402-glass 10-x402-endpoint" id="10-x402-endpoint">
+            <div class="10-x402-label">Model endpoint</div>
+            <div class="10-x402-ep-row"><span class="10-x402-method">POST</span><span class="10-x402-path">/inference</span></div>
+            <div class="10-x402-ep-rule"></div>
+            <div class="10-x402-ep-status"><span class="10-x402-dot 10-x402-dot-peach"></span>status <b>402</b></div>
+          </div>
+          <div class="10-x402-glow402" id="10-x402-glow402"></div>
+          <div class="10-x402-serif 10-x402-big402" id="10-x402-big402">402</div>
+          <div class="10-x402-serif 10-x402-payreq" id="10-x402-payreq">Payment <em>Required</em></div>
+          <div class="10-x402-chip 10-x402-chip-glass 10-x402-mono 10-x402-center-x 10-x402-s1-hdr" id="10-x402-hdr-req">
+            <span class="10-x402-dot 10-x402-dot-peach"></span><span class="10-x402-hdr-key">PAYMENT-REQUIRED:</span>exact · AUSD · 0.0006
+          </div>
+        </div>
+
+        <!-- Station 2 — robot signs (cx 3760) -->
+        <div class="10-x402-station" style="left: 3060px">
+          <div class="10-x402-glass 10-x402-robot" id="10-x402-robot">
+            <div class="10-x402-label">Robot wallet</div>
+            <svg viewBox="0 0 128 128" fill="none" stroke="#3F7D5C" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="64" y1="14" x2="64" y2="32" />
+              <circle cx="64" cy="11" r="5" fill="#DCEBE1" />
+              <rect x="22" y="32" width="84" height="62" rx="20" fill="rgba(220,235,225,0.55)" />
+              <circle cx="48" cy="60" r="7" fill="#3F7D5C" stroke="none" />
+              <circle cx="80" cy="60" r="7" fill="#3F7D5C" stroke="none" />
+              <path d="M50 78 Q64 86 78 78" />
+              <line x1="22" y1="62" x2="12" y2="62" />
+              <line x1="106" y1="62" x2="116" y2="62" />
+              <path d="M40 94 L40 112 M88 94 L88 112 M30 114 H98" />
+            </svg>
+            <div class="10-x402-serif 10-x402-robot-name">Robot</div>
+            <div class="10-x402-robot-sub">signs off-chain</div>
+          </div>
+          <div class="10-x402-chip 10-x402-chip-glass 10-x402-mono 10-x402-s2-hdr" id="10-x402-hdr-sig"><span class="10-x402-dot"></span><span class="10-x402-hdr-key">PAYMENT-SIGNATURE</span></div>
+          <div class="10-x402-glass 10-x402-code" id="10-x402-code">
+            <pre class="10-x402-code-pre"><span id="10-x402-code-text"></span><span class="10-x402-cursor" id="10-x402-cursor"></span></pre>
+          </div>
+          <div class="10-x402-chip 10-x402-chip-mint 10-x402-s2-pill" id="10-x402-erc"><span class="10-x402-dot"></span>ERC-3009 · gasless</div>
+        </div>
+
+        <!-- Station 3 — facilitator settles (cx 5160) -->
+        <div class="10-x402-station" style="left: 4460px">
+          <div class="10-x402-glass 10-x402-facil" id="10-x402-facil">
+            <div class="10-x402-check" id="10-x402-check">
+              <svg viewBox="0 0 70 70" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
+                <path id="10-x402-check-path" d="M16 37 L30 50 L55 21" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" />
+              </svg>
+            </div>
+            <div>
+              <div class="10-x402-label">Facilitator</div>
+              <div class="10-x402-serif 10-x402-facil-title">Settled</div>
+              <div class="10-x402-chip 10-x402-base" id="10-x402-base"><span class="10-x402-base-mark"></span>Base Sepolia</div>
+            </div>
+          </div>
+          <div class="10-x402-center-x 10-x402-s3-row">
+            <div class="10-x402-chip 10-x402-chip-glass" id="10-x402-gas">facilitator pays gas</div>
+            <div class="10-x402-chip 10-x402-chip-glass" id="10-x402-eth">robot holds 0 ETH</div>
+          </div>
+        </div>
+
+        <!-- Station 4 — inference result (cx 6560) -->
+        <div class="10-x402-station" style="left: 5860px">
+          <div class="10-x402-chip 10-x402-chip-glass 10-x402-mono 10-x402-center-x 10-x402-s4-hdr" id="10-x402-hdr-res"><span class="10-x402-dot"></span><span class="10-x402-hdr-key">PAYMENT-RESPONSE</span></div>
+          <div class="10-x402-glass 10-x402-result" id="10-x402-result">
+            <div class="10-x402-viz">
+              <svg viewBox="0 0 220 220" width="220" height="220" fill="none">
+                <!-- tiny red mug -->
+                <g id="10-x402-mug">
+                  <path d="M80 98 H136 V146 Q136 160 122 160 H94 Q80 160 80 146 Z" fill="#E8B9C4" stroke="#1C1D18" stroke-opacity="0.55" stroke-width="3" />
+                  <path d="M136 108 Q154 108 154 124 Q154 140 136 140" stroke="#1C1D18" stroke-opacity="0.55" stroke-width="3" />
+                  <path d="M80 104 H136" stroke="#fff" stroke-opacity="0.6" stroke-width="3" />
+                </g>
+                <!-- bounding box corners -->
+                <path id="10-x402-bbox" d="M62 104 V80 H86 M146 80 H170 V104 M170 156 V180 H146 M86 180 H62 V156" stroke="#3F7D5C" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" />
+                <g id="10-x402-bbox-tag">
+                  <rect x="62" y="48" width="64" height="24" rx="6" fill="#3F7D5C" />
+                  <text x="94" y="65" text-anchor="middle" font-family="Inter, sans-serif" font-size="14" font-weight="600" fill="#fff">mug</text>
+                </g>
+              </svg>
+            </div>
+            <div>
+              <div class="10-x402-label">Result</div>
+              <div class="10-x402-serif 10-x402-res-title" style="margin-top: 12px">
+                Inference
+                <span class="10-x402-res-check" id="10-x402-res-check">
+                  <svg viewBox="0 0 30 30" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16 L13 22 L24 9" /></svg>
+                </span>
+              </div>
+              <div class="10-x402-res-sub" id="10-x402-res-sub">detections returned</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- travelling payment packet -->
+        <div class="10-x402-packet" id="10-x402-packet"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const ID = "10-x402";
+      const P = ID + "-";
+      const $ = (s) => document.getElementById(P + s);
+      const TOTAL = 12.005;
+
+      const tl = gsap.timeline({ paused: true });
+
+      /* ---------------- camera (viewport-change, single .world wrapper) ----------------
+         GSAP composes translate(x, y) scale(S) on the one wrapper (origin 960 540), so the
+         single-wrapper math holds: screen = S * (worldX - 960) + 960 + x  ->  x = -S * offset.
+         Tweened as direct props (no onUpdate writer) so arbitrary seeks land exactly. */
+      const world = $("world");
+      const STEP = 1400; // world distance between stations
+      gsap.set(world, { x: 0, y: 0, scale: 1, transformOrigin: "960px 540px" });
+
+      /* ---------------- connector track + packet ---------------- */
+      const NODE_X = [960, 2360, 3760, 5160, 6560];
+      const packetEl = $("packet");
+      const lineEl = $("line");
+      const progEl = $("line-prog");
+      const nodeEls = [0, 1, 2, 3, 4].map((i) => $("node-" + i));
+      gsap.set(packetEl, { x: NODE_X[0] - 14, scale: 1 });
+      gsap.set(progEl, { width: 0, scaleY: 1 });
+      gsap.set(lineEl, { scaleY: 1 });
+      gsap.set(nodeEls, { scale: 1 });
+
+      /* ---------------- ambient ground: one finite drift each ---------------- */
+      tl.fromTo($("bg-img"), { x: 0 }, { x: -70, duration: TOTAL, ease: "none" }, 0);
+      tl.fromTo($("bloom-rose"), { x: 0, y: 0 }, { x: 60, y: 30, duration: TOTAL, ease: "sine.inOut" }, 0);
+      tl.fromTo($("bloom-sky"), { x: 0, y: 0 }, { x: -70, y: 40, duration: TOTAL, ease: "sine.inOut" }, 0);
+      tl.fromTo($("bloom-mint"), { x: 0, y: 0 }, { x: 50, y: -30, duration: TOTAL, ease: "sine.inOut" }, 0);
+
+      /* ---------------- helpers ---------------- */
+      // small things: soft spring settle (gentle overshoot)
+      function spring(el, at, from) {
+        const f = Object.assign({ y: 50, scale: 0.9, opacity: 0 }, from || {});
+        tl.fromTo(el, f, { y: 0, scale: 1, opacity: 1, duration: 0.7, ease: "back.out(1.5)" }, at);
+      }
+      // large things: long-tail settle, no overshoot
+      function settle(el, at, from, dur) {
+        const f = Object.assign({ y: 60, opacity: 0 }, from || {});
+        tl.fromTo(el, f, { y: 0, scale: 1, opacity: 1, duration: dur || 1.0, ease: "expo.out" }, at);
+      }
+      function pan(toStation, at, dur) {
+        const k = toStation;
+        tl.fromTo(world, { x: -STEP * (k - 1) }, { x: -STEP * k, duration: dur, ease: "power3.inOut", immediateRender: false }, at);
+        // packet leads the camera slightly on its own ease; the sage progress line follows it
+        const pd = { duration: dur - 0.05, ease: "power2.inOut", immediateRender: false };
+        tl.fromTo(packetEl, { x: NODE_X[k - 1] - 14 }, Object.assign({ x: NODE_X[k] - 14 }, pd), at - 0.1);
+        tl.fromTo(progEl, { width: NODE_X[k - 1] - 960 }, Object.assign({ width: NODE_X[k] - 960 }, pd), at - 0.1);
+        tl.fromTo($("nf-" + toStation), { scale: 0 }, { scale: 1, duration: 0.5, ease: "back.out(1.6)" }, at + dur - 0.2);
+      }
+
+      /* ---------------- Scene 1 (0.0–1.0): title station ---------------- */
+      tl.fromTo($("s0-label"), { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: "power3.out" }, 0.08);
+      settle($("s0-title"), 0.16, { y: 60, scale: 0.97, opacity: 0 }, 1.1);
+      tl.fromTo($("nf-0"), { scale: 0 }, { scale: 1, duration: 0.5, ease: "back.out(1.6)" }, 0.55);
+      tl.fromTo(packetEl, { opacity: 0 }, { opacity: 1, duration: 0.35, ease: "power2.out" }, 0.6);
+
+      /* ---------------- Scene 2 (1.0–3.4): AUSD chips ---------------- */
+      spring($("ausd"), 1.15);
+      tl.fromTo($("coin"), { scale: 0.6, rotation: -40 }, { scale: 1, rotation: 0, duration: 0.7, ease: "back.out(1.6)" }, 1.3);
+      tl.fromTo($("ausd-sub"), { y: 14, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 1.5);
+      spring($("addr"), 1.95);
+      spring($("scheme"), 2.5);
+
+      /* ---------------- Scene 3 (3.4–5.6): 402 ---------------- */
+      pan(1, 3.25, 1.0);
+      spring($("endpoint"), 3.8, { y: 60, scale: 0.92 });
+      // 402 slams in: big, no overshoot, plus a short camera jolt
+      tl.fromTo($("glow402"), { opacity: 0 }, { opacity: 0.4, duration: 0.8, ease: "power2.out" }, 4.18);
+      tl.fromTo($("big402"), { scale: 1.55, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.42, ease: "power4.in" }, 3.86);
+      tl.fromTo(world, { y: 0 }, { y: 10, duration: 0.05, ease: "power2.out", immediateRender: false }, 4.28);
+      tl.fromTo(world, { y: 10 }, { y: -5, duration: 0.08, ease: "power2.inOut", immediateRender: false }, 4.33);
+      tl.fromTo(world, { y: -5 }, { y: 0, duration: 0.2, ease: "power2.out", immediateRender: false }, 4.41);
+      settle($("payreq"), 4.55, { y: 40, opacity: 0 }, 0.9);
+      spring($("hdr-req"), 4.95);
+
+      /* ---------------- Scene 4 (5.6–7.8): robot signs ---------------- */
+      pan(2, 5.4, 0.95);
+      spring($("robot"), 5.95, { y: 60, scale: 0.92 });
+      spring($("hdr-sig"), 6.05);
+      spring($("code"), 6.12, { y: 50, scale: 0.94 });
+      spring($("erc"), 7.45);
+
+      // discrete-text-sequence typing
+      const T0 = 6.32;
+      const L1 = "transferWithAuthorization(";
+      const L2 = "\n  from: robot,";
+      const L3 = "\n  to: vendor,";
+      const L5 = "\n  validBefore,";
+      const L6 = "\n  nonce";
+      const L7 = "\n)";
+      const SEQ = [
+        { t: 0, text: "" },
+        { t: T0 + 0.0, text: "tr" },
+        { t: T0 + 0.07, text: "transf" },
+        { t: T0 + 0.14, text: "transferWith" },
+        { t: T0 + 0.24, text: L1 },
+        { t: T0 + 0.36, text: L1 + "\n  from: rob" },
+        { t: T0 + 0.44, text: L1 + L2 },
+        { t: T0 + 0.54, text: L1 + L2 + "\n  to: vend" },
+        { t: T0 + 0.62, text: L1 + L2 + L3 },
+        { t: T0 + 0.72, text: L1 + L2 + L3 + "\n  value: 60" },
+        { t: T0 + 0.79, text: L1 + L2 + L3 + "\n  value: 6000" },
+        { t: T0 + 0.88, text: L1 + L2 + L3 + "\n  value: 600" },
+        { t: T0 + 0.94, text: L1 + L2 + L3 + "\n  value: 600," },
+        { t: T0 + 1.03, text: L1 + L2 + L3 + "\n  value: 600," + L5 },
+        { t: T0 + 1.11, text: L1 + L2 + L3 + "\n  value: 600," + L5 + L6 },
+        { t: T0 + 1.19, text: L1 + L2 + L3 + "\n  value: 600," + L5 + L6 + L7 },
+      ];
+      function textAt(time) {
+        for (let i = SEQ.length - 1; i >= 0; i--) if (time >= SEQ[i].t) return SEQ[i].text;
+        return "";
+      }
+      const codeText = $("code-text");
+      const cursorEl = $("cursor");
+      // one full-length driver; reads the timeline's own playhead so seeks are exact
+      const BLINK_CYCLES = TOTAL / 0.7;
+      const driver = { t: 0 };
+      tl.to(driver, {
+        t: TOTAL,
+        duration: TOTAL,
+        ease: "none",
+        lazy: false,
+        onUpdate: () => {
+          const t = tl.time();
+          codeText.textContent = textAt(t);
+          // solid while keys are flying, deterministic sin square-wave blink otherwise
+          const typing = t >= T0 && t < T0 + 1.25;
+          const p = (t / TOTAL) * Math.PI * 2 * BLINK_CYCLES;
+          cursorEl.style.opacity = typing || Math.sin(p) > 0 ? "1" : "0";
+        },
+      }, 0);
+
+      /* ---------------- Scene 5 (7.8–9.2): facilitator settles on Base ---------------- */
+      pan(3, 7.6, 0.85);
+      spring($("facil"), 8.05, { y: 60, scale: 0.92 });
+      spring($("base"), 8.3);
+      tl.fromTo($("check"), { scale: 0.4, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.6, ease: "back.out(1.7)" }, 8.45);
+      tl.fromTo($("check-path"), { attr: { "stroke-dashoffset": 1 } }, { attr: { "stroke-dashoffset": 0 }, duration: 0.35, ease: "power2.out" }, 8.6);
+      spring($("gas"), 8.72);
+      spring($("eth"), 8.84);
+
+      /* ---------------- Scene 6 (9.2–12.0): payment response + inference ---------------- */
+      pan(4, 9.0, 0.85);
+      spring($("hdr-res"), 9.45);
+      spring($("result"), 9.7, { y: 60, scale: 0.92 });
+      tl.fromTo($("mug"), { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 9.85);
+      tl.fromTo($("bbox"), { attr: { "stroke-dashoffset": 1 } }, { attr: { "stroke-dashoffset": 0 }, duration: 0.45, ease: "power2.inOut" }, 9.98);
+      tl.fromTo($("bbox-tag"), { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.35, ease: "back.out(1.6)" }, 10.28);
+      tl.fromTo($("res-check"), { scale: 0.3, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.55, ease: "back.out(1.7)" }, 10.12);
+      tl.fromTo($("res-sub"), { y: 14, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 10.22);
+
+      // bookend: pull back to show all five stations on the line
+      const S = 0.28;
+      const SPAN_CX = 3685; // world-x centre of stations 0..4 content
+      const pb = { duration: 1.15, ease: "power3.inOut", immediateRender: false };
+      tl.fromTo(world, { scale: 1, x: -STEP * 4, y: 0 }, Object.assign({ scale: S, x: -S * (SPAN_CX - 960), y: 0 }, pb), 10.5);
+      // thicken the track as the camera pulls back so the line still reads in the wide shot
+      tl.fromTo([lineEl, progEl], { scaleY: 1 }, Object.assign({ scaleY: 3 }, pb), 10.5);
+      tl.fromTo(nodeEls, { scale: 1 }, Object.assign({ scale: 3 }, pb), 10.5);
+      tl.fromTo(packetEl, { scale: 1 }, Object.assign({ scale: 3 }, pb), 10.5);
+      // one finite airy drift on the hero card while the wide shot holds
+      tl.to($("result"), { y: -5, duration: 1.4, ease: "sine.inOut" }, 10.6);
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines[ID] = tl;
+    })();
+  </script>
+</template>

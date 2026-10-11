@@ -1,0 +1,276 @@
+<template>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <style>
+    @font-face {
+      font-family: "Instrument Serif";
+      src: url("assets/fonts/instrument-serif-latin-400-normal.woff2") format("woff2");
+      font-weight: 400;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: "Instrument Serif";
+      src: url("assets/fonts/instrument-serif-latin-400-italic.woff2") format("woff2");
+      font-weight: 400;
+      font-style: italic;
+    }
+    @font-face {
+      font-family: "Inter";
+      src: url("assets/fonts/inter-latin-wght-normal.woff2") format("woff2");
+      font-weight: 100 900;
+      font-style: normal;
+    }
+
+    #root {
+      position: absolute;
+      inset: 0;
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      color: #1c1d18;
+      font-family: "Inter", sans-serif;
+    }
+
+    /* ---------- background clip ---------- */
+    #intro03-bg {
+      position: absolute;
+      inset: 0;
+      background: #f4f2ec;
+      overflow: hidden;
+    }
+    #intro03-bg .intro03-hill {
+      position: absolute;
+      inset: -12px;
+      background: url("assets/dawn-hill.jpg") center / cover no-repeat;
+      opacity: 0.28;
+      filter: blur(2px);
+    }
+    #intro03-bg .intro03-bloom {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(140px);
+    }
+    #intro03-bloom-rose {
+      left: 120px;
+      top: 80px;
+      width: 760px;
+      height: 620px;
+      background: #e8b9c4;
+      opacity: 0.45;
+    }
+    #intro03-bloom-sky {
+      left: 1100px;
+      top: 40px;
+      width: 820px;
+      height: 640px;
+      background: #cfe0ea;
+      opacity: 0.5;
+    }
+    #intro03-bloom-mint {
+      left: 640px;
+      top: 520px;
+      width: 900px;
+      height: 560px;
+      background: #dcebe1;
+      opacity: 0.55;
+    }
+
+    /* ---------- content clip ---------- */
+    #intro03-stage {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1920px;
+      height: 900px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 54px;
+    }
+    #intro03-lockup {
+      display: flex;
+      align-items: center;
+      gap: 52px;
+    }
+
+    /* mark */
+    #intro03-mark {
+      position: relative;
+      width: 200px;
+      height: 200px;
+      flex: none;
+    }
+    #intro03-glow {
+      position: absolute;
+      left: -110px;
+      top: -110px;
+      width: 420px;
+      height: 420px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(76, 126, 96, 0.42) 0%, rgba(76, 126, 96, 0.16) 45%, rgba(76, 126, 96, 0) 70%);
+      filter: blur(18px);
+    }
+    #intro03-square {
+      position: absolute;
+      inset: 0;
+      border-radius: 56px;
+      background: #4c7e60;
+      box-shadow: 0 1px 2px rgba(28, 29, 24, 0.05), 0 30px 70px -22px rgba(42, 84, 61, 0.5);
+    }
+    .intro03-plate {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 200px;
+      height: 200px;
+      overflow: visible;
+    }
+    .intro03-plate path {
+      fill: none;
+      stroke: #2a543d;
+      stroke-width: 1.6;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* wordmark */
+    #intro03-word {
+      display: flex;
+      align-items: baseline;
+      font-family: "Instrument Serif", serif;
+      font-size: 168px;
+      line-height: 0.92;
+      letter-spacing: -0.025em;
+      color: #1c1d18;
+      padding-top: 14px;
+    }
+    .intro03-letter {
+      display: inline-block;
+    }
+    #intro03-r {
+      font-style: italic;
+      color: #3f7d5c;
+      padding-right: 6px;
+    }
+
+    /* tagline */
+    #intro03-tagline {
+      display: flex;
+      gap: 0.26em;
+      font-family: "Instrument Serif", serif;
+      font-size: 52px;
+      line-height: 1.04;
+      letter-spacing: -0.01em;
+      color: #63665d;
+    }
+    .intro03-tword {
+      display: inline-block;
+    }
+    #intro03-emph {
+      font-style: italic;
+      color: #3f7d5c;
+    }
+  </style>
+
+  <div id="root" data-composition-id="03-intro" data-width="1920" data-height="1080" data-duration="3.624">
+    <!-- full-bleed ground -->
+    <div id="intro03-bg" class="clip" data-start="0" data-duration="3.624" data-track-index="0">
+      <div class="intro03-hill"></div>
+      <div id="intro03-bloom-rose" class="intro03-bloom"></div>
+      <div id="intro03-bloom-sky" class="intro03-bloom"></div>
+      <div id="intro03-bloom-mint" class="intro03-bloom"></div>
+    </div>
+
+    <!-- lockup + tagline -->
+    <div id="intro03-stage" class="clip" data-start="0" data-duration="3.624" data-track-index="1">
+      <div id="intro03-lockup">
+        <div id="intro03-mark">
+          <div id="intro03-glow"></div>
+          <div id="intro03-square"></div>
+          <svg id="intro03-plate-bottom" class="intro03-plate" viewBox="0 0 32 32"><path d="M8 20l8 4 8-4" /></svg>
+          <svg id="intro03-plate-middle" class="intro03-plate" viewBox="0 0 32 32"><path d="M8 16l8 4 8-4" /></svg>
+          <svg id="intro03-plate-top" class="intro03-plate" viewBox="0 0 32 32"><path d="m8 12 8-4 8 4-8 4-8-4Z" /></svg>
+        </div>
+        <div id="intro03-word">
+          <span id="intro03-r" class="intro03-letter">r</span><span class="intro03-letter">B</span><span class="intro03-letter">a</span><span class="intro03-letter">z</span><span class="intro03-letter">a</span><span class="intro03-letter">a</span><span class="intro03-letter">r</span>
+        </div>
+      </div>
+      <div id="intro03-tagline">
+        <span class="intro03-tword">where</span>
+        <span class="intro03-tword">robots</span>
+        <span id="intro03-emph" class="intro03-tword">buy skills</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      const q = (s) => document.querySelector('[data-composition-id="03-intro"] ' + s);
+      const qa = (s) => Array.from(document.querySelectorAll('[data-composition-id="03-intro"] ' + s));
+
+      // Ambient: blooms drift on one finite tween each across the whole shot.
+      tl.fromTo(q("#intro03-bloom-rose"), { x: 0, y: 0 }, { x: 46, y: 18, duration: 3.124, ease: "sine.inOut" }, 0);
+      tl.fromTo(q("#intro03-bloom-sky"), { x: 0, y: 0 }, { x: -38, y: 24, duration: 3.124, ease: "sine.inOut" }, 0);
+      tl.fromTo(q("#intro03-bloom-mint"), { x: 0, y: 0 }, { x: 30, y: -22, duration: 3.124, ease: "sine.inOut" }, 0);
+
+      // Scene 1 (0.0–1.1s): layer plates stack up bottom → top (sage strokes on the bare stage).
+      ["#intro03-plate-bottom", "#intro03-plate-middle", "#intro03-plate-top"].forEach((sel, i) => {
+        tl.fromTo(
+          q(sel),
+          { y: 64, opacity: 0, scale: 0.9 },
+          { y: 0, opacity: 1, scale: 1, duration: 0.5, ease: "back.out(1.5)" },
+          0.05 + i * 0.12
+        );
+      });
+
+      // Green rounded square blooms behind the plates from zero (spring settle, slight rotation).
+      tl.fromTo(
+        q("#intro03-square"),
+        { scale: 0, rotation: -10, opacity: 0 },
+        { scale: 1, rotation: 0, opacity: 1, duration: 0.62, ease: "back.out(1.5)" },
+        0.55
+      );
+      // Strokes turn cream as the square fills in under them.
+      tl.fromTo(
+        qa(".intro03-plate path"),
+        { stroke: "#2A543D" },
+        { stroke: "#F4F2EC", duration: 0.32, ease: "power2.out" },
+        0.62
+      );
+      // Ambient glow ignites.
+      tl.fromTo(
+        q("#intro03-glow"),
+        { scale: 0.55, opacity: 0 },
+        { scale: 1, opacity: 1, duration: 0.9, ease: "power3.out" },
+        0.6
+      );
+
+      // Scene 2 (0.9–2.0s): "rBazaar" cascades letter by letter, left → right.
+      qa(".intro03-letter").forEach((el, i) => {
+        tl.fromTo(
+          el,
+          { y: 70, opacity: 0, scale: 0.9 },
+          { y: 0, opacity: 1, scale: 1, duration: 0.6, ease: "back.out(1.4)" },
+          0.9 + i * 0.075
+        );
+      });
+
+      // Scene 3 (1.6–3.1s): tagline rises under the lockup on a power3 settle, then holds.
+      qa(".intro03-tword").forEach((el, i) => {
+        tl.fromTo(
+          el,
+          { y: 44, opacity: 0 },
+          { y: 0, opacity: 1, duration: 0.85, ease: "power3.out" },
+          1.6 + i * 0.1
+        );
+      });
+
+      // Pin the timeline to the frame's fixed length (held breather to the end).
+      tl.set({}, {}, 3.124);
+
+      window.__timelines["03-intro"] = tl;
+    })();
+  </script>
+</template>
