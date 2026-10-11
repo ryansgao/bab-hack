@@ -42,13 +42,6 @@ function Providers({ children }: { children: ReactNode }) {
     </WagmiProvider>
   );
 }
-function QrNote() {
-  const { config } = useSession();
-  return config.walletConnectProjectId ? null : (
-    <p className="fine-print">Wallets in this browser connect now. Phone wallets that pair by QR code turn on when the server has a WalletConnect project ID.</p>
-  );
-}
-
 /** Wallet page: connect your own wallet, move AUSD from it into your rBazaar wallet with one signature. */
 export default function OwnWalletCard(props: { wallet: AccountWallet; onDeposited: () => void; onUseAddress: (address: string) => void }) {
   return <Providers><Funding {...props} /></Providers>;
@@ -62,6 +55,7 @@ function Funding({ wallet, onDeposited, onUseAddress }: { wallet: AccountWallet;
   const [error, setError] = useState("");
   const [done, setDone] = useState("");
   const domain = wallet.asset_domain;
+  const qr = !!useSession().config.walletConnectProjectId;
   const held = useReadContract({ address: domain?.verifyingContract, abi: erc20Abi, functionName: "balanceOf", args: address ? [address] : undefined, chainId: baseSepolia.id, query: { enabled: !!address && !!domain, refetchInterval: 8000 } });
   async function deposit() {
     setBusy(true); setError(""); setDone("");
@@ -91,7 +85,7 @@ function Funding({ wallet, onDeposited, onUseAddress }: { wallet: AccountWallet;
     <section className="glass account-card">
       <div className="account-card-heading">
         <span className="label-with-icon"><Wallet size={15} />Bring your own wallet</span>
-        <span className="tag">Rainbow · Coinbase · MetaMask · Binance · Ledger</span>
+        <span className="tag">{qr ? "Rainbow · Coinbase · MetaMask · Binance · Ledger" : "Any wallet in this browser · Coinbase"}</span>
       </div>
       <p className="account-note">
         Connect a wallet you hold yourself, hot or cold. Your keys stay with you: rBazaar can only move what you sign for, one amount at a time.
@@ -116,7 +110,7 @@ function Funding({ wallet, onDeposited, onUseAddress }: { wallet: AccountWallet;
       )}
       {error && <p className="account-error" role="alert">{error}</p>}
       {done && <p className="account-done" role="status">{done}</p>}
-      <QrNote />
+      {!qr && <p className="fine-print">Wallets in this browser connect now. Phone wallets that pair by QR code turn on when the server has a WalletConnect project ID.</p>}
     </section>
   );
 }
