@@ -1141,6 +1141,71 @@
         ],
         "title": "CandidateEvaluation"
       },
+      "ContextMedia": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "image",
+              "pdf",
+              "text",
+              "video"
+            ],
+            "title": "Kind"
+          },
+          "media_type": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Media Type"
+          },
+          "data_base64": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16000000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Base64"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "frames": {
+            "items": {
+              "$ref": "#/components/schemas/MediaFrame"
+            },
+            "type": "array",
+            "maxItems": 8,
+            "title": "Frames"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "kind",
+          "media_type"
+        ],
+        "title": "ContextMedia"
+      },
       "ExecuteRequest": {
         "properties": {
           "plan_id": {
@@ -1233,8 +1298,34 @@
         ],
         "title": "InferenceResult"
       },
+      "MediaFrame": {
+        "properties": {
+          "timestamp_s": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Timestamp S"
+          },
+          "data_base64": {
+            "type": "string",
+            "maxLength": 3000000,
+            "title": "Data Base64"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "timestamp_s",
+          "data_base64"
+        ],
+        "title": "MediaFrame"
+      },
       "MissionPlan": {
         "properties": {
+          "robot_visual": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Robot Visual"
+          },
           "planning_usage": {
             "additionalProperties": true,
             "type": "object",
@@ -1354,6 +1445,14 @@
       },
       "MissionRequest": {
         "properties": {
+          "media": {
+            "items": {
+              "$ref": "#/components/schemas/ContextMedia"
+            },
+            "type": "array",
+            "maxItems": 8,
+            "title": "Media"
+          },
           "auto_bounties": {
             "type": "boolean",
             "title": "Auto Bounties",

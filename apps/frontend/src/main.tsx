@@ -43,6 +43,8 @@ import {
   layerName,
   money,
   usd,
+  DEFAULT_ROBOT,
+  liveStep,
   type Step,
   type Plan,
   type View,
@@ -50,7 +52,7 @@ import {
 import "./style.css";
 import MissionPricing from './components/MissionPricing';
 
-const ArmScene = lazy(() => import("./components/ArmScene").then((module) => ({ default: module.ArmScene })));
+const RobotStation = lazy(() => import('./components/RobotStation'));
 const SkillPreview = lazy(() => import("./components/SkillPreview").then((module) => ({ default: module.SkillPreview })));
 const TaskPreview3D = lazy(() => import("./components/TaskPreview3D"));
 const BountyBoard = lazy(() => import("./components/BountyBoard"));
@@ -58,17 +60,19 @@ const BountyBoard = lazy(() => import("./components/BountyBoard"));
 function TaskPreviewToggle({ data, plan, selected, onSelect }: {
   data: RoboMarket; plan?: Plan; selected?: number; onSelect?: (index: number) => void;
 }) {
-  const scene = plan?.simulation_scene || data.scene;
+  const scene = plan?.simulation_scene?.source==="simulation_fixture" ? plan.simulation_scene : null;
+  const region=useRef<HTMLElement>(null);
+  useEffect(()=>{if(data.followLive&&data.previewEnabled)region.current?.scrollIntoView({block:'start',behavior:'smooth'});},[data.followLive,data.previewEnabled]);
   const id = plan ? "mission-task-preview" : "composer-task-preview";
-  return <section className="task-preview glass-quiet">
+  return <section ref={region} className="task-preview glass-quiet">
     <label className="task-preview-toggle">
       <span><strong>3D task preview</strong><small>Check Scout understood your task before running it. No extra AI tokens.</small></span>
       <input type="checkbox" role="switch" aria-label="3D task preview" aria-controls={id} checked={data.previewEnabled} onChange={e => data.setPreviewEnabled(e.target.checked)} />
       <span className="preview-switch" aria-hidden="true" />
     </label>
     {data.previewEnabled && <div id={id}>
-      {scene ? <Suspense fallback={<p className="preview-loading">Loading local 3D preview…</p>}><TaskPreview3D key={plan?.id || scene.id} scene={scene} plan={plan} selected={selected} onSelect={onSelect} /></Suspense>
-        : <p className="preview-loading">The simulated scene is unavailable. Check the local service and refresh.</p>}
+      {scene ? <Suspense fallback={<p className="preview-loading">Loading local 3D preview…</p>}><TaskPreview3D key={plan?.id || scene.id} scene={scene} plan={plan} selected={selected} onSelect={onSelect} robot={{...DEFAULT_ROBOT,...(plan?.request.robot_card||data.robotConfig)}} arm={data.arm} mode={data.followLive?'live':'preview'} onFollow={()=>data.setFollowLive(true)} /></Suspense>
+        : <p className="preview-loading">Your prompt and reference files will generate the robot and scene when you build the mission.</p>}
     </div>}
   </section>;
 }
@@ -160,100 +164,6 @@ function Background() {
   );
 }
 
-function RobotCard({
-  data,
-  compact = false,
-}: {
-  data: RoboMarket;
-  compact?: boolean;
-}) {
-  const { arm, busy, plan } = data;
-  return (
-    <section className={"glass robot-card " + (compact ? "compact" : "")}>
-      <div className="panel-heading">
-        <span className="eyebrow">Robot workcell</span>
-        <Status
-          value={
-            arm.running
-              ? "running"
-              : arm.phase === "complete"
-                ? "completed"
-                : "idle"
-          }
-        />
-      </div>
-      <div className="scene-wrap">
-        <Suspense fallback={<div className="robot-viewport robot-scene-loading" aria-label="Loading 3D robot workspace" />}>
-          <ArmScene arm={arm} />
-        </Suspense>
-      </div>
-      <div className="robot-card-body">
-        <div className="robot-title">
-          <span className="soft-icon">
-            <Bot size={19} />
-          </span>
-          <div>
-            <h3>Robot arm</h3>
-            <p>6-axis arm · robot workspace</p>
-          </div>
-        </div>
-        <dl className="spec-list">
-          <div>
-            <dt>Gripper</dt>
-            <dd>
-              {humanize(plan?.request.robot_card?.gripper || data.gripper)}
-            </dd>
-          </div>
-          <div>
-            <dt>Payload</dt>
-            <dd>1.5 kg</dd>
-          </div>
-          <div>
-            <dt>Senses</dt>
-            <dd>RGB · depth · force</dd>
-          </div>
-          <div>
-            <dt>Compute</dt>
-            <dd>Jetson Orin</dd>
-          </div>
-        </dl>
-        {arm.output && (
-          <div className="motion-readout">
-            <div>
-              <span>Grip force</span>
-              <strong>
-                {arm.output.force_n.toFixed(2)} <small>N</small>
-              </strong>
-            </div>
-            <div>
-              <span>Speed</span>
-              <strong>
-                {arm.output.speed_mm_s} <small>mm/s</small>
-              </strong>
-            </div>
-          </div>
-        )}
-        <div className="robot-caption">
-          <span className="tiny-dot" />
-          {arm.reason}
-        </div>
-        {plan?.status === "waiting_for_motion" && (
-          <button
-            className="secondary full-width"
-            disabled={busy}
-            onClick={() => void data.control(arm.running ? "pause" : "start")}
-          >
-            {arm.running ? <Pause size={14} /> : <Play size={14} />}
-            {arm.running ? "Pause motion" : "Resume motion"}
-          </button>
-        )}
-        <p className="fine-print">
-          Simulated handling. Skin removal and material physics are not modeled.
-        </p>
-      </div>
-    </section>
-  );
-}
 function WalletCard({
   data,
   compact = false,
@@ -377,6 +287,7 @@ function Composer({
       <div className="hero-heading">
         {hero ?? <h1>New mission</h1>}
       </div>
+      <div className="simulation-mode glass-quiet"><label>Execution mode <select aria-label="Execution mode" value={data.executionMode} onChange={e=>data.setExecutionMode(e.target.value as "simulation"|"testnet")}><option value="simulation">Simulation · USD estimates</option><option value="testnet">Real providers · AUSD testnet</option></select></label><p>{data.executionMode==="simulation"?"Your prompt creates the demo scene. Available marketplace skills run locally; missing skills use free virtual effects and can open producer bounties. Claude planning usage still applies.":"Real model inference and testnet payments. Supply an observation and funded wallets."}</p></div>
       <div className="composer glass-raised">
         <textarea
           ref={input}
@@ -410,17 +321,17 @@ function Composer({
           <div className="composer-tools">
             <label
               className="icon-button upload-button"
-              title="Attach observation image"
+              title="Upload reference files"
             >
               <ImagePlus size={18} />
-              <span className="sr-only">Attach observation image</span>
+              <span className="sr-only">Upload reference files</span>
               <input
                 type="file"
-                accept="image/png,image/jpeg,image/webp"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) void data.upload(file);
-                  event.target.value = "";
+                accept="image/png,image/jpeg,image/webp,image/gif,application/pdf,.txt,.md,.csv,.json,video/mp4,video/webm,video/quicktime"
+                multiple
+                onChange={async (event) => {
+                  const files=Array.from(event.target.files||[]);event.target.value="";
+                  for(const file of files)await data.uploadMedia(file);
                 }}
               />
             </label>
@@ -444,7 +355,7 @@ function Composer({
             title="Build mission plan"
             aria-label="Build mission plan"
             disabled={
-              data.busy ||
+              data.busy || data.mediaBusy ||
               data.restoring ||
               !data.online ||
               data.task.trim().length < 3
@@ -458,56 +369,69 @@ function Composer({
             )}
           </button>
         </div>
-        <div
-          id="mission-settings"
-          className={"mission-settings-wrap " + (settingsOpen ? "open" : "")}
-          inert={!settingsOpen}
-        >
-          <div className="mission-settings-clip">
-            <div className="mission-settings">
-              <label>
-                Spending limit (USD)
-                <input
-                  aria-label="Skill spending limit in USD"
-                  type="number"
-                  min="0.001"
-                  step="0.01"
-                  max="99999999"
-                  value={data.budget}
-                  onChange={(event) => data.setBudget(event.target.value)}
-                />
-              </label>
-              <label>
-                Inference deadline
-                <select
-                  aria-label="Inference deadline"
-                  value={data.deadline}
-                  onChange={(event) =>
-                    data.setDeadline(Number(event.target.value))
-                  }
-                >
-                  {[100, 800, 3000, 10000, 30000].map((value) => (
-                    <option key={value} value={value}>
-                      {value >= 1000 ? `${value / 1000} seconds` : `${value} ms`}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Gripper
-                <select
-                  aria-label="Gripper"
-                  value={data.gripper}
-                  onChange={(event) => data.setGripper(event.target.value)}
-                >
-                  <option value="parallel_jaw">Parallel jaw</option>
-                  <option value="suction">Suction</option>
-                  <option value="none">None</option>
-                </select>
-              </label>
-            </div>
-          </div>
+        <div id="mission-settings" className={"mission-settings-wrap " + (settingsOpen ? "open" : "")} inert={!settingsOpen}>
+          <div className="mission-settings-clip"><div className="mission-settings">
+            <label>
+              Skill spending limit <span>USD · maximum for marketplace calls</span>
+              <input
+                aria-label="Skill spending limit in USD"
+                type="number"
+                min="0.001"
+                step="0.01"
+                max="99999999"
+                value={data.budget}
+                onChange={(event) => data.setBudget(event.target.value)}
+              />
+            </label>
+            <label>
+              Inference deadline
+              <select
+                aria-label="Inference deadline"
+                value={data.deadline}
+                onChange={(event) =>
+                  data.setDeadline(Number(event.target.value))
+                }
+              >
+                {[100, 800, 3000, 10000, 30000].map((value) => (
+                  <option key={value} value={value}>
+                    {value >= 1000 ? `${value / 1000} seconds` : `${value} ms`}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p>
+              Parameters apply to this plan. Settlement time is separate from
+              inference time.
+            </p>
+          </div></div>
         </div>
+      </div>
+      <div className="media-context-note"><label className="secondary upload-context"><ImagePlus size={14}/>{data.mediaBusy?'Preparing reference files…':'Upload documents, images or video'}<input type="file" aria-label="Upload task reference files" multiple accept="image/png,image/jpeg,image/webp,image/gif,application/pdf,.txt,.md,.csv,.json,video/mp4,video/webm,video/quicktime" disabled={data.mediaBusy||data.busy} onChange={async e=>{const files=Array.from(e.target.files||[]);e.target.value='';for(const file of files)await data.uploadMedia(file);}}/></label><p>Optional references are sent to Anthropic with your prompt. PDFs and text documents are supported. Video uses six sampled frames; audio is not analyzed.</p><div className="attachment-list">{data.media.map((file,i)=><div key={i}><span>{file.name}</span><small>{file.kind==='video'?`${file.frames?.length||0} frames`:file.kind.toUpperCase()}</small><button className="icon-button" aria-label={`Remove ${file.name}`} onClick={()=>data.removeMedia(i)}><X size={12}/></button></div>)}</div></div>
+      {data.executionMode === "simulation" && <TaskPreviewToggle data={data} />}
+      <div className="auto-bounty-settings glass-quiet"><label><input type="checkbox" checked={data.autoBounties} onChange={e=>data.setAutoBounties(e.target.checked)} /> Automatically post bounties for missing skills</label>{data.autoBounties && <label className="bounty-reward-setting">Reward per missing capability <input aria-label="Automatic bounty reward" type="number" min="0.000001" step="0.001" value={data.bountyReward} onChange={e=>data.setBountyReward(e.target.value)} /><span>{data.executionMode==='simulation'?'USD demo pledge':'USD pledge'}</span></label>}<p>Creates a producer request when no compatible skill exists. Posting commits a reward pledge; it does not send a payment.</p></div>
+      <div className="suggestions">
+        <span>A place to start</span>
+        {[
+          "Organize my workbench",
+          "Find and inspect a coffee mug",
+          "Sort packages by destination",
+        ].map((task) => (
+          <button
+            key={task}
+            onClick={() => {
+              data.setTask(task);
+              input.current?.focus();
+            }}
+          >
+            {task}
+            <ArrowUp size={12} />
+          </button>
+        ))}
+      </div>
+      <div className="planner-status glass-quiet" role="status"><Sparkles size={15} /><div><strong>{data.planner?.configured ? "Planner connected" : "Planner setup needed"}</strong><p>{data.planner?.configured ? `${data.planner.model} · Your goal becomes a dependency graph of purchasable skills.` : "Configure the planning service on the server to build a mission. Your API key stays on the backend."}</p></div></div>
+      <div className="composer-note">
+        <ShieldCheck size={13} />
+        <span>Review the fine-grained plan before running. Simulation never sends a blockchain payment.</span>
       </div>
       {footer}
     </div>
@@ -605,7 +529,7 @@ function StepDetail({ step }: { step: Step }) {
                     <div>
                       <span>Per call</span>
                       <strong>
-                        {money(candidate.model.price_ausd)} <small>{candidate.model.execution_mode === "simulation" ? "credits" : "AUSD"}</small>
+                        {usd(candidate.model.price_ausd)} <small>{candidate.model.execution_mode === "simulation" ? "demo estimate" : "USD"}</small>
                       </strong>
                     </div>
                     <div>
@@ -679,12 +603,13 @@ function StepDetail({ step }: { step: Step }) {
   );
 }
 
-function Mission({ data, onNew, onBounties }: { data: RoboMarket; onNew: () => void; onBounties: () => void }) {
-  const [selected, setSelected] = useState(0);
+function Mission({ data, onNew, onBounties, onRobot }: { data: RoboMarket; onNew: () => void; onBounties: () => void; onRobot:()=>void }) {
+  const selected=data.followLive?liveStep(data.plan):data.previewStep;
+  const setSelected=(index:number)=>{data.setPreviewStep(index);data.setFollowLive(false);};
   const detailPanel = useRef<HTMLDivElement>(null);
   const { plan, busy } = data;
   const simulated = plan?.request.execution_mode === "simulation";
-  useEffect(() => setSelected(0), [plan?.id]);
+  useEffect(() => data.setPreviewStep(0), [plan?.id]);
   if (!plan) return <Composer data={data} onPlanned={() => setSelected(0)} />;
   const completed = plan.subtasks.filter(
     (step) => step.status === "completed",
@@ -703,24 +628,13 @@ function Mission({ data, onNew, onBounties }: { data: RoboMarket; onNew: () => v
           New mission
         </button>
       </div>
-      {simulated&&<div className="simulation-mode glass-quiet"><strong>Simulation mission · Scene generated for your prompt</strong><p>Spent {money(plan.simulation_cost_ausd||"0")} demo credits. Actual AUSD spent: {money(plan.spent_ausd)}. No blockchain transactions.</p>{!!virtualSteps.length && <p><strong>{virtualSteps.length} {virtualSteps.length===1?'step uses':'steps use'} free virtual demo effects.</strong> These illustrate the expected outcome while marketplace skills are unavailable. They do not run trained models or physical hardware.</p>}</div>}
+      <div className="mission-robot-link glass-quiet"><Bot size={20}/><div><strong>{plan.robot_visual?.name||'Generated demo robot'} · from your prompt{plan.request.media?.length?` + ${plan.request.media.length} reference files`:''}</strong><span>{plan.subtasks[liveStep(plan)]?.title} · {humanize(plan.status)}</span></div><button className="secondary" onClick={onRobot}>Open 3D studio <ArrowRight size={13}/></button></div>
+      {simulated&&<div className="simulation-mode glass-quiet"><strong>Simulation · This scene and robot follow your mission</strong><p>Run Simulation opens the live 3D workcell. Marketplace spending is simulated; Claude planning is billed separately.</p>{!!virtualSteps.length && <p><strong>{virtualSteps.length} {virtualSteps.length===1?'step uses':'steps use'} free virtual demo effects.</strong> These illustrate expected outcomes while marketplace skills are unavailable.</p>}</div>}
       <MissionPricing plan={plan} data={data}/>
-      <div className="mission-summary glass-quiet">
+      <div className="mission-summary mission-status-only glass-quiet">
         <div>
           <span className="eyebrow">Mission status</span>
           <Status value={plan.status} />
-        </div>
-        <div>
-          <span className="eyebrow">Selected skill quote</span>
-          <strong>
-            {usd(plan.estimated_cost_ausd)}
-          </strong>
-        </div>
-        <div>
-          <span className="eyebrow">Skill limit</span>
-          <strong>
-            {usd(plan.request.budget_ausd)}
-          </strong>
         </div>
         <div>
           <span className="eyebrow">{simulated?"Simulated steps":"Purchased"}</span>
@@ -1116,7 +1030,6 @@ function App() {
   const data = useRoboMarket();
   const [view, setView] = useState<View>("home");
   const [navOpen, setNavOpen] = useState(() => window.innerWidth > 760);
-  const [contextOpen, setContextOpen] = useState(false);
   const restored = useRef(false);
   const content = useRef<HTMLElement>(null);
   useEffect(() => {
@@ -1131,7 +1044,6 @@ function App() {
   useEffect(() => {
     function escape(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        setContextOpen(false);
         if (window.innerWidth <= 760) setNavOpen(false);
       }
     }
@@ -1150,7 +1062,7 @@ function App() {
     { key: "mission" as View, title: "Missions", icon: Sparkles },
     { key: "marketplace" as View, title: "Marketplace", icon: Layers3 },
     { key: "bounties" as View, title: "Bounties", icon: Flag },
-    { key: "robot" as View, title: "Robot station", icon: Bot },
+    { key: "robot" as View, title: "Simulation studio", icon: Bot },
     { key: "wallet" as View, title: "Wallet & receipts", icon: Wallet },
   ];
   return (
@@ -1158,7 +1070,7 @@ function App() {
       className={
         "app-shell " +
         (navOpen ? "nav-open " : "") +
-        (contextOpen ? "context-open" : "")
+        ""
       }
     >
       <Background />
@@ -1269,22 +1181,26 @@ function App() {
                       : view === "bounties" ? "Bounties"
                       : view === "wallet"
                         ? "Wallet & receipts"
-                        : "Robot station"}
+                        : "Simulation studio"}
                 </span>
               </>
             )}
           </div>
           <div className="topbar-right">
-            <IconButton
-              label={contextOpen ? "Hide robot context" : "Show robot context"}
-              onClick={() => setContextOpen(!contextOpen)}
-            >
-              {contextOpen ? (
-                <PanelRightClose size={17} />
-              ) : (
-                <PanelRightOpen size={17} />
-              )}
-            </IconButton>
+            <span className="workspace-status">
+              <span
+                className={
+                  "tiny-dot " + (data.online === false ? "offline" : "")
+                }
+              />
+              {data.online === null
+                ? "Connecting"
+                : data.online
+                  ? "Scout is online"
+                  : "Offline"}
+            </span>
+            <span className="topbar-divider" />
+
           </div>
         </header>
         <main ref={content} id="main-content" className="main-content">
@@ -1341,83 +1257,16 @@ function App() {
             />
           )}
           {view === "mission" && (
-            <Mission data={data} onNew={() => void newMission()} onBounties={()=>navigate('bounties')} />
+            <Mission data={data} onNew={() => void newMission()} onBounties={()=>navigate('bounties')} onRobot={()=>navigate('robot')} />
           )}
           {view === "marketplace" && <Marketplace data={data} onBounties={()=>navigate('bounties')} />}
           {view === "bounties" && <Suspense fallback={<p className="preview-loading">Loading bounty board…</p>}><BountyBoard data={data} /></Suspense>}
           {view === "wallet" && <WalletPage data={data} />}
-          {view === "robot" && (
-            <div className="page enter">
-              <div className="page-heading">
-                <div>
-                  <h1>Robot Station</h1>
-                </div>
-                <button
-                  className="secondary"
-                  onClick={() => navigate("mission")}
-                >
-                  <Sparkles size={15} />
-                  Open mission
-                  <ArrowRight size={14} />
-                </button>
-              </div>
-              <div className="station-layout">
-                <RobotCard data={data} />
-                <div className="station-notes">
-                  <section className="glass station-note">
-                    <span className="soft-icon">
-                      <Eye size={20} />
-                    </span>
-                    <h2>Workspace camera</h2>
-                    <p>
-                      Attach a clear photo of objects in your workspace when composing a mission. Detection must succeed before grasp planning.
-                    </p>
-                    <span className="tag">
-                      {data.image
-                        ? data.imageName
-                        : "Synthetic observation"}
-                    </span>
-                  </section>
-                  <section className="glass station-note">
-                    <span className="soft-icon">
-                      <ShieldCheck size={20} />
-                    </span>
-                    <h2>Hardware constraints</h2>
-                    <p>
-                      Every provider is checked against the arm’s gripper, sensors, payload, and object fragility.
-                    </p>
-                    <p className="fine-print">
-                      Image coordinates are not calibrated to a physical robot. The server advances the simulation independently of this dashboard.
-                    </p>
-                  </section>
-                </div>
-              </div>
-            </div>
-          )}
+          {view === "robot" && <Suspense fallback={<p className="preview-loading">Loading connected robot workcell…</p>}><RobotStation data={data} onMission={()=>navigate('mission')}/></Suspense>}
+
         </main>
       </div>
-      {contextOpen && (
-        <>
-          <button
-            className="context-scrim"
-            aria-label="Close robot context"
-            onClick={() => setContextOpen(false)}
-          />
-          <aside className="context-panel" aria-label="Robot context">
-            <div className="context-heading">
-              <span className="eyebrow">Robot context</span>
-              <IconButton
-                label="Close context panel"
-                onClick={() => setContextOpen(false)}
-              >
-                <X size={16} />
-              </IconButton>
-            </div>
-            <RobotCard data={data} compact />
-            <WalletCard data={data} compact />
-          </aside>
-        </>
-      )}
+
     </div>
   );
 }

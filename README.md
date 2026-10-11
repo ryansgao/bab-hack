@@ -35,8 +35,12 @@ and restart to enable planning. The example key is intentionally blank.
 available to your account, including `claude-opus-5-5`. The planner uses automatic
 tool selection and validates the returned task graph locally. There is no
 keyword-parser fallback or fabricated plan.
-The prompt, Robot Card, and catalog go to Anthropic; uploaded images stay in the
-local inference flow. Anthropic billing is separate from the AUSD shard budget.
+The prompt, optional reference files, and capability catalog go to Anthropic.
+Claude infers the robot, appearance, dimensions and fixture objects from this
+context; there is no manually configured robot panel or preset scene sent as user
+context. References support JPEG/PNG/WebP/GIF images, PDF and text documents,
+and six locally sampled video frames (audio is not analyzed). Anthropic billing
+is separate from the marketplace skill spending limit. Keep uploads out of Git.
 
 The UI and marketplace remain available without credentials. Purchase execution
 requires funded testnet wallets and model dependencies. `npm run wallets:init`
@@ -102,11 +106,12 @@ weights, images, and runtime databases out of Git.
 
 ## Simulation missions
 
-New dashboard missions default to **Simulation · demo credits**. Claude creates
+New dashboard missions default to **Simulation · USD estimates**. Claude creates
 the objects and initial fixture traits needed by the prompt in the same planning
-call, including objects outside the sample catalog. The starter workbench is only
-a reference scene. Named destinations are created automatically, and the 3D
-preview renders the generated objects with box, sphere or cylinder geometry.
+call, including objects outside the sample catalog. Named destinations are
+created automatically. One generated robot/workcell is shared by the mission
+preview and Simulation studio, with procedural object geometry, PBR materials,
+shadows, camera controls and estimated arm kinematics.
 Local producer adapters expose capture, mapping, detection, geometry, condition,
 grasp, placement and reporting capabilities, alongside the niche catalog below.
 Claude plans only actions needed for the goal, with no minimum subtask count.
@@ -129,8 +134,10 @@ and verified payment requirements remain enforced.
 Untouched older blocked simulation plans recover locally when opened; missions
 with receipts or inference results are preserved. Recovery makes no new LLM call.
 
-Simulation prices are shown per provider; niche listings cost 0.0008 demo credits
-per call. Execution records `simulated`
+Simulation prices are shown in USD, including subcent precision where needed.
+The cost card separates selected skills, the skill spending limit, actual
+Anthropic token usage and its estimated API cost, and independent bounty pledges.
+Execution records `simulated`
 charges and `simulation_cost_ausd` separately from `spent_ausd` (actual AUSD).
 No payment service, funded wallet or model-weight download is needed. Anthropic
 planning still uses the configured API account. Choose **Real providers · AUSD
@@ -139,12 +146,16 @@ plan can be regenerated using **Rebuild with simulation providers**.
 
 **3D task preview** starts switched off. Turn it on in the composer to inspect the
 fixture, or on a mission to review Scout's interpretation, targets, assumptions and
-individual steps before execution. Play/pause or select a step; proposed placements
-animate to the plan's destination. Drag to rotate and use Reset view to return.
+individual steps before execution. Play/pause or select a step. **Run simulation**
+automatically opens the preview and follows the server-owned motion clock.
+Pickups close the jaws and lift the object; placements carry, lower and release it.
+Pause/resume controls freeze/resume motion. The studio follows the same mission.
+Drag to rotate, scroll to zoom, or choose front/overhead views.
 This lazy-loaded Three.js walkthrough renders locally from the existing plan. It
 makes no additional Anthropic calls, runs no providers and spends no demo credits.
 Building or rebuilding a plan still uses Anthropic. Fixture geometry illustrates
-intent; the preview does not certify physical robot motion.
+intent; estimated geometry and analytic IK do not certify calibrated hardware
+motion, dynamics or physical safety.
 
 Earlier visual verification, before simplifying the planner: “Find and inspect a coffee mug” produced and completed 16
 fixture-backed subtasks for 0.016 demo credits, with actual AUSD spending at zero.

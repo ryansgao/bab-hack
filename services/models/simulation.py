@@ -129,7 +129,8 @@ def infer_simulated(request):
     elif cap=='control':
         require('grasp')
         out.update(grasp_point_px=center,force_n=min(.5,data.requirements.max_force_n if data.requirements else .5),speed_mm_s=100,
-            trajectory=[{'phase':phase,'z_mm':z} for phase,z in [('approach',80),('grasp',0),('lift',60),('release',0)]])
+            motion_duration_s=4,holding_on_complete=True,
+            trajectory=[{'phase':phase,'z_mm':z} for phase,z in [('approach',120),('grasp',0),('lift',180),('hold',180)]])
     elif cap=='placement_planning':
         require('object_detection')
         zone=data.destination or obj['destination']
@@ -139,7 +140,12 @@ def infer_simulated(request):
     elif cap=='object_placement':
         require('placement_planning','control')
         proposal=next(o for o in outputs if o.get('capability')=='placement_planning')
-        out.update(destination=proposal['destination'],scene_updates={obj['id']:proposal['planned_bbox']},final_bbox=proposal['planned_bbox'])
+        bounds=proposal['planned_bbox']; destination=[(bounds[0]+bounds[2])/2,(bounds[1]+bounds[3])/2]
+        handling=next(o for o in outputs if o.get('capability')=='control')
+        out.update(destination=proposal['destination'],scene_updates={obj['id']:bounds},final_bbox=bounds,
+            start_point_px=center,grasp_point_px=destination,force_n=handling.get('force_n',.5),speed_mm_s=100,
+            motion_duration_s=4,holding_on_complete=False,
+            trajectory=[{'phase':phase,'z_mm':z} for phase,z in [('transport',180),('lower',60),('release',0),('retreat',120)]])
     elif cap=='inspection_report':
         require('surface_inspection','damage_inspection','contents_inspection')
         out['findings']={o['capability']:{k:v for k,v in o.items() if k not in ('provenance','capability','evidence_steps')} for o in outputs}

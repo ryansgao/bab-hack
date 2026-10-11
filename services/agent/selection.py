@@ -87,5 +87,5 @@ def select(request, models):
         remaining_budget_ausd=request.remaining_budget_ausd, candidates=evaluations,
         safe_fallback=best is None,
         explanation=(f'{best.model.name} has the lowest feasible score ({best.score:.4f}) at risk {risk:.2f}; '
-                     f'price {best.model.price_ausd} {"demo credits" if request.execution_mode=="simulation" else "AUSD"}, latency {best.model.latency_ms:.1f} ms ({best.model.latency_source}).'
+                     f'price {best.model.price_ausd} {"USD demo estimate" if request.execution_mode=="simulation" else "AUSD"}, latency {best.model.latency_ms:.1f} ms ({best.model.latency_source}).'
                      if best else 'No available offer satisfies the constraints; stop safely.'))
