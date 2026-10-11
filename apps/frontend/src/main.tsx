@@ -192,7 +192,7 @@ function RobotCard({
             <Bot size={19} />
           </span>
           <div>
-            <h3>Scout’s pair of hands</h3>
+            <h3>Robot arm</h3>
             <p>6-axis arm · robot workspace</p>
           </div>
         </div>
@@ -370,19 +370,7 @@ function Composer({
   return (
     <div className="compose-page enter">
       <div className="hero-heading">
-        <span className="hero-symbol">
-          <Sparkles size={23} strokeWidth={1.4} />
-        </span>
-        <h1>
-          What should we
-          <br />
-          <em>put in motion?</em>
-        </h1>
-        <p>
-          Give Scout a task. It will find the right expertise,
-          <br className="desktop-break" /> fit it to your robot, and bring the
-          pieces together.
-        </p>
+        <h1>New mission</h1>
       </div>
       <div className="simulation-mode glass-quiet"><label>Execution mode <select aria-label="Execution mode" value={data.executionMode} onChange={e=>data.setExecutionMode(e.target.value as "simulation"|"testnet")}><option value="simulation">Simulation · demo credits</option><option value="testnet">Real providers · AUSD testnet</option></select></label><p>{data.executionMode==="simulation"?"Your prompt creates the demo scene. Available marketplace skills run locally; missing skills use free virtual effects and can open producer bounties. Claude planning usage still applies.":"Real model inference and testnet payments. Supply an observation and funded wallets."}</p></div>
       <div className="composer glass-raised">
@@ -517,7 +505,6 @@ function Composer({
       {data.executionMode === "simulation" && <TaskPreviewToggle data={data} />}
       <div className="auto-bounty-settings glass-quiet"><label><input type="checkbox" checked={data.autoBounties} onChange={e=>data.setAutoBounties(e.target.checked)} /> Automatically post bounties for missing skills</label>{data.autoBounties && <label className="bounty-reward-setting">Reward per missing capability <input aria-label="Automatic bounty reward" type="number" min="0.000001" step="0.001" value={data.bountyReward} onChange={e=>data.setBountyReward(e.target.value)} /><span>{data.executionMode==='simulation'?'demo credits':'AUSD pledge'}</span></label>}<p>Creates a producer request when no compatible skill exists. Posting commits a reward pledge; it does not send a payment.</p></div>
       <div className="suggestions">
-        <span>A place to start</span>
         {[
           "Organize my workbench",
           "Find and inspect a coffee mug",
@@ -535,10 +522,12 @@ function Composer({
           </button>
         ))}
       </div>
-      <div className="planner-status glass-quiet" role="status"><Sparkles size={15} /><div><strong>{data.planner?.configured ? "Planner connected" : "Planner setup needed"}</strong><p>{data.planner?.configured ? `${data.planner.model} · Your goal becomes a dependency graph of purchasable skills.` : "Configure the planning service on the server to build a mission. Your API key stays on the backend."}</p></div></div>
-      <div className="composer-note">
-        <ShieldCheck size={13} />
-        <span>Review the fine-grained plan before running. Simulation never sends a blockchain payment.</span>
+      <div className="planner-status glass-quiet" role="status">
+        <Sparkles size={15} />
+        <div>
+          <strong>{data.planner?.configured ? "Planner connected" : "Planner setup needed"}</strong>
+          <p>{data.planner?.configured ? data.planner.model : "Add ANTHROPIC_API_KEY on the server to plan missions."}</p>
+        </div>
       </div>
     </div>
   );
@@ -699,12 +688,8 @@ function StepDetail({ step }: { step: Step }) {
               )}
             </>
           ) : (
-            <EmptyState
-              icon={<Box size={26} />}
-              title="Expertise, ready when you are."
-            >
-              Execute this mission to see the purchased result here. Each output
-              becomes the next shard’s input.
+            <EmptyState icon={<Box size={26} />} title="No output yet">
+              Execute the mission to see purchased shard results here.
             </EmptyState>
           )}
         </div>
@@ -730,14 +715,7 @@ function Mission({ data, onNew, onBounties }: { data: RoboMarket; onNew: () => v
     <div className="page mission-page enter">
       <div className="page-heading">
         <div>
-          <div className="heading-kicker">
-            <Sparkles size={14} /> Your mission, considered.
-          </div>
           <h1>{plan.request.task}</h1>
-          <p>
-            One goal. {plan.subtasks.length} specialized shards. Every choice
-            explained.
-          </p>
         </div>
         <button className="secondary" onClick={onNew} disabled={busy}>
           <Plus size={15} />
@@ -924,13 +902,9 @@ function Marketplace({ data, onBounties }: { data: RoboMarket; onBounties: () =>
     <div className="page market-page enter">
       <div className="page-heading">
         <div>
-          <div className="heading-kicker">
-            <Layers3 size={14} /> The right skill, on demand.
-          </div>
-          <h1>A little more capability.</h1>
-          <p>Specialized expertise for the things your robot needs to do.</p>
+          <h1>Marketplace</h1>
         </div>
-        <span className="count-badge">{data.models.length} expert shards</span>
+        <span className="count-badge">{data.models.length} shards</span>
       </div>
       <div className="market-toolbar">
         <div className="filter-list" aria-label="Filter expertise">
@@ -966,19 +940,23 @@ function Marketplace({ data, onBounties }: { data: RoboMarket; onBounties: () =>
       <div className="market-grid">
         {shown.slice(page*18,(page+1)*18).map((model) => (
           <article className="glass market-card" key={model.id}>
-            <div className="market-card-top">
+            <div className="market-card-head">
               <span className={"layer-icon layer-" + model.task_type}>
-                <LayerIcon type={model.task_type} size={22} />
+                <LayerIcon type={model.task_type} size={18} />
               </span>
-              <span className="tag">
-                {model.execution_mode === "simulation" ? "Simulation provider" : model.kind === "algorithm" ? "Algorithm" : "Pretrained model"}
-              </span>
+              <div className="market-card-copy">
+                <div className="market-card-kicker">
+                  <span className="eyebrow">{layerName(model.task_type)}</span>
+                  <span className="tag">
+                    {model.execution_mode === "simulation" ? "Simulation" : model.kind === "algorithm" ? "Algorithm" : "Pretrained"}
+                  </span>
+                </div>
+                <h2>{model.name}</h2>
+                <span className="vendor-name">
+                  by {humanize(model.provider_id)}
+                </span>
+              </div>
             </div>
-            <span className="eyebrow">{layerName(model.task_type)}</span>
-            <h2>{model.name}</h2>{model.description&&<p className="fine-print">{model.description}</p>}
-            <span className="vendor-name">
-              by {humanize(model.provider_id)}
-            </span>
             <Suspense fallback={<div className="skill-preview skill-preview-loading" aria-label="Loading skill preview" />}>
               {model.execution_mode!=="simulation"&&<SkillPreview offer={model} />}
             </Suspense>
@@ -1074,11 +1052,7 @@ function WalletPage({ data }: { data: RoboMarket }) {
     <div className="page enter">
       <div className="page-heading">
         <div>
-          <div className="heading-kicker">
-            <ShieldCheck size={14} /> Every purchase, accounted for.
-          </div>
-          <h1>Intelligence has a receipt.</h1>
-          <p>A clear view of what Scout spends, and what it gets in return.</p>
+          <h1>Wallet & Receipts</h1>
         </div>
         <button className="secondary" onClick={() => void data.refresh()}>
           <Wallet size={14} />
@@ -1284,17 +1258,17 @@ function App() {
               </button>
             ))
           ) : (
-            <p>Your next idea starts here.</p>
+            <p>No recent missions</p>
           )}
         </div>
         <div className="sidebar-bottom">
           <div className="sidebar-note">
             <span className="tiny-dot" />
             {data.online === null
-              ? "Connecting to workspace"
+              ? "Connecting"
               : data.online
-                ? "Local workspace connected"
-                : "Workspace offline"}
+                ? "Connected"
+                : "Offline"}
           </div>
           <button className="profile-button" onClick={() => navigate("robot")}>
             <span className="profile-avatar">
@@ -1348,7 +1322,7 @@ function App() {
               {data.online === null
                 ? "Connecting"
                 : data.online
-                  ? "Scout is online"
+                  ? "Online"
                   : "Offline"}
             </span>
             <span className="topbar-divider" />
@@ -1380,15 +1354,7 @@ function App() {
           {view === "home" && (
             <div className="landing enter">
               <div className="hero-heading">
-                <div className="landing-eyebrow">
-                  <span className="tiny-dot" />A workspace for robot
-                  intelligence
-                </div>
-                <h1>Start with a task.</h1>
-                <p>
-                  Your robot has the hands. Scout finds the expertise.
-                  <br />A little intelligence, exactly when it’s needed.
-                </p>
+                <h1>Robot Workspace</h1>
               </div>
               <div className="welcome-cards">
                 <button
@@ -1404,8 +1370,8 @@ function App() {
                   </div>
                   <p>
                     {data.plan
-                      ? "Pick up where you left off. Review the plan, see every decision, and follow your robot’s progress."
-                      : "Describe what needs doing. Scout builds a plan, chooses the right skills, and puts them to work."}
+                      ? "Review the plan, see every decision, and follow robot progress."
+                      : "Describe a task to decompose into skills and execute."}
                   </p>
                   <div className="welcome-card-footer">
                     <span className="skill-bubble">
@@ -1417,7 +1383,6 @@ function App() {
                     <span className="skill-bubble">
                       <Activity size={13} />
                     </span>
-                    <span>perceive · plan · act</span>
                   </div>
                 </button>
                 <button
@@ -1432,8 +1397,7 @@ function App() {
                     <ArrowRight size={17} />
                   </div>
                   <p>
-                    A marketplace of specialized skills. Find the models and
-                    controllers that fit your robot and your budget.
+                    Browse models, controllers, and skills by embodiment and budget.
                   </p>
                   <div className="welcome-card-footer">
                     <span className="soft-pill">Perception</span>
@@ -1441,10 +1405,6 @@ function App() {
                     <span className="soft-pill">Control</span>
                   </div>
                 </button>
-              </div>
-              <div className="landing-note">
-                <ShieldCheck size={13} />
-                Your robot. Your budget. Every decision explained.
               </div>
             </div>
           )}
@@ -1458,14 +1418,7 @@ function App() {
             <div className="page enter">
               <div className="page-heading">
                 <div>
-                  <div className="heading-kicker">
-                    <Bot size={14} /> Your robot, in context.
-                  </div>
-                  <h1>Meet the hands behind it.</h1>
-                  <p>
-                    The workspace, capabilities, and live state Scout plans
-                    around.
-                  </p>
+                  <h1>Robot Station</h1>
                 </div>
                 <button
                   className="secondary"
@@ -1483,31 +1436,26 @@ function App() {
                     <span className="soft-icon">
                       <Eye size={20} />
                     </span>
-                    <h2>Start with what it sees.</h2>
+                    <h2>Workspace camera</h2>
                     <p>
-                      Attach a clear photo of the objects in your workspace when composing
-                      a mission. Scout needs a successful detection before it
-                      can plan a grasp.
+                      Attach a clear photo of objects in your workspace when composing a mission. Detection must succeed before grasp planning.
                     </p>
                     <span className="tag">
                       {data.image
                         ? data.imageName
-                        : "Using synthetic observation"}
+                        : "Synthetic observation"}
                     </span>
                   </section>
                   <section className="glass station-note">
                     <span className="soft-icon">
                       <ShieldCheck size={20} />
                     </span>
-                    <h2>A considered next move.</h2>
+                    <h2>Hardware constraints</h2>
                     <p>
-                      Every provider is checked against the arm’s gripper,
-                      sensors, payload, and the object’s handling needs. Motion
-                      follows purchased control output.
+                      Every provider is checked against the arm’s gripper, sensors, payload, and object fragility.
                     </p>
                     <p className="fine-print">
-                      Image coordinates are not calibrated to a physical robot.
-                      The server advances the simulation independently of this dashboard.
+                      Image coordinates are not calibrated to a physical robot. The server advances the simulation independently of this dashboard.
                     </p>
                   </section>
                 </div>
@@ -1516,10 +1464,8 @@ function App() {
           )}
         </main>
         <footer className="app-footer">
-          <span>Small skills. Bigger possibilities.</span>
-          <span>
-            rBazaar <i /> Testnet workspace
-          </span>
+          <span>rBazaar</span>
+          <span>Testnet workspace</span>
         </footer>
       </div>
       {contextOpen && (

@@ -1396,8 +1396,8 @@ nav > button.active {
   gap: 16px;
 }
 .market-card {
-  border-radius: 20px;
-  padding: 21px 19px 0;
+  border-radius: 14px;
+  padding: 10px 11px 0;
   align-self: start;
   transition:
     transform 0.2s,
@@ -1407,12 +1407,25 @@ nav > button.active {
   transform: translateY(-2px);
   background: #ffffffa6;
 }
-.market-card-top {
+.market-card-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.market-card-copy {
+  min-width: 0;
+  flex: 1;
+}
+.market-card-kicker {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 24px;
+  gap: 6px;
+}
+.market-card .layer-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
 }
 .tag {
   display: inline-block;
@@ -1421,29 +1434,28 @@ nav > button.active {
   border: 1px solid #1c1d180c;
   background: #ffffff45;
   border-radius: 20px;
-  padding: 5px 8px;
+  padding: 3px 6px;
   max-width: 100%;
   overflow-wrap: anywhere;
 }
 .market-card h2 {
-  font-size: 25px;
-  line-height: 1.12;
-  margin-top: 9px;
-  min-height: 56px;
+  font-size: 16px;
+  line-height: 1.15;
+  margin-top: 2px;
 }
 .vendor-name {
-  font-size: 10px;
+  font-size: 9px;
   color: var(--faint);
   display: block;
-  margin-top: 8px;
+  margin-top: 1px;
 }
 .skill-preview {
   position: relative;
-  height: 178px;
+  height: 110px;
   overflow: hidden;
   isolation: isolate;
-  margin-top: 19px;
-  border-radius: 12px;
+  margin-top: 8px;
+  border-radius: 9px;
   background: radial-gradient(ellipse at 48% 42%, #fffefa 0%, #f2f7ef 76%, #edf3e9 100%);
   box-shadow: inset 0 0 0 1px #d8e3d633;
 }
@@ -1477,18 +1489,18 @@ nav > button.active {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-top: 17px;
-  padding-bottom: 19px;
+  margin-top: 6px;
+  padding-bottom: 6px;
 }
 .market-card-bottom > div > strong {
-  font-size: 21px;
+  font-size: 17px;
   font-family: var(--serif);
   font-weight: 400;
 }
 .market-card-bottom > div > span {
   display: block;
   font-size: 8px;
-  margin-top: 4px;
+  margin-top: 2px;
   color: var(--faint);
 }
 .latency-label {
@@ -1499,7 +1511,7 @@ nav > button.active {
   gap: 4px;
   max-width: 92px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 9px;
 }
 .latency-label small {
   width: 100%;
@@ -1510,7 +1522,7 @@ nav > button.active {
 .card-details-toggle {
   border-top: 1px solid var(--line);
   width: 100%;
-  padding: 13px 0;
+  padding: 6px 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2341,26 +2353,16 @@ nav > button.active {
     gap: 12px;
   }
   .market-card {
-    padding: 17px 15px 0;
-    border-radius: 17px;
-  }
-  .market-card-top {
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-bottom: 17px;
-  }
-  .market-card-top > .tag {
-    font-size: 7px;
-    padding: 4px 6px;
+    padding: 10px 10px 0;
+    border-radius: 14px;
   }
   .market-card h2 {
-    font-size: 23px;
-    min-height: 52px;
+    font-size: 15px;
   }
-  .skill-preview { height: 162px; margin-top: 14px; }
+  .skill-preview { height: 105px; margin-top: 6px; }
   .market-card-bottom {
     flex-wrap: wrap;
-    margin-top: 20px;
+    margin-top: 6px;
   }
   .card-details-toggle {
     font-size: 8px;
@@ -2379,15 +2381,11 @@ nav > button.active {
 }
 @media (max-width: 620px) {
   .market-grid { grid-template-columns: 1fr; }
-  .market-card h2 { min-height: 0; }
-  .skill-preview { height: 180px; }
+  .skill-preview { height: 110px; }
 }
 @media (max-width: 390px) {
   .market-grid {
     grid-template-columns: 1fr;
-  }
-  .market-card h2 {
-    min-height: 0;
   }
   .welcome-card h2 {
     font-size: 25px;
@@ -2438,7 +2436,7 @@ nav > button.active {
 .task-preview-caption { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 20px 0; }
 .task-preview-caption .simulation-label { font-size: 9px; letter-spacing: .05em; }
 .task-preview-caption .text-button { display: flex; align-items: center; gap: 5px; font-size: 10px; }
-.task-preview-canvas { height: 340px; width: 100%; cursor: grab; touch-action: pan-y; }
+.task-preview-canvas { height: 230px; width: 100%; cursor: grab; touch-action: pan-y; }
 .task-preview-canvas:active { cursor: grabbing; }
 .task-preview-canvas canvas { display: block; width: 100%; height: 100%; }
 .preview-legend { display: flex; justify-content: center; flex-wrap: wrap; gap: 20px; font-size: 10px; color: var(--muted); padding: 0 14px 14px; }
@@ -2508,7 +2506,7 @@ nav > button.active {
 @media(max-width:900px) { .bounty-list { grid-template-columns: 1fr; } }
 @media(max-width:620px) { .market-browse { flex-wrap: wrap; } .bounty-form-grid { grid-template-columns: 1fr; } .bounty-card { padding: 18px; } }
 @media (max-width: 620px) {
-  .task-preview-canvas { height: 270px; }
+  .task-preview-canvas { height: 190px; }
   .task-preview-toggle { padding: 14px; }
   .preview-playback { flex-wrap: wrap; padding-inline: 14px; }
   .preview-playback select { order: 4; flex-basis: 100%; }

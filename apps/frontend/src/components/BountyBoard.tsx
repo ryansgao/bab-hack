@@ -70,7 +70,7 @@ export default function BountyBoard({ data }: {data:RoboMarket}) {
   const [mode, setMode] = useState('simulation');
   const shown=data.bounties.filter(b=>filter==='all'||b.status===filter);
   return <div className="page bounty-page enter">
-    <div className="page-heading"><div><div className="heading-kicker"><Flag size={14} /> A missing skill is an opportunity.</div><h1>Build what robots need.</h1><p>Consumers request a capability. Producers deliver it, earn a reward, and publish the skill.</p></div><button className="secondary" onClick={()=>setCreating(!creating)}><Plus size={14} /> Post a bounty</button></div>
+    <div className="page-heading"><div><h1>Bounties</h1></div><button className="secondary" onClick={()=>setCreating(!creating)}><Plus size={14} /> Post a bounty</button></div>
     <div className="bounty-overview glass-quiet"><span><strong>{data.bounties.filter(b=>b.status==='open'||b.status==='review').length}</strong> active requests</span><span><strong>{data.bounties.filter(b=>b.status==='fulfilled').length}</strong> fulfilled</span><p>Scout automatically posts missing-capability requests when enabled in the mission composer. Budget or latency failures do not create bounties.</p></div>
     {creating && <form className="bounty-form bounty-create glass" onSubmit={async e=>{
       e.preventDefault(); const task_type=title.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'').slice(0,60); 
