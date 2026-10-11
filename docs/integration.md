@@ -82,6 +82,25 @@ Payments and the model worker are not deployed: purchases show the payment
 service as offline. Do not put wallet keys on a public host until the gateway has
 user authentication.
 
+### Own server behind a Cloudflare Tunnel
+
+`deploy/bootstrap.sh` sets up the whole stack (gateway, model worker, payments) on a fresh
+Debian or Ubuntu machine. Run it as root with the tunnel's connector token:
+
+```sh
+TUNNEL_TOKEN=... ANTHROPIC_API_KEY=... bash deploy/bootstrap.sh
+```
+
+It installs Docker, clones this repository to `/opt/rbazaar`, writes the server's own `.env`
+from `.env.example` with a fresh `SERVICE_KEY` and the public planning limits, and starts
+`docker-compose.yml` with `deploy/compose.yml` on top. That file adds the `tunnel` service,
+publishes no port on the host and drops container capabilities, so the machine needs no inbound
+port: visitors arrive only through the tunnel. In Cloudflare, route the public hostname to
+`http://api:8000`. A two-minute timer redeploys when `main` changes and recreates the gateway
+if `/api/health` stops answering. Wallet keys are not set by the script; payments report
+"not configured" until they are added to the server's `.env`. Behind Cloudflare the per-visitor
+planning limit uses `CF-Connecting-IP`, which Cloudflare sets itself.
+
 ## API integration
 
 Interactive contracts: `/docs`. Regenerate the checked-in contract after an

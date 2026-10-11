@@ -6,9 +6,11 @@ from services.storage import db
 from services.agent.planner import PlannerError
 
 def admit(request: Request):
-    # Behind a hosting proxy the socket peer is the proxy; the first forwarded address is the visitor.
-    # A caller can forge that header, so the daily total is the limit that bounds spend.
-    forwarded = request.headers.get('x-forwarded-for', '').split(',')[0].strip()
+    # Behind a hosting proxy the socket peer is the proxy. Cloudflare sets CF-Connecting-IP itself, so
+    # behind it that is the visitor; otherwise the first forwarded address is. A caller can forge
+    # X-Forwarded-For, so the daily total is the limit that bounds spend.
+    forwarded = (request.headers.get('cf-connecting-ip', '').strip()
+        or request.headers.get('x-forwarded-for', '').split(',')[0].strip())
     visitor = forwarded or (request.client.host if request.client else 'unknown')
     now = time.time()
     with db() as conn:

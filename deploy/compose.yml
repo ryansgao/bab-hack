@@ -1,0 +1,25 @@
+# Public deployment. Used on top of the root file:
+#   docker compose -f docker-compose.yml -f deploy/compose.yml up -d --build
+# Adds the Cloudflare Tunnel connector and tightens every container. No port is published on the
+# host: visitors reach the gateway only through the tunnel, and the model worker and payment
+# service stay inside the Compose network. The connector token lives in .env.tunnel so the
+# application containers never see it.
+x-locked: &locked
+  restart: unless-stopped
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: [ALL]
+  pids_limit: 1024
+services:
+  api:
+    <<: *locked
+    ports: !reset []
+  models:
+    <<: *locked
+  payments:
+    <<: *locked
+  tunnel:
+    <<: *locked
+    image: cloudflare/cloudflared:2026.10.0
+    command: tunnel --no-autoupdate run
+    env_file: .env.tunnel
+    depends_on: [api]
