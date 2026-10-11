@@ -125,3 +125,19 @@ The gateway calls the [Anthropic Messages tool API](https://platform.claude.com/
 and validates the proposed dependency graph before persisting or quoting it.
 The internal `/purchase` body extends `InferenceRequest` with `max_price_ausd`;
 the buyer checks the current registry price against that mission ceiling before signing.
+
+## Explicit simulation mode
+
+`MissionRequest.execution_mode` accepts `simulation` or `testnet`. API requests
+that omit it retain `testnet` behavior; the dashboard explicitly chooses simulation
+for new missions. `ModelOffer.execution_mode` controls provider eligibility.
+`description` documents each provider's actual capability. `/api/simulation/scene`
+returns the fixture objects, destination zones and rendered camera image.
+
+Simulation plans snapshot scene state in `simulation_scene`. Each step consumes
+its declared dependency outputs; placement changes are carried into subsequent
+steps. Simulation output has `source: simulation` and fixture provenance. Its
+per-step charge has `status: simulated`, null transaction/explorer fields, and no
+on-chain receipt. `simulation_cost_ausd` tracks demo credits while `spent_ausd`
+remains reserved for real settled AUSD. Both modes enforce the mission budget.
+The payment service rejects simulation provider IDs before authorization.

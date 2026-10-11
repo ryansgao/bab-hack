@@ -335,6 +335,8 @@ function Composer({
           pieces together.
         </p>
       </div>
+      <div className="simulation-mode glass-quiet"><label>Execution mode <select aria-label="Execution mode" value={data.executionMode} onChange={e=>data.setExecutionMode(e.target.value as "simulation"|"testnet")}><option value="simulation">Simulation · demo credits</option><option value="testnet">Real providers · AUSD testnet</option></select></label><p>{data.executionMode==="simulation"?"Built-in camera and 21 simulation skills. No upload or funded wallet needed. Claude API usage still applies.":"Real model inference and testnet payments. Supply an observation and funded wallets."}</p></div>
+      {data.executionMode==="simulation"&&data.scene&&<details className="simulation-camera glass-quiet" open><summary>Simulated camera · {data.scene.objects.length} objects available</summary><img src={`data:image/png;base64,${data.scene.image_base64}`} alt="Simulated workbench camera with coffee mug, wrench, screwdriver and two labeled packages"/><p>Fixture-backed scene and inspection findings · not a real camera or learned detector</p></details>}
       <div className="composer glass-raised">
         <textarea
           ref={input}
@@ -394,7 +396,7 @@ function Composer({
             </button>
           </div>
           <span className="budget-hint">
-            {money(data.budget || "0")} AUSD limit
+            {money(data.budget || "0")} {data.executionMode==="simulation"?"demo credits":"AUSD"} limit
           </span>
           <button
             className="send-button"
@@ -486,7 +488,7 @@ function Composer({
       <div className="planner-status glass-quiet" role="status"><Sparkles size={15} /><div><strong>{data.planner?.configured ? "Planner connected" : "Planner setup needed"}</strong><p>{data.planner?.configured ? `${data.planner.model} · Your goal becomes a dependency graph of purchasable skills.` : "Configure the planning service on the server to build a mission. Your API key stays on the backend."}</p></div></div>
       <div className="composer-note">
         <ShieldCheck size={13} />
-        <span>Review the plan and its cost before any purchase.</span>
+        <span>Review the fine-grained plan before running. Simulation never sends a blockchain payment.</span>
       </div>
     </div>
   );
@@ -532,7 +534,7 @@ function StepDetail({ step }: { step: Step }) {
           aria-selected={detail === "output"}
           onClick={() => setDetail("output")}
         >
-          Purchased output {step.result && <i className="tiny-dot" />}
+          {step.result?.source==="simulation"||step.decision?.candidates.find(c=>c.model.id===step.decision?.selected_model_id)?.model.execution_mode==="simulation"?"Simulation output":"Purchased output"} {step.result && <i className="tiny-dot" />}
         </button>
       </div>
       {detail === "providers" ? (
@@ -624,6 +626,7 @@ function StepDetail({ step }: { step: Step }) {
                   {step.result.inference_latency_ms.toFixed(1)} ms measured
                 </span>
               </div>
+              {step.result.source==="simulation"&&<p className="simulation-label">SIMULATION · Fixture-backed output · No on-chain payment</p>}
               <p className="result-summary">{step.result.summary}</p>
               <pre className="result-json">
                 {JSON.stringify(
@@ -664,6 +667,7 @@ function Mission({ data, onNew }: { data: RoboMarket; onNew: () => void }) {
   const [selected, setSelected] = useState(0);
   const detailPanel = useRef<HTMLDivElement>(null);
   const { plan, busy } = data;
+  const simulated = plan?.request.execution_mode === "simulation";
   useEffect(() => setSelected(0), [plan?.id]);
   if (!plan) return <Composer data={data} onPlanned={() => setSelected(0)} />;
   const completed = plan.subtasks.filter(
@@ -689,6 +693,7 @@ function Mission({ data, onNew }: { data: RoboMarket; onNew: () => void }) {
           New mission
         </button>
       </div>
+      {simulated&&<div className="simulation-mode glass-quiet"><strong>Simulation mission · Built-in camera and local demo providers</strong><p>Spent {money(plan.simulation_cost_ausd||"0")} demo credits. Actual AUSD spent: {money(plan.spent_ausd)}. No blockchain transactions.</p></div>}
       <div className="mission-summary glass-quiet">
         <div>
           <span className="eyebrow">Mission status</span>
@@ -697,17 +702,17 @@ function Mission({ data, onNew }: { data: RoboMarket; onNew: () => void }) {
         <div>
           <span className="eyebrow">Quoted cost</span>
           <strong>
-            {money(plan.estimated_cost_ausd)} <small>AUSD</small>
+            {money(plan.estimated_cost_ausd)} <small>{simulated?"credits":"AUSD"}</small>
           </strong>
         </div>
         <div>
           <span className="eyebrow">Budget</span>
           <strong>
-            {money(plan.request.budget_ausd)} <small>AUSD</small>
+            {money(plan.request.budget_ausd)} <small>{simulated?"credits":"AUSD"}</small>
           </strong>
         </div>
         <div>
-          <span className="eyebrow">Purchased</span>
+          <span className="eyebrow">{simulated?"Simulated steps":"Purchased"}</span>
           <strong>
             {completed} <small>/ {plan.subtasks.length} shards</small>
           </strong>
@@ -725,7 +730,7 @@ function Mission({ data, onNew }: { data: RoboMarket; onNew: () => void }) {
           <CircleHelp size={19} />
           <div>
             <strong>This mission needs your attention.</strong>
-            <p>{readableMessage(blocked || plan.blockers?.join(" ") || plan.explanation)}</p>
+            <p>{readableMessage(blocked || plan.blockers?.join(" ") || plan.explanation)}</p>{!simulated&&<button className="secondary" disabled={busy} onClick={()=>void data.rebuildInSimulation()}>{busy?"Decomposing simulation…":"Rebuild with simulation providers"}</button>}
           </div>
         </div>
       )}
@@ -812,9 +817,9 @@ function Mission({ data, onNew }: { data: RoboMarket; onNew: () => void }) {
                 ? "Working on your mission…"
                 : plan.status === "completed"
                   ? "Mission completed"
-                  : "Execute mission"}
+                  : simulated?"Run simulation":"Execute mission"}
               {!busy && plan.status === "planned" && (
-                <span>{money(plan.estimated_cost_ausd)} AUSD</span>
+                <span>{money(plan.estimated_cost_ausd)} {simulated?"credits":"AUSD"}</span>
               )}
             </button>
             {!["completed", "cancelled"].includes(plan.status) && (
@@ -827,7 +832,7 @@ function Mission({ data, onNew }: { data: RoboMarket; onNew: () => void }) {
               </button>
             )}
             <p className="fine-print">
-              Each shard is purchased separately within your allowance.
+              {simulated?"Each demo provider runs locally. Outputs and demo charges are recorded per step.":"Each shard is purchased separately within your allowance."}
             </p>
           </div>
         </section>
@@ -910,21 +915,21 @@ function Marketplace({ data }: { data: RoboMarket }) {
                 <LayerIcon type={model.task_type} size={22} />
               </span>
               <span className="tag">
-                {model.kind === "algorithm" ? "Algorithm" : "Pretrained model"}
+                {model.execution_mode === "simulation" ? "Simulation provider" : model.kind === "algorithm" ? "Algorithm" : "Pretrained model"}
               </span>
             </div>
             <span className="eyebrow">{layerName(model.task_type)}</span>
-            <h2>{model.name}</h2>
+            <h2>{model.name}</h2>{model.description&&<p className="fine-print">{model.description}</p>}
             <span className="vendor-name">
               by {humanize(model.provider_id)}
             </span>
             <Suspense fallback={<div className="skill-preview skill-preview-loading" aria-label="Loading skill preview" />}>
-              <SkillPreview offer={model} />
+              {model.execution_mode!=="simulation"&&<SkillPreview offer={model} />}
             </Suspense>
             <div className="market-card-bottom">
               <div>
                 <strong>{money(model.price_ausd)}</strong>
-                <span>AUSD / call</span>
+                <span>{model.execution_mode==="simulation"?"demo credits / call":"AUSD / call"}</span>
               </div>
               <span className="latency-label">
                 <Clock3 size={12} />

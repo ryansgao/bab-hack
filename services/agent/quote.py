@@ -10,7 +10,7 @@ def quote(plan):
     obs=arm.observation() if plan.request.robot_card and plan.request.robot_card.embodiment=='6dof_arm' else world.observe()
     cheapest=[]
     for step in plan.subtasks:
-        req=SelectionRequest(observation=obs,task_type=step.task_type,robot_card=plan.request.robot_card,
+        req=SelectionRequest(execution_mode=plan.request.execution_mode,observation=obs,task_type=step.task_type,robot_card=plan.request.robot_card,
             requirements=step.requirements,object_name=step.object_name,remaining_budget_ausd=plan.request.budget_ausd,
             inference_deadline_ms=plan.request.inference_deadline_ms,minimum_quality=plan.request.minimum_quality)
         decision=select(req,offers)
@@ -26,7 +26,7 @@ def quote(plan):
     for index,step in enumerate(plan.subtasks):
         future=sum(cheapest[index+1:],Decimal(0))
         spendable=max(Decimal(0),remaining-future)
-        decision=select(SelectionRequest(observation=obs,task_type=step.task_type,robot_card=plan.request.robot_card,
+        decision=select(SelectionRequest(execution_mode=plan.request.execution_mode,observation=obs,task_type=step.task_type,robot_card=plan.request.robot_card,
             requirements=step.requirements,object_name=step.object_name,remaining_budget_ausd=str(spendable),inference_deadline_ms=plan.request.inference_deadline_ms,
             minimum_quality=plan.request.minimum_quality),offers)
         step.decision=decision

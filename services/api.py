@@ -128,6 +128,12 @@ async def events(socket: WebSocket):
             await asyncio.sleep(.5)
     except WebSocketDisconnect: pass
 
+@app.get('/api/simulation/scene')
+def demo_scene():
+    from apps.simulation.scene import default_scene, scene_image
+    scene=default_scene()
+    return {**scene,'image_base64':scene_image(scene)}
+
 @app.get('/api/simulation')
 def simulation(): return world.snapshot()
 

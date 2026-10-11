@@ -19,6 +19,7 @@ def select(request, models):
     evaluations = []
     for model in models:
         reasons = []
+        if model.execution_mode != request.execution_mode: reasons.append('Different execution mode')
         if model.task_type != request.task_type: reasons.append('Capability mismatch')
         if model.status != 'available': reasons.append('Provider unavailable')
         if Decimal(model.price_ausd) > budget: reasons.append('Exceeds remaining budget')
@@ -56,5 +57,5 @@ def select(request, models):
         remaining_budget_ausd=request.remaining_budget_ausd, candidates=evaluations,
         safe_fallback=best is None,
         explanation=(f'{best.model.name} has the lowest feasible score ({best.score:.4f}) at risk {risk:.2f}; '
-                     f'price {best.model.price_ausd} AUSD, latency {best.model.latency_ms:.1f} ms ({best.model.latency_source}).'
+                     f'price {best.model.price_ausd} {"demo credits" if request.execution_mode=="simulation" else "AUSD"}, latency {best.model.latency_ms:.1f} ms ({best.model.latency_source}).'
                      if best else 'No available offer satisfies the constraints; stop safely.'))

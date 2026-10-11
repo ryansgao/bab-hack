@@ -1,6 +1,8 @@
 import json
 import os
 import threading
+from copy import deepcopy
+from datetime import datetime, timezone
 from decimal import Decimal
 import httpx
 from shared.schemas.contracts import MissionPlan, SelectionRequest, InferenceInput, InferenceRequest, InferenceResult, Point
@@ -35,6 +37,7 @@ def execute(plan_id, purchase=None):
                 other = MissionPlan.model_validate_json(row['body'])
                 if other.status in ('queued', 'preparing', 'running', 'waiting_for_motion'):
                     raise RuntimeError('The robot already has an active mission')
+        simulated = plan.request.execution_mode == 'simulation'
         is_arm = bool(plan.request.robot_card and plan.request.robot_card.embodiment == '6dof_arm')
         if plan.status in ('planned', 'queued', 'preparing'):
             quote(plan)
@@ -42,7 +45,7 @@ def execute(plan_id, purchase=None):
                 plan.status = 'blocked'
                 plan.explanation += ' Preflight blocked: all required shards must fit the mission budget and compatibility constraints.'
                 return save(plan)
-        if plan.status in ('planned', 'queued', 'preparing') and purchase is None:
+        if plan.status in ('planned', 'queued', 'preparing') and purchase is None and not simulated:
             plan.status = 'preparing'
             save(plan)
             try:
@@ -74,14 +77,14 @@ def execute(plan_id, purchase=None):
                 save(plan)
                 continue
             if any(next(s for s in plan.subtasks if s.id == dep).status != 'completed' for dep in step.depends_on): break
-            remaining = Decimal(plan.request.budget_ausd) - Decimal(plan.spent_ausd)
+            remaining = Decimal(plan.request.budget_ausd) - Decimal(plan.simulation_cost_ausd if simulated else plan.spent_ausd)
             future_min = Decimal(0)
             for future in plan.subtasks[plan.subtasks.index(step)+1:]:
                 if future.status != 'completed' and future.decision:
                     feasible = [Decimal(c.model.price_ausd) for c in future.decision.candidates if c.eligible]
                     if feasible: future_min += min(feasible)
             remaining = max(Decimal(0), remaining-future_min)
-            request = SelectionRequest(observation=arm.observation() if is_arm else world.observe(), task_type=step.task_type,
+            request = SelectionRequest(execution_mode=plan.request.execution_mode, observation=arm.observation() if is_arm else world.observe(), task_type=step.task_type,
                 robot_card=plan.request.robot_card, requirements=step.requirements, object_name=step.object_name,
                 remaining_budget_ausd=str(max(Decimal(0), remaining)), inference_deadline_ms=plan.request.inference_deadline_ms,
                 minimum_quality=plan.request.minimum_quality)
@@ -97,14 +100,32 @@ def execute(plan_id, purchase=None):
             try:
                 dependencies = [s for s in plan.subtasks if s.id in step.depends_on and s.result]
                 predictions = [p for s in dependencies if s.task_type == 'object_detection' for p in s.result.predictions]
+                scene = deepcopy(plan.simulation_scene)
+                if simulated:
+                    for completed_step in plan.subtasks:
+                        if completed_step.status=='completed' and completed_step.result:
+                            for object_id,bbox in completed_step.result.output.get('scene_updates',{}).items():
+                                for obj in scene.get('objects',[]):
+                                    if obj['id']==object_id: obj['bbox']=bbox
+                from apps.simulation.scene import scene_image
                 body = InferenceRequest(request_id=f'{plan.id}_{step.id}', model_id=step.decision.selected_model_id,
-                    input=InferenceInput(observation=request.observation, target=step.target,
+                    input=InferenceInput(execution_mode=plan.request.execution_mode,simulation_scene=scene,destination=step.destination,observation=request.observation, target=step.target,
                         robot_card=plan.request.robot_card, requirements=step.requirements, object_name=step.object_name,
                         instruction=step.description, dependency_outputs={s.id:s.result.model_dump() for s in dependencies},
                         prior=next((s.result.output for s in dependencies if s.task_type=='grasp'), {}),
-                        image_base64=plan.request.image_base64 or (arm.sensor_image() if is_arm else world.sensor_image()),
+                        image_base64=scene_image(scene) if simulated else plan.request.image_base64 or (arm.sensor_image() if is_arm else world.sensor_image()),
                         obstacles=[Point(x=x,y=y) for x,y in world.blocked()], predictions=predictions))
-                if purchase:
+                if simulated:
+                    from services.models.simulation import infer_simulated
+                    from services.marketplace.registry import get_model
+                    offer=get_model(body.model_id)
+                    if not offer or offer.execution_mode!='simulation': raise ValueError('Simulation requires a simulation provider')
+                    if Decimal(offer.price_ausd)>remaining: raise ValueError('Demo credit budget exceeded')
+                    result=infer_simulated(body)
+                    response={'inference':result.model_dump(),'payment':{'request_id':body.request_id,'model_id':body.model_id,
+                        'amount_ausd':offer.price_ausd,'status':'simulated','transaction_hash':None,'explorer_url':None,
+                        'timestamp':datetime.now(timezone.utc).isoformat(),'mode':'simulation'}}
+                elif purchase:
                     response = purchase(body)
                 else:
                     with httpx.Client(timeout=180) as client:
@@ -119,8 +140,9 @@ def execute(plan_id, purchase=None):
                                     plan.spent_ausd = str(Decimal(plan.spent_ausd) + Decimal(step.payment['amount_ausd']))
                             raise ValueError(response.get('error', {}).get('message', 'Payment service rejected purchase'))
                 step.payment = response['payment']
-                if step.payment.get('status') != 'settled': raise ValueError('Payment is not verified as settled')
-                plan.spent_ausd = str(Decimal(plan.spent_ausd) + Decimal(step.payment['amount_ausd']))
+                if step.payment.get('status') != ('simulated' if simulated else 'settled'): raise ValueError('Payment is not verified as settled')
+                if simulated: plan.simulation_cost_ausd = str(Decimal(plan.simulation_cost_ausd) + Decimal(step.payment['amount_ausd']))
+                else: plan.spent_ausd = str(Decimal(plan.spent_ausd) + Decimal(step.payment['amount_ausd']))
                 result = InferenceResult.model_validate(response['inference'])
                 step.result = result
                 feedback(result.model_id, result.inference_latency_ms)
@@ -128,8 +150,8 @@ def execute(plan_id, purchase=None):
                 if result.inference_latency_ms > plan.request.inference_deadline_ms:
                     raise ValueError('Inference exceeded deadline; receipt retained, robot stopped')
                 if is_arm:
-                    if step.task_type == 'object_detection' and step.object_name and not any(step.object_name.lower() in p.label.lower() for p in result.predictions):
-                        raise ValueError('Real perception did not detect the requested object. Supply a suitable camera image; grasp/control remain blocked.')
+                    if not simulated and step.task_type == 'object_detection' and step.object_name and not any(step.object_name.lower() in p.label.lower() for p in result.predictions):
+                        raise ValueError('The selected provider did not detect the requested object. Supply a suitable camera image; grasp/control remain blocked.')
                     arm.apply(result,step.requirements)
                     if step.task_type == 'control':
                         step.status,plan.status='waiting_for_motion','waiting_for_motion'

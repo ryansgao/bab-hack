@@ -1,5 +1,7 @@
 export type View = "home" | "mission" | "marketplace" | "wallet" | "robot";
 export type Offer = {
+  execution_mode: "simulation" | "testnet";
+  description: string;
   id: string;
   name: string;
   provider_id: string;
@@ -51,6 +53,7 @@ export type Step = {
   error: string | null;
   payment: Receipt | null;
   result: {
+    source: string;
     summary: string | null;
     output: Record<string, unknown>;
     inference_latency_ms: number;
@@ -59,7 +62,9 @@ export type Step = {
 };
 export type Plan = {
   planner: string; planner_model: string | null; assumptions: string[]; blockers: string[];
+  simulation_cost_ausd: string;
   request: {
+    execution_mode: "simulation" | "testnet";
     task: string;
     budget_ausd: string;
     inference_deadline_ms: number;
@@ -102,7 +107,7 @@ export const layerName = (value: string) =>
     control: "Force control",
     path_planning: "Navigation",
     scene_inspection: "Inspection",
-  })[value] || value;
+  })[value] || value.replaceAll("_", " ");
 export const money = (value: string | number) =>
   Number(value).toLocaleString("en-US", {
     minimumFractionDigits: 3,

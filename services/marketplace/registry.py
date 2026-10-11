@@ -34,6 +34,10 @@ SEEDS = [
 ]
 
 
+# Explicit demo providers are isolated from testnet selections.
+from services.models.simulation import offers as simulation_offers
+SEEDS.extend(simulation_offers())
+
 def benchmarks():
     return json.loads(BENCHMARKS.read_text()) if BENCHMARKS.exists() else {'results': {}}
 

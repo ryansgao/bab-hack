@@ -13,6 +13,7 @@ from pathlib import Path
 from PIL import Image
 from shared.schemas.contracts import InferenceResult, Point, Prediction
 from apps.simulation.world import astar
+from services.models.simulation import SIM_IDS, infer_simulated
 
 _models = {}
 _lock = threading.Lock()
@@ -28,7 +29,7 @@ YOLO_DETECTORS = {
 CLOSED_SET_DETECTORS = TORCHVISION_DETECTORS + tuple(YOLO_DETECTORS)
 IMAGE_MODELS = CLOSED_SET_DETECTORS + ('owlvit',)
 ARM_SHARDS = ('power_grasp', 'precision_grasp', 'standard_control', 'soft_control')
-MODEL_IDS = IMAGE_MODELS + ARM_SHARDS + ('astar', 'scene_summary')
+MODEL_IDS = IMAGE_MODELS + ARM_SHARDS + ('astar', 'scene_summary') + tuple(SIM_IDS)
 ALGORITHMS = set(MODEL_IDS) - set(IMAGE_MODELS)
 SERVING_THRESHOLD = .4  # detections below this confidence are not returned to buyers
 MAX_PIXELS = 16_000_000
@@ -152,6 +153,7 @@ def detect(model_id, image, threshold=SERVING_THRESHOLD, query=None):
 
 
 def infer(request):
+    if request.model_id in SIM_IDS: return infer_simulated(request)
     started = time.perf_counter()
     model_id, data = request.model_id, request.input
     result = InferenceResult(model_id=model_id, inference_latency_ms=0,

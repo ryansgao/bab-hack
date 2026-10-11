@@ -53,6 +53,9 @@ const initialArm: Arm = {
 };
 
 export function useRoboMarket() {
+  const [executionMode, setExecutionMode] = useState<"simulation" | "testnet">("simulation");
+  const [scene, setScene] = useState<{image_base64:string;objects:{name:string}[]}|null>(null);
+  useEffect(()=>{void api<{image_base64:string;objects:{name:string}[]}>("/simulation/scene").then(setScene).catch(()=>{});},[]);
   const [planner, setPlanner] = useState<PlannerConfig | null>(null);
   const [models, setModels] = useState<Offer[]>([]);
   const [plan, setPlan] = useState<Plan | null>(null);
@@ -95,6 +98,7 @@ export function useRoboMarket() {
     });
   }, []);
   const restoreFields = useCallback((next: Plan) => {
+    setExecutionMode(next.request.execution_mode || "testnet");
     setTask(next.request.task);
     setBudget(next.request.budget_ausd);
     setDeadline(next.request.inference_deadline_ms);
@@ -207,6 +211,7 @@ export function useRoboMarket() {
       }
       if (["queued", "preparing", "running", "waiting_for_motion"].includes(activePlan.current?.status || "")) throw new Error("Finish or cancel the active mission first.");
       const next = await api<Plan>("/agent/plan", {
+        execution_mode: executionMode,
         task: task.trim(),
         budget_ausd: budget,
         inference_deadline_ms: deadline,
@@ -219,11 +224,17 @@ export function useRoboMarket() {
           sensors: ["rgb", "depth", "wrist_force"],
           onboard_compute: "jetson_orin",
         },
-        ...(image ? { image_base64: image } : {}),
+        ...(image && executionMode === "testnet" ? { image_base64: image } : {}),
       });
       remember(next);
       return next;
     });
+  const rebuildInSimulation = () => change(async () => {
+    if(!plan)return;
+    const {image_base64: _image, ...request} = plan.request;
+    const next = await api<Plan>("/agent/plan", {...request, execution_mode:"simulation"});
+    setExecutionMode("simulation"); remember(next); return next;
+  });
   const execute = () =>
     change(async () => {
       if (!plan) return;
@@ -283,6 +294,7 @@ export function useRoboMarket() {
     reader.onerror = () =>
       setError("This image could not be read. Try another file.");
     reader.onload = () => {
+      setExecutionMode("testnet");
       setImage((reader.result as string).split(",")[1]);
       setImageName(file.name);
       setError("");
@@ -290,6 +302,7 @@ export function useRoboMarket() {
     reader.readAsDataURL(file);
   }
   return {
+    executionMode, setExecutionMode, scene, rebuildInSimulation,
     models,
     planner,
     plan,

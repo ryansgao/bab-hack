@@ -89,3 +89,24 @@ The initial implementation is pushed to `main` in small checkpoints as requested
 Use component branches for parallel changes, stage only owned files, fetch before
 pushing, and never force-push shared history. Keep `.env`, wallet keys, model
 weights, images, and runtime databases out of Git.
+
+## Simulation missions
+
+New dashboard missions default to **Simulation · demo credits**. The built-in
+camera scene contains a coffee mug, wrench, screwdriver and two labeled packages.
+Twenty-one local producer adapters expose individual capture, mapping, detection,
+geometry, condition, grasp, placement, reporting and verification capabilities.
+Claude decomposes inspection into roughly 12–18 useful subtasks and larger
+multi-object goals into roughly 20–40; actual counts depend on the requested work.
+
+Simulation providers compute from explicit scene fixtures, not learned perception.
+The mug has a dirt patch; packages can have damage and sealed/unknown contents.
+These findings are visible in the per-step output. A missing upload is not a blocker
+in this mode. Unknown objects and unsupported operations still appear as gaps.
+
+Each simulation provider costs 0.001 demo credits. Execution records `simulated`
+charges and `simulation_cost_ausd` separately from `spent_ausd` (actual AUSD).
+No payment service, funded wallet or model-weight download is needed. Anthropic
+planning still uses the configured API account. Choose **Real providers · AUSD
+testnet** to use the existing real inference and settlement flow. The old blocked
+plan can be regenerated using **Rebuild with simulation providers**.

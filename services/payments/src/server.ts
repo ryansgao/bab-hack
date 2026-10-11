@@ -62,6 +62,7 @@ app.post('/purchase',requireKey,async(req,res)=>{
     res.status(409).json({error:{code:'IN_PROGRESS',message:'Purchase already reserved; inspect ledger'}});return;
   }
   const model=await offer(body.model_id);
+  if(model.execution_mode==='simulation')throw new Error('Simulation providers cannot accept real payments');
   if(units(model.price_ausd)>units(max_price_ausd))throw new Error('Mission Allowance exceeded: shard price changed after selection');
   const validation=await fetch(`${process.env.MODEL_URL || 'http://127.0.0.1:8001'}/internal/validate`,{method:'POST',headers:serviceHeaders(),body:JSON.stringify(body),signal:AbortSignal.timeout(15_000)});
   if(!validation.ok)throw new Error('Model input or readiness invalid; no payment authorized');
@@ -97,7 +98,9 @@ app.post('/purchase',requireKey,async(req,res)=>{
 app.post('/api/inference/:modelId',requireKey,async(req,res)=>{
   const body=requestSchema.parse(req.body);
   if(body.model_id!==req.params.modelId)throw new Error('Model mismatch');
-  const model=await offer(body.model_id), c=await chain();
+  const model=await offer(body.model_id);
+  if(model.execution_mode==='simulation')throw new Error('Simulation providers cannot accept real payments');
+  const c=await chain();
   const payTo=process.env.PROVIDER_ADDRESS!;
   if(!isAddress(payTo))throw new Error('Invalid recipient');
   const required=requirements(units(model.price_ausd),payTo as Address,c.domain);

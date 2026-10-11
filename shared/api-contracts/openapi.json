@@ -135,6 +135,176 @@
         }
       }
     },
+    "/api/marketplace/models/{model_id}": {
+      "get": {
+        "tags": [
+          "marketplace"
+        ],
+        "summary": "Model Detail",
+        "operationId": "model_detail_api_marketplace_models__model_id__get",
+        "parameters": [
+          {
+            "name": "model_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Model Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelOffer"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/marketplace/search": {
+      "post": {
+        "tags": [
+          "marketplace"
+        ],
+        "summary": "Search",
+        "description": "Every listing for the layer with a compatible flag and plain-language reasons.\n\nCompatible shards come first, cheapest first, so a buyer can take the head of\nthe list or explain each rejection in the UI.",
+        "operationId": "search_api_marketplace_search_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SearchHit"
+                  },
+                  "type": "array",
+                  "title": "Response Search Api Marketplace Search Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/marketplace/benchmarks": {
+      "get": {
+        "tags": [
+          "marketplace"
+        ],
+        "summary": "Published Benchmarks",
+        "description": "Raw benchmark provenance behind every `measured_benchmark` quality value.",
+        "operationId": "published_benchmarks_api_marketplace_benchmarks_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/marketplace/models/{model_id}/status": {
+      "post": {
+        "tags": [
+          "marketplace"
+        ],
+        "summary": "Update Status",
+        "operationId": "update_status_api_marketplace_models__model_id__status_post",
+        "parameters": [
+          {
+            "name": "model_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Model Id"
+            }
+          },
+          {
+            "name": "x-service-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "X-Service-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StatusUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelOffer"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/agent/select": {
       "post": {
         "summary": "Selection",
@@ -410,6 +580,22 @@
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/simulation/scene": {
+      "get": {
+        "summary": "Demo Scene",
+        "operationId": "demo_scene_api_simulation_scene_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           }
@@ -701,7 +887,8 @@
             "type": "string",
             "enum": [
               "pretrained_model",
-              "algorithm"
+              "algorithm",
+              "simulation"
             ],
             "title": "Source"
           },
@@ -722,6 +909,17 @@
       },
       "MissionPlan": {
         "properties": {
+          "simulation_scene": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Simulation Scene"
+          },
+          "simulation_cost_ausd": {
+            "type": "string",
+            "pattern": "^(0|[1-9]\\d{0,8})(\\.\\d{1,6})?$",
+            "title": "Simulation Cost Ausd",
+            "default": "0"
+          },
           "planner": {
             "type": "string",
             "title": "Planner",
@@ -810,6 +1008,15 @@
       },
       "MissionRequest": {
         "properties": {
+          "execution_mode": {
+            "type": "string",
+            "enum": [
+              "testnet",
+              "simulation"
+            ],
+            "title": "Execution Mode",
+            "default": "testnet"
+          },
           "robot_card": {
             "anyOf": [
               {
@@ -882,6 +1089,20 @@
       },
       "ModelOffer": {
         "properties": {
+          "execution_mode": {
+            "type": "string",
+            "enum": [
+              "testnet",
+              "simulation"
+            ],
+            "title": "Execution Mode",
+            "default": "testnet"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          },
           "id": {
             "type": "string",
             "pattern": "^[a-z0-9_-]{1,64}$",
@@ -1272,6 +1493,128 @@
         "type": "object",
         "title": "RobotCard"
       },
+      "SearchHit": {
+        "properties": {
+          "model": {
+            "$ref": "#/components/schemas/ModelOffer"
+          },
+          "compatible": {
+            "type": "boolean",
+            "title": "Compatible"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reasons"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "model",
+          "compatible",
+          "reasons"
+        ],
+        "title": "SearchHit"
+      },
+      "SearchRequest": {
+        "properties": {
+          "task_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{1,63}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task Type"
+          },
+          "robot_card": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RobotCard"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "object_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Object Name"
+          },
+          "object_size_mm": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1000.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Object Size Mm"
+          },
+          "max_price_ausd": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(0|[1-9]\\d{0,8})(\\.\\d{1,6})?$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Price Ausd"
+          },
+          "max_latency_ms": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Latency Ms"
+          },
+          "min_quality": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Quality"
+          },
+          "include_incompatible": {
+            "type": "boolean",
+            "title": "Include Incompatible",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SearchRequest"
+      },
       "SelectionDecision": {
         "properties": {
           "selected_model_id": {
@@ -1324,6 +1667,15 @@
       },
       "SelectionRequest": {
         "properties": {
+          "execution_mode": {
+            "type": "string",
+            "enum": [
+              "testnet",
+              "simulation"
+            ],
+            "title": "Execution Mode",
+            "default": "testnet"
+          },
           "object_name": {
             "anyOf": [
               {
@@ -1424,8 +1776,37 @@
         ],
         "title": "SimulationControl"
       },
+      "StatusUpdate": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "available",
+              "unavailable"
+            ],
+            "title": "Status"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "StatusUpdate"
+      },
       "Subtask": {
         "properties": {
+          "destination": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Destination"
+          },
           "object_name": {
             "anyOf": [
               {

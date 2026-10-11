@@ -46,6 +46,8 @@ class Requirements(Contract):
     source: Literal['documented_task_prior', 'operator', 'llm_estimate'] = 'documented_task_prior'
 
 class ModelOffer(Contract):
+    execution_mode: Literal['testnet', 'simulation'] = 'testnet'
+    description: str = ''
     id: str = Field(pattern=r'^[a-z0-9_-]{1,64}$')
     name: str = Field(min_length=1, max_length=100)
     provider_id: str = Field(pattern=r'^[a-z0-9_-]{1,64}$')
@@ -67,6 +69,7 @@ class ModelOffer(Contract):
     kind: Literal['pretrained_model', 'algorithm'] = 'pretrained_model'
 
 class SelectionRequest(Contract):
+    execution_mode: Literal['testnet', 'simulation'] = 'testnet'
     object_name: str | None = None
     robot_card: RobotCard | None = None
     requirements: Requirements | None = None
@@ -91,6 +94,7 @@ class SelectionDecision(Contract):
     safe_fallback: bool
 
 class MissionRequest(Contract):
+    execution_mode: Literal['testnet', 'simulation'] = 'testnet'
     robot_card: RobotCard | None = None
     robot_id: Literal['robot_001'] = 'robot_001'
     task: str = Field(min_length=3, max_length=6000)
@@ -106,6 +110,9 @@ class Prediction(Contract):
     bbox: list[float] = Field(min_length=4, max_length=4)
 
 class InferenceInput(Contract):
+    execution_mode: Literal['testnet', 'simulation'] = 'testnet'
+    simulation_scene: dict = Field(default_factory=dict)
+    destination: str | None = None
     object_name: str | None = None
     instruction: str = ''
     dependency_outputs: dict = Field(default_factory=dict)
@@ -133,10 +140,11 @@ class InferenceResult(Contract):
     path: list[Point] = Field(default_factory=list)
     summary: str | None = None
     inference_latency_ms: float = Field(ge=0)
-    source: Literal['pretrained_model', 'algorithm']
+    source: Literal['pretrained_model', 'algorithm', 'simulation']
     observation_revision: int
 
 class Subtask(Contract):
+    destination: str | None = None
     object_name: str | None = None
     description: str = ''
     success_criteria: str = ''
@@ -153,6 +161,8 @@ class Subtask(Contract):
     error: str | None = None
 
 class MissionPlan(Contract):
+    simulation_scene: dict = Field(default_factory=dict)
+    simulation_cost_ausd: Money = '0'
     planner: str = 'legacy'
     planner_model: str | None = None
     assumptions: list[str] = Field(default_factory=list)
