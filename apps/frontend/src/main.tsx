@@ -97,7 +97,7 @@ const LayerIcon = ({ type, size = 18 }: { type: string; size?: number }) => {
 function BrandMark({ small = false }: { small?: boolean }) {
   return (
     <span className={"brand-mark " + (small ? "small" : "")} aria-hidden="true">
-      <Layers3 size={small ? 16 : 19} strokeWidth={1.5} />
+      <Layers3 size={small ? 20 : 26} strokeWidth={1.6} />
     </span>
   );
 }

@@ -214,9 +214,7 @@ h2 {
   height: 29px;
   display: grid;
   place-items: center;
-  color: #f4f2ec;
-  background: #4c7e60;
-  border-radius: 8px;
+  color: #4c7e60;
 }
 .brand-mark.small {
   width: 25px;
