@@ -78,7 +78,7 @@ export function useRoboMarket() {
   );
   const [task, setTask] = useState(() => { try { return localStorage.getItem("robomarket-task-draft") || ""; } catch { return ""; } });
   useEffect(() => { try { localStorage.setItem("robomarket-task-draft", task); } catch { /* Optional. */ } }, [task]);
-  const [budget, setBudget] = useState("0.05");
+  const [budget, setBudget] = useState("1.00");
   const [deadline, setDeadline] = useState(3000);
   const [gripper, setGripper] = useState("parallel_jaw");
   const [image, setImage] = useState<string>();

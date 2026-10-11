@@ -43,11 +43,13 @@ import {
   humanize,
   layerName,
   money,
+  usd,
   type Step,
   type Plan,
   type View,
 } from "./lib/types";
 import "./style.css";
+import MissionPricing from './components/MissionPricing';
 
 const ArmScene = lazy(() => import("./components/ArmScene").then((module) => ({ default: module.ArmScene })));
 const SkillPreview = lazy(() => import("./components/SkillPreview").then((module) => ({ default: module.SkillPreview })));
@@ -444,7 +446,7 @@ function Composer({
             </button>
           </div>
           <span className="budget-hint">
-            {money(data.budget || "0")} {data.executionMode==="simulation"?"demo credits":"AUSD"} limit
+            {usd(data.budget || "0")} skill limit
           </span>
           <button
             className="send-button"
@@ -468,12 +470,12 @@ function Composer({
         {settingsOpen && (
           <div id="mission-settings" className="mission-settings">
             <label>
-              Mission budget <span>{data.executionMode === "simulation" ? "Demo credits" : "AUSD"}</span>
+              Skill spending limit <span>USD · maximum for marketplace calls</span>
               <input
-                aria-label="Mission budget"
+                aria-label="Skill spending limit in USD"
                 type="number"
                 min="0.001"
-                step="0.001"
+                step="0.01"
                 max="99999999"
                 value={data.budget}
                 onChange={(event) => data.setBudget(event.target.value)}
@@ -745,21 +747,22 @@ function Mission({ data, onNew, onBounties }: { data: RoboMarket; onNew: () => v
         </button>
       </div>
       {simulated&&<div className="simulation-mode glass-quiet"><strong>Simulation mission · Scene generated for your prompt</strong><p>Spent {money(plan.simulation_cost_ausd||"0")} demo credits. Actual AUSD spent: {money(plan.spent_ausd)}. No blockchain transactions.</p>{!!virtualSteps.length && <p><strong>{virtualSteps.length} {virtualSteps.length===1?'step uses':'steps use'} free virtual demo effects.</strong> These illustrate the expected outcome while marketplace skills are unavailable. They do not run trained models or physical hardware.</p>}</div>}
+      <MissionPricing plan={plan} data={data}/>
       <div className="mission-summary glass-quiet">
         <div>
           <span className="eyebrow">Mission status</span>
           <Status value={plan.status} />
         </div>
         <div>
-          <span className="eyebrow">Quoted cost</span>
+          <span className="eyebrow">Selected skill quote</span>
           <strong>
-            {money(plan.estimated_cost_ausd)} <small>{simulated?"credits":"AUSD"}</small>
+            {usd(plan.estimated_cost_ausd)}
           </strong>
         </div>
         <div>
-          <span className="eyebrow">Budget</span>
+          <span className="eyebrow">Skill limit</span>
           <strong>
-            {money(plan.request.budget_ausd)} <small>{simulated?"credits":"AUSD"}</small>
+            {usd(plan.request.budget_ausd)}
           </strong>
         </div>
         <div>
@@ -872,7 +875,7 @@ function Mission({ data, onNew, onBounties }: { data: RoboMarket; onNew: () => v
                   ? "Mission completed"
                   : simulated?"Run simulation":"Execute mission"}
               {!busy && plan.status === "planned" && (
-                <span>{money(plan.estimated_cost_ausd)} {simulated?"credits":"AUSD"}</span>
+                <span>{usd(plan.estimated_cost_ausd)}</span>
               )}
             </button>
             {!["completed", "cancelled"].includes(plan.status) && (

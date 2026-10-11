@@ -214,7 +214,8 @@ def decompose(request):
             assumptions.append('Physical requirements are LLM estimates for simulation, not measured object properties.')
         if request.execution_mode=='simulation':
             assumptions.append('Objects and virtual effects are generated demo fixtures, not observations or physical execution.')
-        return attach_virtual_effects(MissionPlan(simulation_scene=scene, id=identity, request=request, planner='anthropic', planner_model=settings['model'],
+        from services.agent.pricing import planning_usage
+        return attach_virtual_effects(MissionPlan(planning_usage=planning_usage(settings['model'],payload.get('usage') or {}), simulation_scene=scene, id=identity, request=request, planner='anthropic', planner_model=settings['model'],
             explanation=draft.explanation, assumptions=assumptions, blockers=list(dict.fromkeys(draft.blockers)),
             subtasks=[Subtask(**s.model_dump(exclude={'target'}), target=s.target or Point(x=12, y=8)) for s in ordered]))
     except httpx.HTTPError as exc:

@@ -82,6 +82,7 @@ export type Step = {
   } | null;
 };
 export type Plan = {
+  planning_usage?: { input_tokens: number; output_tokens: number; cache_creation_input_tokens: number; cache_read_input_tokens: number; estimated_cost_usd: string | null; pricing_source: string; rates_checked_at: string };
   simulation_fallbacks?: Offer[];
   bounty_ids: string[];
   simulation_scene: SimulationScene | null;
@@ -155,3 +156,8 @@ export const money = (value: string | number) =>
     maximumFractionDigits: 6,
   });
 export const humanize = (value: string) => value.replaceAll("_", " ");
+export const usd = (value: string | number) => {
+  const amount=Number(value);
+  return amount.toLocaleString('en-US',{style:'currency',currency:'USD',minimumFractionDigits:2,maximumFractionDigits:amount>0 && amount<.01 ? 6 : 4});
+};
+export const cents = (value: string | number) => `${(Number(value)*100).toLocaleString('en-US',{maximumFractionDigits:3})}¢`;
