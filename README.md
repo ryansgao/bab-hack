@@ -107,7 +107,8 @@ The mug has a dirt patch; packages can have damage and sealed/unknown contents.
 These findings are visible in the per-step output. A missing upload is not a blocker
 in this mode. Unknown objects and unsupported operations still appear as gaps.
 
-Simulation prices start at 0.0008 demo credits per call. Execution records `simulated`
+Simulation prices are shown per provider; niche listings cost 0.0008 demo credits
+per call. Execution records `simulated`
 charges and `simulation_cost_ausd` separately from `spent_ausd` (actual AUSD).
 No payment service, funded wallet or model-weight download is needed. Anthropic
 planning still uses the configured API account. Choose **Real providers · AUSD
@@ -150,3 +151,10 @@ declarative programs never execute uploaded code. Rebuild the blocked mission
 to use the new listing. Demo awards do not transfer AUSD. Real submissions remain
 unavailable pending adapter integration, and their reward remains an unfunded
 pledge until an actual settlement flow is configured.
+
+Visual check with the simplified planner: “Pick up my phone, then peel an orange”
+created five actionable subtasks and one automatic orange-peeling bounty. A producer
+submitted a fixture adapter setting `peel_state=peeled`; acceptance published the
+skill and recorded a 0.05 demo-credit reward. Rebuilding selected that provider and
+completed all five steps for 0.0034 demo credits, with actual AUSD spent at zero.
+The optional 3D preview showed phone/orange targets. No automated tests were added.
