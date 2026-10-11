@@ -141,3 +141,10 @@ per-step charge has `status: simulated`, null transaction/explorer fields, and n
 on-chain receipt. `simulation_cost_ausd` tracks demo credits while `spent_ausd`
 remains reserved for real settled AUSD. Both modes enforce the mission budget.
 The payment service rejects simulation provider IDs before authorization.
+
+The optional 3D preview is a client-only setting, off by default, and is not sent
+in `MissionRequest`. It renders `simulation_scene` and the already generated
+subtask graph, including named targets and `destination` zone keys. Playback
+does not call planning or execution endpoints; toggling it has no extra API-token
+or demo-credit cost. It is an interpretation walkthrough rather than a physics
+validator. Plan generation remains an Anthropic request regardless of this toggle.

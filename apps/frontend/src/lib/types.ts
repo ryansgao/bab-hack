@@ -41,7 +41,22 @@ export type Receipt = {
   timestamp: string;
 };
 export type PlannerConfig = { provider: string; model: string; configured: boolean; message: string };
+export type SimulationScene = {
+  id: string;
+  source: string;
+  width: number;
+  height: number;
+  image_base64?: string;
+  zones: Record<string, [number, number]>;
+  objects: {
+    id: string; name: string; aliases: string[]; category: string;
+    bbox: [number, number, number, number]; size_mm: [number, number, number];
+    color: string; destination: string; surface_dirt: number; defects: string[];
+    contents: string | null; handle: boolean;
+  }[];
+};
 export type Step = {
+  destination: string | null;
   object_name: string | null; description: string; success_criteria: string;
   id: string;
   title: string;
@@ -61,6 +76,7 @@ export type Step = {
   } | null;
 };
 export type Plan = {
+  simulation_scene: SimulationScene | null;
   planner: string; planner_model: string | null; assumptions: string[]; blockers: string[];
   simulation_cost_ausd: string;
   request: {

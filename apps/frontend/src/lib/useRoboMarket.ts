@@ -6,6 +6,7 @@ import type {
   PlannerConfig,
   RecentMission,
   Receipt,
+  SimulationScene,
   WalletState,
 } from "./types";
 
@@ -54,8 +55,9 @@ const initialArm: Arm = {
 
 export function useRoboMarket() {
   const [executionMode, setExecutionMode] = useState<"simulation" | "testnet">("simulation");
-  const [scene, setScene] = useState<{image_base64:string;objects:{name:string}[]}|null>(null);
-  useEffect(()=>{void api<{image_base64:string;objects:{name:string}[]}>("/simulation/scene").then(setScene).catch(()=>{});},[]);
+  const [previewEnabled, setPreviewEnabled] = useState(false);
+  const [scene, setScene] = useState<SimulationScene | null>(null);
+  useEffect(()=>{void api<SimulationScene>("/simulation/scene").then(setScene).catch(()=>{});},[]);
   const [planner, setPlanner] = useState<PlannerConfig | null>(null);
   const [models, setModels] = useState<Offer[]>([]);
   const [plan, setPlan] = useState<Plan | null>(null);
@@ -302,7 +304,7 @@ export function useRoboMarket() {
     reader.readAsDataURL(file);
   }
   return {
-    executionMode, setExecutionMode, scene, rebuildInSimulation,
+    executionMode, setExecutionMode, previewEnabled, setPreviewEnabled, scene, rebuildInSimulation,
     models,
     planner,
     plan,

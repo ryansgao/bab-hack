@@ -43,12 +43,32 @@ import {
   layerName,
   money,
   type Step,
+  type Plan,
   type View,
 } from "./lib/types";
 import "./style.css";
 
 const ArmScene = lazy(() => import("./components/ArmScene").then((module) => ({ default: module.ArmScene })));
 const SkillPreview = lazy(() => import("./components/SkillPreview").then((module) => ({ default: module.SkillPreview })));
+const TaskPreview3D = lazy(() => import("./components/TaskPreview3D"));
+
+function TaskPreviewToggle({ data, plan, selected, onSelect }: {
+  data: RoboMarket; plan?: Plan; selected?: number; onSelect?: (index: number) => void;
+}) {
+  const scene = plan?.simulation_scene || data.scene;
+  const id = plan ? "mission-task-preview" : "composer-task-preview";
+  return <section className="task-preview glass-quiet">
+    <label className="task-preview-toggle">
+      <span><strong>3D task preview</strong><small>Check Scout understood your task before running it. No extra AI tokens.</small></span>
+      <input type="checkbox" role="switch" aria-label="3D task preview" aria-controls={id} checked={data.previewEnabled} onChange={e => data.setPreviewEnabled(e.target.checked)} />
+      <span className="preview-switch" aria-hidden="true" />
+    </label>
+    {data.previewEnabled && <div id={id}>
+      {scene ? <Suspense fallback={<p className="preview-loading">Loading local 3D preview…</p>}><TaskPreview3D key={plan?.id || scene.id} scene={scene} plan={plan} selected={selected} onSelect={onSelect} /></Suspense>
+        : <p className="preview-loading">The simulated scene is unavailable. Check the local service and refresh.</p>}
+    </div>}
+  </section>;
+}
 
 function readableMessage(message: string) {
   if (/missing.*(ROBOT_PRIVATE_KEY|FACILITATOR_PRIVATE_KEY|PROVIDER_ADDRESS)/i.test(message)) {
@@ -336,7 +356,6 @@ function Composer({
         </p>
       </div>
       <div className="simulation-mode glass-quiet"><label>Execution mode <select aria-label="Execution mode" value={data.executionMode} onChange={e=>data.setExecutionMode(e.target.value as "simulation"|"testnet")}><option value="simulation">Simulation · demo credits</option><option value="testnet">Real providers · AUSD testnet</option></select></label><p>{data.executionMode==="simulation"?"Built-in camera and 21 simulation skills. No upload or funded wallet needed. Claude API usage still applies.":"Real model inference and testnet payments. Supply an observation and funded wallets."}</p></div>
-      {data.executionMode==="simulation"&&data.scene&&<details className="simulation-camera glass-quiet" open><summary>Simulated camera · {data.scene.objects.length} objects available</summary><img src={`data:image/png;base64,${data.scene.image_base64}`} alt="Simulated workbench camera with coffee mug, wrench, screwdriver and two labeled packages"/><p>Fixture-backed scene and inspection findings · not a real camera or learned detector</p></details>}
       <div className="composer glass-raised">
         <textarea
           ref={input}
@@ -420,7 +439,7 @@ function Composer({
         {settingsOpen && (
           <div id="mission-settings" className="mission-settings">
             <label>
-              Mission budget <span>AUSD</span>
+              Mission budget <span>{data.executionMode === "simulation" ? "Demo credits" : "AUSD"}</span>
               <input
                 aria-label="Mission budget"
                 type="number"
@@ -466,6 +485,7 @@ function Composer({
           </div>
         )}
       </div>
+      {data.executionMode === "simulation" && <TaskPreviewToggle data={data} />}
       <div className="suggestions">
         <span>A place to start</span>
         {[
@@ -585,7 +605,7 @@ function StepDetail({ step }: { step: Step }) {
                     <div>
                       <span>Per call</span>
                       <strong>
-                        {money(candidate.model.price_ausd)} <small>AUSD</small>
+                        {money(candidate.model.price_ausd)} <small>{candidate.model.execution_mode === "simulation" ? "credits" : "AUSD"}</small>
                       </strong>
                     </div>
                     <div>
@@ -725,6 +745,7 @@ function Mission({ data, onNew }: { data: RoboMarket; onNew: () => void }) {
           />
         </div>
       </div>
+      {simulated && <TaskPreviewToggle data={data} plan={plan} selected={selected} onSelect={setSelected} />}
       {plan.status === "blocked" && (
         <div className="mission-alert" role="status">
           <CircleHelp size={19} />

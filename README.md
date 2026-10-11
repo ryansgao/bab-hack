@@ -110,3 +110,16 @@ No payment service, funded wallet or model-weight download is needed. Anthropic
 planning still uses the configured API account. Choose **Real providers · AUSD
 testnet** to use the existing real inference and settlement flow. The old blocked
 plan can be regenerated using **Rebuild with simulation providers**.
+
+**3D task preview** starts switched off. Turn it on in the composer to inspect the
+fixture, or on a mission to review Scout's interpretation, targets, assumptions and
+individual steps before execution. Play/pause or select a step; proposed placements
+animate to the plan's destination. Drag to rotate and use Reset view to return.
+This lazy-loaded Three.js walkthrough renders locally from the existing plan. It
+makes no additional Anthropic calls, runs no providers and spends no demo credits.
+Building or rebuilding a plan still uses Anthropic. Fixture geometry illustrates
+intent; the preview does not certify physical robot motion.
+
+Visual verification: “Find and inspect a coffee mug” produced and completed 16
+fixture-backed subtasks for 0.016 demo credits, with actual AUSD spending at zero.
+The optional preview was checked in the dashboard; no new automated tests added.
