@@ -1,22 +1,17 @@
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import {
-  Activity,
-  ArrowDown,
   ArrowRight,
   ArrowUp,
   Bot,
-  Box,
   Check,
   ChevronDown,
   ChevronRight,
   CircleHelp,
   Clock3,
   ExternalLink,
-  Eye,
   Fingerprint,
   Flag,
-  Hand,
   ImagePlus,
   Layers3,
   LoaderCircle,
@@ -44,6 +39,7 @@ import {
   usd,
   DEFAULT_ROBOT,
   liveStep,
+  type Candidate,
   type Step,
   type Plan,
   type View,
@@ -61,26 +57,6 @@ const BountyBoard = lazy(() => import("./components/BountyBoard"));
 const AccountArea = lazy(() => import("./account/AccountArea"));
 import PaymentFlow, { AccountButton } from "./account/PaymentFlow";
 
-function TaskPreviewToggle({ data, plan, selected, onSelect }: {
-  data: RoboMarket; plan?: Plan; selected?: number; onSelect?: (index: number) => void;
-}) {
-  const scene = plan?.simulation_scene?.source==="simulation_fixture" ? plan.simulation_scene : null;
-  const region=useRef<HTMLElement>(null);
-  useEffect(()=>{if(data.followLive&&data.previewEnabled)region.current?.scrollIntoView({block:'start',behavior:'smooth'});},[data.followLive,data.previewEnabled]);
-  const id = plan ? "mission-task-preview" : "composer-task-preview";
-  return <section ref={region} className="task-preview glass-quiet">
-    <label className="task-preview-toggle">
-      <span><strong>3D task preview</strong><small>Check Scout understood your task before running it. No extra AI tokens.</small></span>
-      <input type="checkbox" role="switch" aria-label="3D task preview" aria-controls={id} checked={data.previewEnabled} onChange={e => data.setPreviewEnabled(e.target.checked)} />
-      <span className="preview-switch" aria-hidden="true" />
-    </label>
-    {data.previewEnabled && <div id={id}>
-      {scene ? <Suspense fallback={<p className="preview-loading">Loading local 3D preview…</p>}><TaskPreview3D key={plan?.id || scene.id} scene={scene} plan={plan} selected={selected} onSelect={onSelect} robot={{...DEFAULT_ROBOT,...(plan?.request.robot_card||data.robotConfig)}} arm={data.arm} mode={data.followLive?'live':'preview'} onFollow={()=>data.setFollowLive(true)} /></Suspense>
-        : <p className="preview-loading">Your prompt and reference files will generate the robot and scene when you build the mission.</p>}
-    </div>}
-  </section>;
-}
-
 function readableMessage(message: string) {
   if (/missing.*(ROBOT_PRIVATE_KEY|FACILITATOR_PRIVATE_KEY|PROVIDER_ADDRESS)/i.test(message)) {
     return "Connect the robot wallet, settlement wallet, and provider recipient to execute a mission.";
@@ -88,19 +64,6 @@ function readableMessage(message: string) {
   return message.replaceAll("configured_estimate", "estimated latency").replaceAll("measured_ema", "measured latency");
 }
 
-const LayerIcon = ({ type, size = 18 }: { type: string; size?: number }) => {
-  const Icon =
-    type === "object_detection"
-      ? Eye
-      : type === "grasp"
-        ? Hand
-        : type === "control"
-          ? Activity
-          : type === "path_planning"
-            ? ArrowRight
-            : Layers3;
-  return <Icon size={size} strokeWidth={1.7} />;
-};
 function BrandMark({ small = false }: { small?: boolean }) {
   return (
     <span className={"brand-mark " + (small ? "small" : "")} aria-hidden="true">
@@ -367,166 +330,59 @@ function Composer({
   );
 }
 
-function StepDetail({ step }: { step: Step }) {
-  const [detail, setDetail] = useState<"providers" | "output">("providers");
+function StepDetail({ step, index }: { step: Step; index: number }) {
+  const [comparing, setComparing] = useState(false);
   const decision = step.decision;
   const candidates =
     decision?.candidates.filter(
       (candidate) => candidate.model.task_type === step.task_type,
     ) || [];
-  candidates.sort((a, b) => {
-    if (a.model.id === decision?.selected_model_id) return -1;
-    if (b.model.id === decision?.selected_model_id) return 1;
-    return Number(b.eligible) - Number(a.eligible) || (a.score ?? Infinity) - (b.score ?? Infinity);
-  });
+  candidates.sort((a, b) => Number(b.eligible) - Number(a.eligible) || (a.score ?? Infinity) - (b.score ?? Infinity));
+  const chosen = candidates.find((candidate) => candidate.model.id === decision?.selected_model_id);
+  const others = candidates.filter((candidate) => candidate !== chosen && candidate.eligible);
+  const excluded = candidates.filter((candidate) => !candidate.eligible).length;
+  const row = (candidate: Candidate, selected = false) => (
+    <div key={candidate.model.id} className={"model-row" + (selected ? " selected" : "") + (candidate.eligible ? "" : " excluded")}>
+      <div>
+        <strong>{candidate.model.name}</strong>
+        <span>{humanize(candidate.model.provider_id)}</span>
+      </div>
+      <span>{usd(candidate.model.price_ausd)}</span>
+      <span>{candidate.model.latency_ms.toFixed(0)} ms</span>
+      <span className="model-score">{selected ? <><Check size={12} /> Selected</> : candidate.eligible ? candidate.score?.toFixed(2) ?? "—" : "Excluded"}</span>
+    </div>
+  );
   return (
-    <section className="glass detail-panel">
-      <div className="detail-top">
-        <span className={"layer-icon layer-" + step.task_type}>
-          <LayerIcon type={step.task_type} size={22} />
-        </span>
-        <div>
-          <span className="eyebrow">
-            {step.object_name || step.requirements?.object_name || "Mission capability"}
-          </span>
-          <h2>{layerName(step.task_type)}</h2>
-        </div>
+    <section className="step-detail glass-quiet">
+      <div className="step-detail-head">
+        <span>Step {index + 1} · {sentence(layerName(step.task_type))}</span>
         <Status value={step.status} />
       </div>
-      <div className="subtask-context"><h3>{step.title}</h3><p>{step.description}</p>{step.success_criteria && <p><strong>Complete when:</strong> {step.success_criteria}</p>}<p><strong>Requires:</strong> {step.depends_on.join(", ") || "No prerequisites"}</p></div>
-      <div className="detail-tabs" role="tablist" aria-label="Shard details">
-        <button
-          role="tab"
-          aria-selected={detail === "providers"}
-          onClick={() => setDetail("providers")}
-        >
-          Provider comparison <span>{candidates.length}</span>
-        </button>
-        <button
-          role="tab"
-          aria-selected={detail === "output"}
-          onClick={() => setDetail("output")}
-        >
-          {step.result?.source==="simulation"||step.decision?.candidates.find(c=>c.model.id===step.decision?.selected_model_id)?.model.execution_mode==="simulation"?"Simulation output":"Purchased output"} {step.result && <i className="tiny-dot" />}
-        </button>
+      <h2>{step.title}</h2>
+      <p className="step-detail-description">{step.description}</p>
+      {step.success_criteria && <p className="step-detail-done"><Check size={13} /> {step.success_criteria}</p>}
+      <div className="step-detail-models">
+        <span className="step-detail-label">Model</span>
+        {chosen ? row(chosen, true) : <p className="step-detail-empty">No compatible model in the marketplace yet.</p>}
+        {!!others.length && (
+          <button className="text-button step-detail-compare" aria-expanded={comparing} onClick={() => setComparing(!comparing)}>
+            {comparing ? "Hide" : "Compare"} {others.length} {others.length === 1 ? "alternative" : "alternatives"}
+            <ChevronDown size={13} />
+          </button>
+        )}
+        {comparing && <>{others.map((candidate) => row(candidate))}<p className="step-detail-note">Ranked by score; lower is better.{excluded ? ` ${excluded} more excluded as incompatible with this robot, budget or deadline.` : ""}</p></>}
       </div>
-      {detail === "providers" ? (
-        <div className="detail-content">
-          <div className="decision-summary">
-            <Sparkles size={16} />
-            <p>{readableMessage(decision?.explanation || "Provider selection is pending.")}</p>
-          </div>
-          <div className="candidate-list">
-            {candidates.map((candidate) => {
-              const chosen = decision?.selected_model_id === candidate.model.id;
-              return (
-                <article
-                  key={candidate.model.id}
-                  className={"candidate " + (chosen ? "chosen" : "")}
-                >
-                  <div className="candidate-heading">
-                    <span className="provider-avatar">
-                      {candidate.model.provider_id[0].toUpperCase()}
-                    </span>
-                    <div>
-                      <h3>{candidate.model.name}</h3>
-                      <span>{humanize(candidate.model.provider_id)}</span>
-                    </div>
-                    <span
-                      className={
-                        "selection-label " +
-                        (chosen
-                          ? "selected"
-                          : !candidate.eligible
-                            ? "excluded"
-                            : "")
-                      }
-                    >
-                      {chosen ? (
-                        <Check size={12} />
-                      ) : !candidate.eligible ? (
-                        <X size={12} />
-                      ) : null}
-                      {chosen
-                        ? "Selected"
-                        : candidate.eligible
-                          ? "Alternative"
-                          : "Excluded"}
-                    </span>
-                  </div>
-                  <div className="candidate-metrics">
-                    <div>
-                      <span>Per call</span>
-                      <strong>
-                        {usd(candidate.model.price_ausd)} <small>{candidate.model.execution_mode === "simulation" ? "demo estimate" : "USD"}</small>
-                      </strong>
-                    </div>
-                    <div>
-                      <span>
-                        {candidate.model.latency_source === "measured_ema"
-                          ? "Measured EMA"
-                          : "Latency estimate"}
-                      </span>
-                      <strong>
-                        {candidate.model.latency_ms.toFixed(0)}{" "}
-                        <small>ms</small>
-                      </strong>
-                    </div>
-                    <div>
-                      <span>Score ↓</span>
-                      <strong>{candidate.score?.toFixed(3) ?? "—"}</strong>
-                    </div>
-                  </div>
-                  <p className="candidate-reasons">
-                    {candidate.reasons.join(". ")}.
-                  </p>
-                </article>
-              );
-            })}
-          </div>
-          <div className="detail-footnote">
-            <ShieldCheck size={13} />
-            Lower scores are preferred. Quality estimates are not benchmarks.
-          </div>
-        </div>
-      ) : (
-        <div className="detail-content">
-          {step.result ? (
-            <>
-              <div className="output-meta">
-                <Status value="completed" />
-                <span>
-                  {step.result.inference_latency_ms.toFixed(1)} ms measured
-                </span>
-              </div>
-              {step.result.source==="simulation"&&<p className="simulation-label">{step.result.output.virtual_effect?'VIRTUAL DEMO · Expected outcome only · No model purchase':'SIMULATION · Fixture-backed output · No on-chain payment'}</p>}
-              <p className="result-summary">{step.result.summary}</p>
-              <pre className="result-json">
-                {JSON.stringify(
-                  Object.keys(step.result.output).length
-                    ? step.result.output
-                    : step.result.predictions,
-                  null,
-                  2,
-                )}
-              </pre>
-              {step.payment?.explorer_url && (
-                <a
-                  className="text-link"
-                  href={step.payment.explorer_url}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  View verified receipt <ExternalLink size={13} />
-                </a>
-              )}
-            </>
-          ) : (
-            <EmptyState icon={<Box size={26} />} title="No output yet">
-              Execute the mission to see purchased shard results here.
-            </EmptyState>
+      {step.result && (
+        <details className="step-detail-output">
+          <summary>Output · {step.result.inference_latency_ms.toFixed(0)} ms<ChevronDown size={13} /></summary>
+          <p>{step.result.summary}</p>
+          <pre>{JSON.stringify(Object.keys(step.result.output).length ? step.result.output : step.result.predictions, null, 2)}</pre>
+          {step.payment?.explorer_url && (
+            <a className="text-link" href={step.payment.explorer_url} target="_blank" rel="noreferrer">
+              View receipt <ExternalLink size={13} />
+            </a>
           )}
-        </div>
+        </details>
       )}
     </section>
   );
@@ -535,7 +391,6 @@ function StepDetail({ step }: { step: Step }) {
 function Mission({ data, onNew, onBounties, onRobot }: { data: RoboMarket; onNew: () => void; onBounties: () => void; onRobot:()=>void }) {
   const selected=data.followLive?liveStep(data.plan):data.previewStep;
   const setSelected=(index:number)=>{data.setPreviewStep(index);data.setFollowLive(false);};
-  const detailPanel = useRef<HTMLDivElement>(null);
   const { plan, busy } = data;
   const simulated = plan?.request.execution_mode === "simulation";
   useEffect(() => data.setPreviewStep(0), [plan?.id]);
@@ -543,45 +398,53 @@ function Mission({ data, onNew, onBounties, onRobot }: { data: RoboMarket; onNew
   const completed = plan.subtasks.filter(
     (step) => step.status === "completed",
   ).length;
-  const step = plan.subtasks[Math.min(selected, plan.subtasks.length - 1)];
+  const index = Math.min(selected, plan.subtasks.length - 1);
+  const step = plan.subtasks[index];
   const blocked = plan.subtasks.find((item) => item.error)?.error;
-  const virtualSteps=plan.subtasks.filter(item=>item.decision?.candidates.some(candidate=>candidate.model.id===item.decision?.selected_model_id && candidate.model.simulation_placeholder));
+  const scene = plan.simulation_scene?.source === "simulation_fixture" ? plan.simulation_scene : null;
+  const modelName = (item: Step) => item.decision?.candidates.find((candidate) => candidate.model.id === item.decision?.selected_model_id)?.model;
+  const run = () => {
+    if (!simulated) return void window.dispatchEvent(new Event("rbazaar:checkout"));
+    data.setFollowLive(true);
+    void data.execute();
+  };
   return (
     <div className="page mission-page enter">
-      <div className="page-heading">
+      <div className="mission-header">
         <div>
           <h1>{plan.demo_scenario==='matcha_demo_v1'?'Make me a matcha latte':plan.request.task}</h1>
+          <p className="mission-meta">
+            <Status value={plan.status} />
+            <span>{plan.robot_visual?.name || "Generated robot"}</span>
+            <span>{completed} / {plan.subtasks.length} steps</span>
+            <span>{usd(plan.estimated_cost_ausd)} in skills</span>
+            {simulated && <span>Simulation</span>}
+          </p>
         </div>
-        <button className="secondary" onClick={onNew} disabled={busy}>
-          <Plus size={15} />
-          New mission
-        </button>
-      </div>
-      <div className="mission-robot-link glass-quiet"><Bot size={20}/><div><strong>{plan.robot_visual?.name||'Generated demo robot'} · from your prompt{plan.request.media?.length?` + ${plan.request.media.length} reference files`:''}</strong><span>{plan.subtasks[liveStep(plan)]?.title} · {humanize(plan.status)}</span></div><button className="secondary" onClick={onRobot}>Open 3D studio <ArrowRight size={13}/></button></div>
-      {plan.demo_scenario==='matcha_demo_v1'&&<div className="bounty-mission-notice glass-quiet"><Sparkles size={18}/><div><strong>Matcha demo · 6 recipe steps · 5 marketplace skills · 1 producer bounty</strong><p>Skills cost $0.22 in total. Serving opens a separate $5 demo bounty and uses a free virtual preview. This fixed demo recipe makes no planning API call.</p></div></div>}
-      {simulated&&<div className="simulation-mode glass-quiet"><strong>Simulation · This scene and robot follow your mission</strong><p>Run Simulation opens the live 3D workcell. Marketplace spending is simulated{plan.demo_scenario?'.':'; Claude planning is billed separately.'}</p>{!!virtualSteps.length && <p><strong>{virtualSteps.length} {virtualSteps.length===1?'step uses':'steps use'} free virtual demo effects.</strong> These illustrate expected outcomes while marketplace skills are unavailable.</p>}</div>}
-      <MissionPricing plan={plan} data={data}/>
-      <div className="mission-summary mission-status-only glass-quiet">
-        <div>
-          <span className="eyebrow">Mission status</span>
-          <Status value={plan.status} />
-        </div>
-        <div>
-          <span className="eyebrow">{simulated?"Simulated steps":"Purchased"}</span>
-          <strong>
-            {completed} <small>/ {plan.subtasks.length} shards</small>
-          </strong>
-        </div>
-        <div className="summary-progress">
-          <span
-            style={{
-              width: `${(completed / Math.max(1, plan.subtasks.length)) * 100}%`,
-            }}
-          />
+        <div className="mission-actions">
+          {!["completed", "cancelled"].includes(plan.status) && (
+            <button className="text-button" disabled={busy} onClick={() => void data.cancel()}>Cancel</button>
+          )}
+          <button className="secondary" onClick={onNew} disabled={busy}>
+            <Plus size={15} />
+            New mission
+          </button>
+          {plan.status === "planned" && (
+            <button className="primary" disabled={busy} onClick={run}>
+              {busy ? <LoaderCircle size={15} className="spin" /> : <Play size={14} />}
+              {simulated ? "Run simulation" : "Execute mission"}
+            </button>
+          )}
         </div>
       </div>
-      {simulated && <TaskPreviewToggle data={data} plan={plan} selected={selected} onSelect={setSelected} />}
-      {!!plan.bounty_ids?.length && <div className="bounty-mission-notice glass-quiet"><Flag size={18}/><div><strong>{plan.bounty_ids.length} missing-skill {plan.bounty_ids.length===1?'bounty':'bounties'} posted automatically</strong><p>{simulated?'Your demo can continue with virtual effects while producers deliver these skills.':'Producers can deliver the missing capabilities.'} {plan.demo_scenario?'Serving stays reserved for the bounty in this demo.':'Review submissions, then rebuild to use a published solution.'}</p><button className="secondary" onClick={onBounties}>View bounties</button><button className="secondary" disabled={busy || !['blocked','planned','completed'].includes(plan.status)} onClick={()=>void data.replan()}>{plan.demo_scenario?'Build another demo':'Rebuild with new expertise'}</button></div></div>}
+      <div className="mission-progress" aria-hidden="true"><span style={{ width: `${(completed / Math.max(1, plan.subtasks.length)) * 100}%` }} /></div>
+      {!!plan.bounty_ids?.length && (
+        <div className="mission-notice">
+          <Flag size={15} />
+          <span>{plan.bounty_ids.length} missing {plan.bounty_ids.length === 1 ? "skill" : "skills"} posted as {plan.bounty_ids.length === 1 ? "a bounty" : "bounties"}{simulated ? "; a virtual stand-in runs meanwhile." : "."}</span>
+          <button className="text-button" onClick={onBounties}>View bounties</button>
+        </div>
+      )}
       {plan.status === "blocked" && (
         <div className="mission-alert" role="status">
           <CircleHelp size={19} />
@@ -594,117 +457,46 @@ function Mission({ data, onNew, onBounties, onRobot }: { data: RoboMarket; onNew
       {plan.status === "cancelled" && (
         <div className="mission-alert neutral">
           <ShieldCheck size={18} />
-          <p>
-            Mission cancelled. Existing purchases and receipts are retained.
-          </p>
+          <p>Mission cancelled. Existing purchases and receipts are retained.</p>
         </div>
       )}
-      <div className="mission-grid">
-        <section className="plan-column">
-          <div className="section-label">
-            <span>Execution plan</span>
-            <span>{plan.subtasks.length} shards</span>
-          </div>
-          <div className="step-list">
-            {plan.subtasks.map((item, index) => (
-              <div key={item.id}>
-                <button
-                  className={
-                    "step-card glass-quiet " +
-                    (selected === index ? "selected" : "")
-                  }
-                  onClick={() => {
-                    setSelected(index);
-                    if (window.innerWidth <= 1000) detailPanel.current?.scrollIntoView({ block: "start" });
-                  }}
-                  aria-pressed={selected === index}
-                >
-                  <span
-                    className={
-                      "step-number " +
-                      (item.status === "completed" ? "done" : "")
-                    }
-                  >
-                    {item.status === "completed" ? (
-                      <Check size={15} />
-                    ) : (
-                      String(index + 1).padStart(2, "0")
-                    )}
+      <div className="mission-main">
+        {scene && (
+          <section className="mission-stage glass-quiet">
+            <button className="text-button mission-stage-open" onClick={onRobot}>Open studio <ArrowRight size={13} /></button>
+            <Suspense fallback={<p className="preview-loading">Loading 3D workcell…</p>}>
+              <TaskPreview3D key={plan.id} compact scene={scene} plan={plan} selected={index} onSelect={setSelected} robot={{...DEFAULT_ROBOT,...(plan.request.robot_card||data.robotConfig)}} arm={data.arm} mode={data.followLive?'live':'preview'} onFollow={()=>data.setFollowLive(true)} />
+            </Suspense>
+          </section>
+        )}
+        <section className="mission-steps">
+          <div className="section-label"><span>Plan</span><span>{plan.subtasks.length} steps</span></div>
+          <ol className="plan-steps">
+            {plan.subtasks.map((item, i) => (
+              <li key={item.id}>
+                <button className={"plan-step" + (i === index ? " selected" : "")} aria-pressed={i === index} onClick={() => setSelected(i)}>
+                  <span className={"step-number " + (item.status === "completed" ? "done" : "")}>
+                    {item.status === "completed" ? <Check size={13} /> : ["running", "waiting_for_motion"].includes(item.status) ? <LoaderCircle size={13} className="spin" /> : i + 1}
                   </span>
-                  <span className="step-copy">
-                    <span>
-                      {item.object_name || item.requirements?.object_name || "Robot"} ·{" "}
-                      {layerName(item.task_type)}
-                    </span>
+                  <span className="plan-step-copy">
                     <strong>{item.title}</strong>
-                    <small>
-                      {item.decision?.selected_model_id
-                        ? item.decision.candidates.find(
-                            (candidate) =>
-                              candidate.model.id ===
-                              item.decision?.selected_model_id,
-                          )?.model.name
-                        : "No compatible provider"}
-                    </small>
-                    <small>{humanize(item.status)}</small>
+                    <small>{modelName(item)?.name ?? "No model yet"}</small>
                   </span>
-                  <ChevronRight size={15} />
                 </button>
-                {index < plan.subtasks.length - 1 && (
-                  <span className="step-connector">
-                    <ArrowDown size={11} />
-                    {plan.subtasks[index + 1].depends_on.length ? `Needs ${plan.subtasks[index + 1].depends_on.join(", ")}` : "Independent subtask"}
-                  </span>
-                )}
-              </div>
+              </li>
             ))}
-          </div>
-          <div className="execution-actions">
-            <button
-              className="primary full-width"
-              disabled={busy || plan.status !== "planned"}
-              onClick={() => simulated ? void data.execute() : void window.dispatchEvent(new Event("rbazaar:checkout"))}
-            >
-              {busy ? (
-                <LoaderCircle size={15} className="spin" />
-              ) : (
-                <Play size={14} />
-              )}
-              {busy
-                ? "Working on your mission…"
-                : plan.status === "completed"
-                  ? "Mission completed"
-                  : simulated?"Run simulation":"Execute mission"}
-              {!busy && plan.status === "planned" && (
-                <span>{usd(plan.estimated_cost_ausd)}</span>
-              )}
-            </button>
-            {!["completed", "cancelled"].includes(plan.status) && (
-              <button
-                className="text-button cancel-button"
-                disabled={busy}
-                onClick={() => void data.cancel()}
-              >
-                Cancel mission
-              </button>
-            )}
-            <p className="fine-print">
-              {simulated?"Each demo provider runs locally. Outputs and demo charges are recorded per step.":"Each shard is purchased separately within your allowance."}
-            </p>
-          </div>
+          </ol>
         </section>
-        {step && <div ref={detailPanel}><StepDetail key={step.id + plan.id} step={step} /></div>}
       </div>
-      <details className="method-note">
-        <summary>
-          <CircleHelp size={14} />
-          How Scout built this plan
-          <ChevronDown size={14} />
-        </summary>
+      {step && <StepDetail key={step.id + plan.id} step={step} index={index} />}
+      <details className="mission-details">
+        <summary>Mission details<ChevronDown size={14} /></summary>
+        <MissionPricing plan={plan} data={data} />
+        <h3>How the plan was built</h3>
         <p>{plan.explanation}</p>
-        {!!plan.assumptions?.length && <ul>{plan.assumptions.map((assumption, index) => <li key={index}>{assumption}</li>)}</ul>}
-        <p>
-          Planner: {plan.planner_model || plan.planner}. Scout checks the resulting graph against robot compatibility, available capabilities, and budget.
+        {!!plan.assumptions?.length && <ul>{plan.assumptions.map((assumption, i) => <li key={i}>{assumption}</li>)}</ul>}
+        <p className="fine-print">
+          Planner: {plan.planner_model || plan.planner}. {simulated ? "Simulation: marketplace spending is simulated and providers run locally; the 3D workcell uses estimated kinematics." : "Each step is purchased separately within your allowance."}
         </p>
       </details>
     </div>
