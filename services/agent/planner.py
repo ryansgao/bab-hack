@@ -5,7 +5,7 @@ from uuid import uuid4
 import httpx
 from pydantic import Field, ValidationError
 from shared.schemas.contracts import Contract, MissionPlan, Point, Requirements, Subtask, TaskType
-from services.marketplace.registry import list_models
+from services.marketplace.registry import capability_summary
 
 DEFAULT_MODEL = 'claude-sonnet-4-5'
 
@@ -55,7 +55,8 @@ an explicit blocker; never omit essential work to make a plan appear executable.
 Current adapters: object_detection returns bounding boxes, not identification of
 contents/defects; scene_inspection summarizes sensors/detections, not arbitrary visual
 reasoning; path_planning traverses a 24x16 grid for a mobile base; grasp returns a
-pixel grasp point; control performs simulated approach/grasp/lift/rotate/release.
+pixel grasp point; human_pose returns person boxes plus 17 COCO keypoints;
+instance_segmentation returns per-object mask polygons; control performs simulated approach/grasp/lift/rotate/release.
 Control CANNOT implement arbitrary placement destinations, sorting, peeling, cleaning,
 assembly, or real hardware actions. Represent those as missing capabilities when needed.
 Do not infer extra robot hardware. A fixed arm cannot navigate. For navigation use
@@ -142,7 +143,7 @@ def decompose(request):
                'waypoints': [p.model_dump() for p in request.waypoints], 'budget_ausd': request.budget_ausd,
                'inference_deadline_ms': request.inference_deadline_ms,
                'camera_image_supplied': bool(request.image_base64) or bool(scene),
-               'marketplace': [m.model_dump() for m in list_models() if m.execution_mode==request.execution_mode]}
+               'marketplace': capability_summary(request.execution_mode)}
     try:
         with httpx.Client(timeout=httpx.Timeout(90, connect=10)) as client:
             response = client.post('https://api.anthropic.com/v1/messages',
