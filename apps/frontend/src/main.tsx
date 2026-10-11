@@ -41,7 +41,6 @@ import { useRoboMarket, type RoboMarket } from "./lib/useRoboMarket";
 import {
   humanize,
   layerName,
-  money,
   usd,
   DEFAULT_ROBOT,
   liveStep,
@@ -51,6 +50,9 @@ import {
 } from "./lib/types";
 import "./style.css";
 import MissionPricing from './components/MissionPricing';
+import { GROUPS, familyOf } from "./lib/skills";
+
+const sentence = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
 
 const RobotStation = lazy(() => import('./components/RobotStation'));
 const SkillPreview = lazy(() => import("./components/SkillPreview").then((module) => ({ default: module.SkillPreview })));
@@ -336,7 +338,7 @@ function Composer({
           if(reduced){data.setTask(prompt);return;}
           const step=Math.max(1,Math.ceil(prompt.length/36));let n=0;
           const timer=window.setInterval(()=>{n=Math.min(prompt.length,n+step);data.setTask(prompt.slice(0,n));if(n>=prompt.length)window.clearInterval(timer);},16);
-        }}><Sparkles size={14}/><span><strong>Make a matcha latte</strong><small>Try the guided recipe</small></span><ArrowUp size={13}/></button>}
+        }}><span><strong>Make a matcha latte</strong><small>Try the guided recipe</small></span><ArrowUp size={13}/></button>}
       </div>
       <ol className="how-it-works">
         <li>
@@ -718,7 +720,7 @@ function Marketplace({ data, onBounties }: { data: RoboMarket; onBounties: () =>
   useEffect(()=>setPage(0),[filter,search,category]);
   const shown = data.models.filter(
     (model) =>
-      (filter === "all" || model.task_type === filter) &&
+      (filter === "all" || GROUPS.find((group) => group.key === filter)?.families.includes(familyOf(model.task_type))) &&
       (category==='all'||model.category===category) &&
       search.toLowerCase().trim().split(/\s+/).every(term=>`${model.name} ${model.description} ${model.provider_id} ${model.task_type} ${(model.tags||[]).join(' ')}`.toLowerCase().includes(term)),
   );
@@ -728,25 +730,18 @@ function Marketplace({ data, onBounties }: { data: RoboMarket; onBounties: () =>
         <div>
           <h1>Marketplace</h1>
         </div>
-        <span className="count-badge">{data.models.length} shards</span>
+        <span className="count-badge">{data.models.length.toLocaleString()} models</span>
       </div>
       <div className="market-toolbar">
         <div className="filter-list" aria-label="Filter expertise">
-          {[
-            "all",
-            "object_detection",
-            "grasp",
-            "control",
-            "path_planning",
-            "scene_inspection",
-          ].map((value) => (
+          {[{ key: "all", label: "All" }, ...GROUPS].map(({ key, label }) => (
             <button
-              key={value}
-              className={filter === value ? "active" : ""}
-              aria-pressed={filter === value}
-              onClick={() => setFilter(value)}
+              key={key}
+              className={filter === key ? "active" : ""}
+              aria-pressed={filter === key}
+              onClick={() => setFilter(key)}
             >
-              {value === "all" ? "All expertise" : layerName(value)}
+              {label}
             </button>
           ))}
         </div>
@@ -754,49 +749,35 @@ function Marketplace({ data, onBounties }: { data: RoboMarket; onBounties: () =>
           <Search size={15} />
           <input
             aria-label="Search shards"
-            placeholder="Find a skill…"
+            placeholder="Search models, objects, tasks…"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
           />
         </label>
       </div>
-      <div className="market-browse"><label>Collection <select aria-label="Skill collection" value={category} onChange={e=>setCategory(e.target.value)}><option value="all">All collections</option>{[...new Set(data.models.map(m=>m.category).filter(Boolean))].sort().map(value=><option key={value} value={value}>{humanize(value)}</option>)}</select></label><span>{shown.length} matching skills</span><button className="text-button" onClick={onBounties}><Flag size={13} /> Need a missing skill? Post a bounty</button></div>
+      <div className="market-browse"><label>Collection <select aria-label="Skill collection" value={category} onChange={e=>setCategory(e.target.value)}><option value="all">All collections</option>{[...new Set(data.models.map(m=>m.category).filter(Boolean))].sort().map(value=><option key={value} value={value}>{humanize(value)}</option>)}</select></label><span>{shown.length.toLocaleString()} matching</span><button className="text-button" onClick={onBounties}><Flag size={13} /> Need a missing skill? Post a bounty</button></div>
       <div className="market-grid">
         {shown.slice(page*18,(page+1)*18).map((model) => (
           <article className="glass market-card" key={model.id}>
-            <div className="market-card-head">
-              <span className={"layer-icon layer-" + model.task_type}>
-                <LayerIcon type={model.task_type} size={18} />
+            <div className="market-card-kicker">
+              <span className="market-card-type">{sentence(layerName(model.task_type))}</span>
+              <span className="tag">
+                {model.execution_mode === "simulation" ? "Simulation" : model.kind === "algorithm" ? "Algorithm" : "Pretrained"}
               </span>
-              <div className="market-card-copy">
-                <div className="market-card-kicker">
-                  <span className="eyebrow">{layerName(model.task_type)}</span>
-                  <span className="tag">
-                    {model.execution_mode === "simulation" ? "Simulation" : model.kind === "algorithm" ? "Algorithm" : "Pretrained"}
-                  </span>
-                </div>
-                <h2>{model.name}</h2>
-                <span className="vendor-name">
-                  by {humanize(model.provider_id)}
-                </span>
-              </div>
             </div>
+            <h2 title={model.name}>{model.name}</h2>
+            <span className="vendor-name">by {humanize(model.provider_id)}</span>
             <Suspense fallback={<div className="skill-preview skill-preview-loading" aria-label="Loading skill preview" />}>
-              {model.execution_mode!=="simulation"&&<SkillPreview offer={model} />}
+              <SkillPreview offer={model} />
             </Suspense>
             <div className="market-card-bottom">
               <div>
-                <strong>{money(model.price_ausd)}</strong>
-                <span>{model.execution_mode==="simulation"?"demo credits / call":"AUSD / call"}</span>
+                <strong>{usd(model.price_ausd)}</strong>
+                <span>{model.execution_mode === "simulation" ? "per call · demo" : "per call"}</span>
               </div>
-              <span className="latency-label">
+              <span className="latency-label" title={model.latency_source === "measured_ema" ? "Measured moving average" : "Provider estimate"}>
                 <Clock3 size={12} />
                 {model.latency_ms.toFixed(0)} ms
-                <small>
-                  {model.latency_source === "measured_ema"
-                    ? "measured EMA"
-                    : "estimate"}
-                </small>
               </span>
             </div>
             <button
@@ -862,11 +843,6 @@ function Marketplace({ data, onBounties }: { data: RoboMarket; onBounties: () =>
             : "Try another search or choose a different capability."}
         </EmptyState>
       )}
-      <p className="market-note">
-        <ShieldCheck size={14} />
-        Scout checks compatibility, task risk, latency, and your budget before
-        selecting a provider.
-      </p>
     </div>
   );
 }
