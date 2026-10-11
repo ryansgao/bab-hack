@@ -11,8 +11,6 @@
 .workcell-camera-tools select,.workcell-camera-tools .icon-button{height:34px;background:#fbfdf6dc;border:1px solid #ffffffaa;backdrop-filter:blur(12px);color:#52624a;border-radius:9px;box-shadow:0 2px 9px #263a250a}
 .workcell-camera-tools .icon-button.active{background:#e0ecd4;border-color:#b7cd9e;color:#3f6540}
 .workcell-camera-tools select{padding:0 10px;font-size:10px}
-.workcell-camera-hint{bottom:15px;left:18px;font-size:9px;background:#fbfdf5b8;backdrop-filter:blur(12px);border:1px solid #ffffff80;border-radius:8px;padding:8px 11px;color:#718068}
-.workcell-camera-hint span{margin-inline:5px;color:#a4af9d}
 .simulation-transport{padding:18px 20px 14px;border-top:1px solid #dbe3d4;background:#f7faf3}
 .simulation-timeline{display:flex;align-items:center;gap:13px;margin-bottom:14px}
 .simulation-timeline>span{font-size:9px;letter-spacing:.045em;font-variant-numeric:tabular-nums;color:#86917e;min-width:36px}

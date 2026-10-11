@@ -388,7 +388,7 @@ function StepDetail({ step, index }: { step: Step; index: number }) {
   );
 }
 
-function Mission({ data, onNew, onBounties, onRobot }: { data: RoboMarket; onNew: () => void; onBounties: () => void; onRobot:()=>void }) {
+function Mission({ data, onNew, onRobot }: { data: RoboMarket; onNew: () => void; onRobot:()=>void }) {
   const selected=data.followLive?liveStep(data.plan):data.previewStep;
   const setSelected=(index:number)=>{data.setPreviewStep(index);data.setFollowLive(false);};
   const { plan, busy } = data;
@@ -418,7 +418,6 @@ function Mission({ data, onNew, onBounties, onRobot }: { data: RoboMarket; onNew
             <span>{plan.robot_visual?.name || "Generated robot"}</span>
             <span>{completed} / {plan.subtasks.length} steps</span>
             <span>{usd(plan.estimated_cost_ausd)} in skills</span>
-            {simulated && <span>Simulation</span>}
           </p>
         </div>
         <div className="mission-actions">
@@ -438,13 +437,6 @@ function Mission({ data, onNew, onBounties, onRobot }: { data: RoboMarket; onNew
         </div>
       </div>
       <div className="mission-progress" aria-hidden="true"><span style={{ width: `${(completed / Math.max(1, plan.subtasks.length)) * 100}%` }} /></div>
-      {!!plan.bounty_ids?.length && (
-        <div className="mission-notice">
-          <Flag size={15} />
-          <span>{plan.bounty_ids.length} missing {plan.bounty_ids.length === 1 ? "skill" : "skills"} posted as {plan.bounty_ids.length === 1 ? "a bounty" : "bounties"}{simulated ? "; a virtual stand-in runs meanwhile." : "."}</span>
-          <button className="text-button" onClick={onBounties}>View bounties</button>
-        </div>
-      )}
       {plan.status === "blocked" && (
         <div className="mission-alert" role="status">
           <CircleHelp size={19} />
@@ -813,7 +805,7 @@ function App() {
             <Composer data={data} onPlanned={() => navigate("mission")} />
           )}
           {view === "mission" && (
-            <Mission data={data} onNew={() => void newMission()} onBounties={()=>navigate('bounties')} onRobot={()=>navigate('robot')} />
+            <Mission data={data} onNew={() => void newMission()} onRobot={()=>navigate('robot')} />
           )}
           {view === "marketplace" && <Marketplace data={data} onBounties={()=>navigate('bounties')} />}
           {view === "bounties" && <Suspense fallback={<p className="preview-loading">Loading bounty board…</p>}><BountyBoard data={data} /></Suspense>}
