@@ -63,6 +63,7 @@ def auto_post(plan):
             and not registry.compatibility(m,plan.request.robot_card,step.object_name)]
         if not available: gaps.append(step)
     with db() as conn:
+        conn.execute('BEGIN IMMEDIATE')
         for step in gaps:
             existing=[json.loads(row['body']) for row in conn.execute('SELECT body FROM bounties')]
             bounty=next((b for b in existing if b['status'] in ('open','review') and
@@ -109,6 +110,14 @@ def accept(identity: str, request: Acceptance):
         solution=next((s for s in bounty['submissions'] if s['id']==request.submission_id),None)
         if not solution: raise HTTPException(404,'Submission not found')
         simulated=bounty['execution_mode']=='simulation'
+        if simulated:
+            from apps.simulation.catalog import scene_for_task
+            from apps.simulation.scene import find_objects
+            objects=find_objects(scene_for_task(bounty['object_name'] or ''),bounty['object_name'])
+            if not bounty['object_name'] or len(objects)!=1:
+                raise HTTPException(422,'A demo solution needs one named object available in the simulation fixture.')
+            if solution['operation']=='inspect_attribute' and solution['attribute'] not in objects[0].get('traits',{}):
+                raise HTTPException(422,'This attribute is absent from the object fixture. Choose an existing attribute to inspect.')
         model=ModelOffer(id='bounty_'+solution['id'],name=solution['model_name'],provider_id=solution['producer_id'],
             task_type=bounty['task_type'],price_ausd=solution['price_ausd'],latency_ms=25,kind='algorithm',
             execution_mode=bounty['execution_mode'],category='producer solutions',tags=[bounty['object_name'] or 'custom','bounty solution'],

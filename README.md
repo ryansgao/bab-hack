@@ -94,17 +94,20 @@ weights, images, and runtime databases out of Git.
 
 New dashboard missions default to **Simulation · demo credits**. The built-in
 camera scene contains a coffee mug, wrench, screwdriver and two labeled packages.
-Twenty-one local producer adapters expose individual capture, mapping, detection,
-geometry, condition, grasp, placement, reporting and verification capabilities.
-Claude decomposes inspection into roughly 12–18 useful subtasks and larger
-multi-object goals into roughly 20–40; actual counts depend on the requested work.
+Local producer adapters expose capture, mapping, detection, geometry, condition,
+grasp, placement and reporting capabilities, alongside the niche catalog below.
+Claude plans only actions needed for the goal, with no minimum subtask count.
+Routine input, identity, reachability, collision, grasp and completion checks happen
+inside provider inference; they are never separate paid confirmation subtasks.
+Requested inspections remain useful outputs. A simple pickup typically needs
+detection, grasp planning and handling; larger goals add actual requested work.
 
 Simulation providers compute from explicit scene fixtures, not learned perception.
 The mug has a dirt patch; packages can have damage and sealed/unknown contents.
 These findings are visible in the per-step output. A missing upload is not a blocker
 in this mode. Unknown objects and unsupported operations still appear as gaps.
 
-Each simulation provider costs 0.001 demo credits. Execution records `simulated`
+Simulation prices start at 0.0008 demo credits per call. Execution records `simulated`
 charges and `simulation_cost_ausd` separately from `spent_ausd` (actual AUSD).
 No payment service, funded wallet or model-weight download is needed. Anthropic
 planning still uses the configured API account. Choose **Real providers · AUSD
@@ -120,7 +123,7 @@ makes no additional Anthropic calls, runs no providers and spends no demo credit
 Building or rebuilding a plan still uses Anthropic. Fixture geometry illustrates
 intent; the preview does not certify physical robot motion.
 
-Visual verification: “Find and inspect a coffee mug” produced and completed 16
+Earlier visual verification, before simplifying the planner: “Find and inspect a coffee mug” produced and completed 16
 fixture-backed subtasks for 0.016 demo credits, with actual AUSD spending at zero.
 “Sort packages by destination” produced and completed 28 subtasks for 0.028 demo
 credits, placing packages A and B in their shipping zones. The optional preview's

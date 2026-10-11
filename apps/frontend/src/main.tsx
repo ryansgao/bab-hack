@@ -357,7 +357,7 @@ function Composer({
           pieces together.
         </p>
       </div>
-      <div className="simulation-mode glass-quiet"><label>Execution mode <select aria-label="Execution mode" value={data.executionMode} onChange={e=>data.setExecutionMode(e.target.value as "simulation"|"testnet")}><option value="simulation">Simulation · demo credits</option><option value="testnet">Real providers · AUSD testnet</option></select></label><p>{data.executionMode==="simulation"?"Built-in camera and 21 simulation skills. No upload or funded wallet needed. Claude API usage still applies.":"Real model inference and testnet payments. Supply an observation and funded wallets."}</p></div>
+      <div className="simulation-mode glass-quiet"><label>Execution mode <select aria-label="Execution mode" value={data.executionMode} onChange={e=>data.setExecutionMode(e.target.value as "simulation"|"testnet")}><option value="simulation">Simulation · demo credits</option><option value="testnet">Real providers · AUSD testnet</option></select></label><p>{data.executionMode==="simulation"?"Built-in scenes and hundreds of object-specific skills. No upload or funded wallet needed. Claude API usage still applies.":"Real model inference and testnet payments. Supply an observation and funded wallets."}</p></div>
       <div className="composer glass-raised">
         <textarea
           ref={input}

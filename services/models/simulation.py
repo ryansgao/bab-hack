@@ -47,13 +47,15 @@ def infer_simulated(request):
     data=request.input
     if data.execution_mode!='simulation' or data.simulation_scene.get('source')!='simulation_fixture':
         raise ValueError('Simulation providers require explicit simulation mode and a fixture scene')
+    from services.marketplace.catalog import BACKENDS
+    adapter_id = BACKENDS.get(request.model_id, request.model_id)
     program = None
-    if request.model_id not in SIM_IDS:
+    if adapter_id not in SIM_IDS:
         from services.marketplace.registry import get_model
         offer = get_model(request.model_id)
         if not offer or offer.execution_mode!='simulation' or not offer.simulation_program: raise ValueError('Unknown simulation adapter')
         program = offer.simulation_program; cap = offer.task_type
-    else: cap=SIM_IDS[request.model_id]
+    else: cap=SIM_IDS[adapter_id]
     scene=deepcopy(data.simulation_scene)
     matches=find_objects(scene,data.object_name)
     generic={'camera_capture','image_quality','scene_mapping','completion_verification'}
@@ -71,6 +73,8 @@ def infer_simulated(request):
          'object_name':obj['name'] if obj else None,'evidence_steps':list(data.dependency_outputs)}
     if obj:
         x1,y1,x2,y2=obj['bbox']; center=[(x1+x2)/2,(y1+y2)/2]
+        if x1>=x2 or y1>=y2: raise ValueError('Invalid object bounds')
+        out['validation']={'fixture_object_match':True,'valid_bounds':True}
     if program:
         if not obj: raise ValueError('A producer fixture program needs one named object')
         require('object_detection')
@@ -91,9 +95,14 @@ def infer_simulated(request):
         require('camera_capture'); stats=ImageStat.Stat(render_scene(scene).convert('L'))
         out.update(mean_brightness=round(stats.mean[0],2),contrast_std=round(stats.stddev[0],2),usable=stats.stddev[0]>5)
     elif cap=='scene_mapping':
-        require('camera_capture'); out.update(objects=[{'name':o['name'],'bbox':o['bbox']} for o in scene['objects']],count=len(scene['objects']))
+        if not data.image_base64: raise ValueError('Scene mapping requires a supplied frame')
+        out.update(objects=[{'name':o['name'],'bbox':o['bbox']} for o in scene['objects']],count=len(scene['objects']))
     elif cap=='object_detection':
-        require('camera_capture'); result.predictions=[Prediction(label=obj['name'],confidence=1,bbox=obj['bbox'])]
+        if not data.image_base64: raise ValueError('Detection requires a supplied frame')
+        stats=ImageStat.Stat(render_scene(scene).convert('L'))
+        if stats.stddev[0]<=5: raise ValueError('Frame has insufficient contrast')
+        out['validation']['frame_usable']=True
+        result.predictions=[Prediction(label=obj['name'],confidence=1,bbox=obj['bbox'])]
         out.update(bbox=obj['bbox'],confidence_basis='Exact fixture match; not model accuracy')
     elif cap in ('object_identity','pose_estimation','dimension_estimation','reachability_check','collision_check','handle_detection','surface_inspection','damage_inspection','contents_inspection','object_classification'):
         require('object_detection')
@@ -111,6 +120,8 @@ def infer_simulated(request):
         elif cap=='object_classification': out.update(category=obj['category'],destination=obj['destination'])
     elif cap=='grasp':
         require('object_detection')
+        if not (60<=center[0]<=580 and 60<=center[1]<=360): raise ValueError('Object outside simulated reachable workspace')
+        out['validation']['reachable']=True
         out.update(grasp_point_px=center,gripper_width_mm=obj['size_mm'][0]*.85,strategy='simulated centroid grasp')
     elif cap=='grasp_verification':
         require('grasp'); grasp=next(o for o in outputs if o.get('capability')=='grasp')

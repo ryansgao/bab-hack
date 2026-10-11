@@ -120,15 +120,15 @@ def compatibility(model, robot_card=None, object_name=None, object_size_mm=None)
     return reasons
 
 
-def capability_summary(execution_mode=None):
+def capability_summary(execution_mode=None, models=None):
     """Compact catalog for planners: one row per capability instead of every listing.
 
-    The full catalog is ~90 listings (~11k tokens in simulation mode); planning only
-    needs to know which capabilities exist. Scout then compares individual listings.
+    Summarize the relevant catalog regardless of its size. Scout then compares
+    individual compatible listings for each planned action.
     """
     from decimal import Decimal
     rows = {}
-    for model in list_models():
+    for model in (models if models is not None else list_models()):
         if execution_mode and model.execution_mode != execution_mode: continue
         rows.setdefault(model.task_type, []).append(model)
     return [dict(task_type=task, listings=len(offers), vendors=sorted({m.provider_id for m in offers}),
