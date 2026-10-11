@@ -89,6 +89,13 @@ export class Ledger {
   earnings() {
     return this.db.prepare("SELECT vendor, pay_to, COUNT(*) AS payments, SUM(amount) AS earned FROM purchases WHERE status='settled' GROUP BY vendor, pay_to").all() as { vendor: string; pay_to: string | null; payments: number; earned: number }[];
   }
+  uncertain(olderThanSeconds: number) {
+    return this.db.prepare("SELECT * FROM purchases WHERE status='uncertain' AND created_at <= datetime('now', ?) ORDER BY created_at").all(`-${Math.max(0, Math.floor(olderThanSeconds))} seconds`) as Row[];
+  }
+  authorizationFor(id: string) {
+    const row = this.db.prepare('SELECT payload FROM authorizations WHERE request_id=?').get(id) as { payload: string } | undefined;
+    return row ? JSON.parse(row.payload) : null;
+  }
   setAudit(id: string, tx: string) { this.db.prepare('UPDATE purchases SET audit_tx=? WHERE id=?').run(tx,id); }
   authorization(id: string, nonce: string, payload: unknown) {
     this.db.prepare('INSERT INTO authorizations VALUES (?,?,?)').run(nonce,id,JSON.stringify(payload));

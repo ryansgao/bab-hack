@@ -97,7 +97,7 @@ try {
   let r: Awaited<ReturnType<typeof call>> = { status: 0, json: null, headers: new Headers() }; let t = 0, ms = 0;
   // LIVE_ONLY=float skips the robot-pays groups (about three minutes) when only the float changed.
   robotPays: {
-  if (process.env.LIVE_ONLY === 'float') break robotPays;
+  if (process.env.LIVE_ONLY === 'float' || process.env.LIVE_ONLY === 'reconcile') break robotPays;
   const A = await instance(4391);
 
   // ---- access and input ----
@@ -279,9 +279,47 @@ try {
 
   }
 
+  // ================= reconciliation of uncertain payments =================
+  if (process.env.LIVE_ONLY !== 'float') {
+    const R = await instance(4410, { RECONCILE_AFTER_SECONDS: '0' });
+    const paid = req(`q${run}`, 'det_small'); const { max_price_ausd: _p, ...paidBody } = paid as any;
+    const beforePaid = await ausd(robot);
+    r = await buy(R.port, paid); const paidTx = r.json?.payment?.transaction_hash as string | undefined; if (paidTx) settledTx.push(paidTx);
+    const never = req(`n${run}`, 'det_small'); const { max_price_ausd: _n, ...neverBody } = never as any;
+    const stale = req(`o${run}`, 'det_small'); const { max_price_ausd: _o, ...staleBody } = stale as any;
+    {
+      // Three ways a payment is left uncertain: it crashed after the money moved, before any
+      // signature was sent, and after a signature was made that then expired unused.
+      const l = new Ledger(R.db);
+      l.db.prepare("UPDATE purchases SET status='uncertain', tx=NULL, result=NULL, error='Process restarted; reconcile before retry' WHERE id=?").run(paid.request_id);
+      const insert = l.db.prepare("INSERT INTO purchases(id,task,digest,vendor,model,amount,status,created_at) VALUES (?,?,?,?,?,?,'uncertain',datetime('now','-10 seconds'))");
+      insert.run(never.request_id, `n${run}`, fingerprint(neverBody), 'vision_lab', 'det_small', 2000);
+      insert.run(stale.request_id, `o${run}`, fingerprint(staleBody), 'vision_lab', 'det_small', 2000);
+      l.authorization(stale.request_id, `stale-${run}`, { payload: { authorization: { from: robot, nonce: `0x${'ab'.repeat(31)}${(Date.now() % 256).toString(16).padStart(2, '0')}`, validBefore: '1' } } });
+      l.db.close();
+    }
+    let w = (await call(R.port, '/wallet')).json; const usedBefore = w?.session_used_ausd; const br = await eventually(() => ausd(robot), v => v === beforePaid - 2000n);
+    r = await call(R.port, '/reconcile', {});
+    // A node one block behind can still report the just-settled authorization as unused; the
+    // service then leaves the row uncertain for its next pass. Ask again until the read catches up.
+    const outcomes: Record<string, string> = { ...(r.json?.reconciled || {}) };
+    // The service's own timed pass may be the one that settles it, so the ledger row is the evidence.
+    let rows: any[] = []; const find = (id: string) => rows.find((x: any) => x.request_id === id);
+    for (let i = 0; i < 14; i++) { rows = (await call(R.port, '/transactions')).json || []; if (find(paid.request_id)?.status === 'settled') break; await sleep(2500); r = await call(R.port, '/reconcile', {}); Object.assign(outcomes, r.json?.reconciled || {}); }
+    for (const q of [paid, never, stale]) outcomes[q.request_id] = find(q.request_id)?.status;
+    r = await call(R.port, '/reconcile', {}); r.json.reconciled = outcomes;
+    w = (await call(R.port, '/wallet')).json;
+    record('Reconciliation', 'Crashed after the money moved: the chain shows the authorization was used', 'marked settled, with the original transaction recovered from the chain', `${r.json?.reconciled?.[paid.request_id]}; tx recovered=${find(paid.request_id)?.transaction_hash === paidTx}`, r.json?.reconciled?.[paid.request_id] === 'settled' && !!paidTx && find(paid.request_id)?.transaction_hash === paidTx, paidTx);
+    record('Reconciliation', 'Crashed before any signature was sent', 'marked failed; its allowance is released', `${r.json?.reconciled?.[never.request_id]}; ${find(never.request_id)?.error}`, r.json?.reconciled?.[never.request_id] === 'failed');
+    record('Reconciliation', 'A signature was made but never used, and has expired', 'marked failed; its allowance is released', `${r.json?.reconciled?.[stale.request_id]}; ${find(stale.request_id)?.error}`, r.json?.reconciled?.[stale.request_id] === 'failed');
+    record('Reconciliation', 'Allowance held by uncertain payments is released, and no money moves', 'session used drops from 0.006 to 0.002; robot balance unchanged', `session used ${usedBefore} -> ${w?.session_used_ausd}; still uncertain ${r.json?.still_uncertain}; robot balance change ${(await ausd(robot)) - br}`, usedBefore === '0.006000' && w?.session_used_ausd === '0.002000' && r.json?.still_uncertain === 0 && (await ausd(robot)) === br);
+    r = await buy(R.port, paid);
+    record('Reconciliation', 'Retrying the reconciled paid request', '409: already paid, do not buy again', msg(r), r.status === 409);
+  }
+
   // ================= owner wallet, mission float, one address per vendor =================
   let owner: Address | null = null; const floatTx: string[] = [];
-  if (ownerAccount && process.env.VENDOR_SEED) {
+  if (ownerAccount && process.env.VENDOR_SEED && process.env.LIVE_ONLY !== 'reconcile') {
     for (const c of children) c.kill(); children.length = 0; await sleep(800);
     baseEnv = {}; owner = ownerAccount.address;
     const visionAddr = payoutAddress('vision_lab'), navAddr = payoutAddress('navigation_lab');
