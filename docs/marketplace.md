@@ -22,7 +22,7 @@ higher-risk fruit task has a measured reason to buy the pricier shard.
 ## Benchmarks
 
 ```sh
-.venv/bin/pip install -r requirements-yolo.txt
+.venv/bin/pip install -r requirements-models.txt   # includes YOLO11
 .venv/bin/python -m services.models.benchmark             # all installed detectors
 .venv/bin/python -m services.models.benchmark --models ssdlite fasterrcnn
 ```

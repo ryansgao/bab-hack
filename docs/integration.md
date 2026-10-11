@@ -16,7 +16,7 @@ Open http://127.0.0.1:8000. The launcher creates a process-local service key if
 defaults to `claude-sonnet-4-5`. The key is intentionally blank in the template,
 and stays on the server. Planning and shard comparison do not require wallet keys. Purchases return a clear blocked result.
 
-For live vision, install the optional dependencies and warm the two COCO models:
+For live vision, install the optional dependencies (torch, torchvision, YOLO11) and warm the COCO models:
 
 ```sh
 .venv/bin/pip install -r requirements-models.txt
