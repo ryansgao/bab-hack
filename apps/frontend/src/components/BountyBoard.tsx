@@ -39,23 +39,30 @@ function ProducerForm({ bounty, data }: {bounty: Bounty; data: RoboMarket}) {
 }
 
 function BountyCard({ bounty, data }: {bounty:Bounty;data:RoboMarket}) {
+  const [expanded, setExpanded] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const open=['open','review'].includes(bounty.status);
-  return <article className="bounty-card glass">
-    <div className="bounty-card-top"><span className="tag">{humanize(bounty.status)}</span><strong>{usd(bounty.reward_ausd)} <small>{bounty.execution_mode==='simulation'?'USD demo pledge':'USD pledge'}</small></strong></div>
-    <h2>{bounty.title}</h2><p>{bounty.description}</p>
-    <div className="bounty-tags"><span>{bounty.object_name || 'Custom capability'}</span><span>{bounty.plan_ids.length ? `${bounty.plan_ids.length} linked mission${bounty.plan_ids.length===1?'':'s'}` : 'Consumer request'}</span><span>{bounty.submissions.length} submissions</span></div>
-    {bounty.success_criteria && <p className="bounty-criteria"><strong>Acceptance criteria:</strong> {bounty.success_criteria}</p>}
-    {bounty.award && <div className="bounty-award"><Check size={15} /><div><strong>{bounty.execution_mode==='simulation'?'Solution accepted · skill published':'Solution accepted · integration pending'}</strong><p>{usd(bounty.award.amount)} {bounty.award.currency} · {humanize(bounty.award.status)} · {bounty.award.producer_id}</p></div></div>}
-    {!!bounty.submissions.length && <div className="bounty-submissions">{bounty.submissions.map(solution=><section key={solution.id}>
-      <div><strong>{solution.model_name}</strong><small>by {solution.producer_id} · {usd(solution.price_ausd)} / call</small></div>
-      <p>{solution.description}</p>
-      {bounty.execution_mode==='simulation' && <p className="fine-print">Fixture delivery: {humanize(solution.operation)} · {solution.attribute}{solution.operation==='set_attribute'?` → ${solution.value}`:''}</p>}
-      {solution.evidence_url && <a className="text-link" href={solution.evidence_url} target="_blank" rel="noreferrer">View producer evidence</a>}
-      {open && <button className="secondary" disabled={data.busy} onClick={()=>void data.acceptBounty(bounty.id,solution.id)}><Check size={13} /> Accept & publish{bounty.execution_mode==='simulation'?' · record demo reward':''}</button>}
-    </section>)}</div>}
-    {open && <button className="secondary" disabled={data.busy} onClick={()=>setSubmitting(!submitting)}><Plus size={13} />{submitting?'Close submission':'Build for this bounty'}</button>}
-    {submitting && open && <ProducerForm bounty={bounty} data={data} />}
+  const toggle=()=>setExpanded(!expanded);
+  return <article className={`bounty-card glass${expanded?' expanded':''}`}>
+    <div className="bounty-summary" role="button" tabIndex={0} aria-expanded={expanded} onClick={toggle} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}}}>
+      <div className="bounty-card-top"><span className="tag">{humanize(bounty.status)}</span><strong>{usd(bounty.reward_ausd)} <small>USD</small></strong></div>
+      <h2>{bounty.title}</h2>
+      {!expanded && <p className="bounty-blurb">{bounty.description}</p>}
+      <div className="bounty-meta">{[bounty.object_name,`${bounty.submissions.length} submission${bounty.submissions.length===1?'':'s'}`].filter(Boolean).join(' · ')}</div>
+    </div>
+    {expanded && <div className="bounty-detail">
+      <p>{bounty.description}</p>
+      {bounty.success_criteria && <p className="bounty-criteria"><strong>Acceptance criteria:</strong> {bounty.success_criteria}</p>}
+      {bounty.award && <div className="bounty-award"><Check size={13} /><span>{bounty.award.producer_id} · {usd(bounty.award.amount)} {bounty.award.currency}</span></div>}
+      {!!bounty.submissions.length && <div className="bounty-submissions">{bounty.submissions.map(solution=><section key={solution.id}>
+        <div><strong>{solution.model_name}</strong><small>by {solution.producer_id} · {usd(solution.price_ausd)} / call</small></div>
+        <p>{solution.description}</p>
+        {solution.evidence_url && <a className="text-link" href={solution.evidence_url} target="_blank" rel="noreferrer">View producer evidence</a>}
+        {open && <button className="secondary" disabled={data.busy} onClick={()=>void data.acceptBounty(bounty.id,solution.id)}><Check size={13} /> Accept & publish</button>}
+      </section>)}</div>}
+      {open && <button className="secondary" disabled={data.busy} onClick={()=>setSubmitting(!submitting)}><Plus size={13} />{submitting?'Close':'Build for this bounty'}</button>}
+      {submitting && open && <ProducerForm bounty={bounty} data={data} />}
+    </div>}
   </article>;
 }
 
@@ -71,7 +78,7 @@ export default function BountyBoard({ data }: {data:RoboMarket}) {
   const shown=data.bounties.filter(b=>filter==='all'||b.status===filter);
   return <div className="page bounty-page enter">
     <div className="page-heading"><div><h1>Bounties</h1></div><button className="secondary" onClick={()=>setCreating(!creating)}><Plus size={14} /> Post a bounty</button></div>
-    <div className="bounty-overview glass-quiet"><span><strong>{data.bounties.filter(b=>b.status==='open'||b.status==='review').length}</strong> active requests</span><span><strong>{data.bounties.filter(b=>b.status==='fulfilled').length}</strong> fulfilled</span><p>Scout automatically posts missing-capability requests when enabled in the mission composer. Budget or latency failures do not create bounties.</p></div>
+    <div className="bounty-overview glass-quiet"><span><strong>{data.bounties.filter(b=>b.status==='open'||b.status==='review').length}</strong> active requests</span><span><strong>{data.bounties.filter(b=>b.status==='fulfilled').length}</strong> fulfilled</span></div>
     {creating && <form className="bounty-form bounty-create glass" onSubmit={async e=>{
       e.preventDefault(); const task_type=title.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'').slice(0,60); 
       if(await data.postBounty({title,description,task_type:/^[a-z]/.test(task_type)?task_type:'custom_'+task_type,object_name:object.trim().toLowerCase()||null,success_criteria:criteria,reward_ausd:reward,execution_mode:mode})) {setCreating(false);setTitle('');setDescription('');}
