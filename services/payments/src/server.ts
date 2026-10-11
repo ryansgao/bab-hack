@@ -5,6 +5,7 @@ import { type Address, type Hex } from 'viem';
 import { decodePaymentSignatureHeader, encodePaymentRequiredHeader, encodePaymentResponseHeader } from '@x402/core/http';
 import { Ledger, units, money, fingerprint, type Policy } from './ledger.js';
 import { chain, missing, requirements, challenge, payoutAddress, transfer, AUSD, abi, type Chain } from './chain.js';
+import { checkOnChain, recordOnChain, policyStatus, policyChainEnabled } from './policy-chain.js';
 
 const app = express();
 app.use(express.json({limit:'12mb'}));
@@ -118,14 +119,20 @@ function cachedResponse(id: string, res: express.Response) {
   if (row.status !== 'reserved') { res.status(409).json({payment:ledger.receipt(row),error:{code:'RECONCILIATION_REQUIRED',message:row.error || `Request is ${row.status}; do not buy again`}}); return true; }
   return false;
 }
-app.get('/health', (_req,res)=>res.json({mode:'testnet',ready:missing().length===0,missing:missing(),asset:AUSD}));
+app.get('/health', (_req,res)=>res.json({mode:'testnet',ready:missing().length===0,missing:missing(),asset:AUSD,policy_chain:policyChainEnabled()}));
+// The dashboard polls /wallet; the BNB policy contract is read at most every 20 seconds.
+let policyCache: { at: number; value: Awaited<ReturnType<typeof policyStatus>> } | undefined;
+async function policyChain() {
+  if (!policyCache || Date.now() - policyCache.at > 20_000) policyCache = { at: Date.now(), value: await policyStatus() };
+  return policyCache.value;
+}
 app.get('/wallet',requireKey,async (_req,res)=>{
   let address=null, balance=null, setupError=null, ownerAddress=null, treasury=null;
   try { const c=await chain(); address=c.robot.address; balance=money(await balanceOf(c,address));
     if(c.owner){ ownerAddress=c.owner.address; treasury=money(await balanceOf(c,c.owner.address)); } }
   catch { setupError=missing().length ? `Missing ${missing().join(', ')}` : 'RPC or token validation failed'; }
   res.json({robot_id:'robot_001',wallet_address:address,balance_ausd:balance,mode:'testnet',setup_error:setupError,
-    custody:ownerAddress?'mission_float':'robot_holds_balance',owner_address:ownerAddress,owner_treasury_ausd:treasury,
+    custody:ownerAddress?'mission_float':'robot_holds_balance',owner_address:ownerAddress,owner_treasury_ausd:treasury,policy_chain:await policyChain(),
     session_used_ausd:money(ledger.used()),remaining_allowance_ausd:money(Math.max(0,policy.maxSession-ledger.used())),
     allowance:{max_per_request_ausd:money(policy.maxCall),max_per_task_ausd:money(policy.maxTask),max_session_ausd:money(policy.maxSession),max_daily_ausd:money(policy.maxDaily),approved_vendors:policy.vendors}});
 });
@@ -165,6 +172,10 @@ app.post('/purchase',requireKey,async(req,res)=>{
   const c=await chain(); // Fail before reservation if setup is incomplete.
   const payTo=payoutAddress(model.provider_id,model.payout_address);
   const amount=units(model.price_ausd), task=body.request_id.split('_')[0];
+  // The owner's policy also lives in a contract on BNB chain. A refusal from it blocks the purchase.
+  // An unreachable chain does not: the Allowance below enforces the same limits locally.
+  const verdict=await checkOnChain(body.robot_id,task,model.provider_id,amount);
+  if(verdict && !verdict.ok)throw new Error(`BNB policy refused the purchase: ${verdict.reason}`);
   const release=c.owner?await holdFloat(c,task,model.provider_id,amount):()=>{};
   try {
   const balance=await c.publicClient.readContract({address:AUSD,abi,functionName:'balanceOf',args:[c.robot.address]});
@@ -237,6 +248,9 @@ app.post('/api/inference/:modelId',requireKey,async(req,res)=>{
     const receipt=await c.publicClient.waitForTransactionReceipt({hash:settled.transaction as Hex,confirmations:1,timeout:60_000});
     if(receipt.status!=='success')throw new Error('Onchain transaction reverted');
     ledger.update(body.request_id,'settled',settled.transaction);
+    // Tamper-evident receipt on BNB chain. Not awaited: a second chain must not delay the robot.
+    void recordOnChain({robotId:body.robot_id,task:row.task,vendorId:row.vendor,requestId:body.request_id,amount:row.amount,settlementTx:settled.transaction as Hex})
+      .then(audit=>{ if(audit){ ledger.setAudit(body.request_id,audit); policyCache=undefined; } });
     res.set('PAYMENT-RESPONSE',encodePaymentResponseHeader(settled));
     try {
       const inference=await fetch(`${process.env.MODEL_URL || 'http://127.0.0.1:8001'}/internal/inference`,{method:'POST',headers:serviceHeaders(),body:JSON.stringify(body),signal:AbortSignal.timeout(90_000)});

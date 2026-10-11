@@ -1,0 +1,470 @@
+{
+  "abi": [
+    {
+      "inputs": [],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "robot",
+          "type": "bytes32"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "operator",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "maxPerCall",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "maxPerTask",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "maxPerDay",
+          "type": "uint256"
+        }
+      ],
+      "name": "PolicySet",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "robot",
+          "type": "bytes32"
+        },
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "task",
+          "type": "bytes32"
+        },
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "requestId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "string",
+          "name": "vendorId",
+          "type": "string"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes32",
+          "name": "settlementTx",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "settlementChainId",
+          "type": "uint256"
+        }
+      ],
+      "name": "ReceiptRecorded",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "robot",
+          "type": "bytes32"
+        },
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "vendorHash",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "string",
+          "name": "vendorId",
+          "type": "string"
+        },
+        {
+          "indexed": false,
+          "internalType": "bool",
+          "name": "allowed",
+          "type": "bool"
+        }
+      ],
+      "name": "VendorSet",
+      "type": "event"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "robot",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "task",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "string",
+          "name": "vendorId",
+          "type": "string"
+        },
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "check",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "ok",
+          "type": "bool"
+        },
+        {
+          "internalType": "string",
+          "name": "reason",
+          "type": "string"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "owner",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "name": "policies",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "operator",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "maxPerCall",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "maxPerTask",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "maxPerDay",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bool",
+          "name": "active",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "receiptCount",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "name": "receipts",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "robot",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "task",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "vendorHash",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "settlementTx",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint256",
+          "name": "settlementChainId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "timestamp",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "robot",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "task",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "string",
+          "name": "vendorId",
+          "type": "string"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "requestId",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "settlementTx",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint256",
+          "name": "settlementChainId",
+          "type": "uint256"
+        }
+      ],
+      "name": "record",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "robot",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "address",
+          "name": "operator",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "maxPerCall",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "maxPerTask",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "maxPerDay",
+          "type": "uint256"
+        }
+      ],
+      "name": "setPolicy",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "robot",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "string[]",
+          "name": "vendorIds",
+          "type": "string[]"
+        },
+        {
+          "internalType": "bool",
+          "name": "allowed",
+          "type": "bool"
+        }
+      ],
+      "name": "setVendors",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "name": "spentByDay",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "name": "spentByTask",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "name": "totalSpent",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "name": "vendorAllowed",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x60a0604052348015600f57600080fd5b5033608052608051610e8661003d60003960008181610179015281816105bc01526107350152610e866000f3fe608060405234801561001057600080fd5b50600436106100b45760003560e01c80638da5cb5b116100715780638da5cb5b14610174578063af5db2d4146101b3578063ca5dbdb8146101f1578063ddbfd8ef14610211578063e09bacbc14610290578063ef6cf04d146102a357600080fd5b80632bc3d1dd146100b95780633d1ba90c146100f757806360ce0bf6146101225780637f038f3c1461013757806383115d95146101405780638d891d4914610153575b600080fd5b6100e46100c7366004610a34565b600560209081526000928352604080842090915290825290205481565b6040519081526020015b60405180910390f35b6100e4610105366004610a34565b600460209081526000928352604080842090915290825290205481565b610135610130366004610a9f565b610328565b005b6100e460005481565b61013561014e366004610b15565b6105b1565b610166610161366004610b69565b6106f5565b6040516100ee929190610c0a565b61019b7f000000000000000000000000000000000000000000000000000000000000000081565b6040516001600160a01b0390911681526020016100ee565b6101e16101c1366004610a34565b600260209081526000928352604080842090915290825290205460ff1681565b60405190151581526020016100ee565b6100e46101ff366004610c2d565b60066020526000908152604090205481565b61025c61021f366004610c2d565b6001602081905260009182526040909120805491810154600282015460038301546004909301546001600160a01b03909416939192909160ff1685565b604080516001600160a01b03909616865260208601949094529284019190915260608301521515608082015260a0016100ee565b61013561029e366004610c46565b61072a565b6102f36102b1366004610c2d565b60036020528060005260406000206000915090508060000154908060010154908060020154908060030154908060040154908060050154908060060154905087565b604080519788526020880196909652948601939093526060850191909152608084015260a083015260c082015260e0016100ee565b6000888152600160205260409020546001600160a01b031633146103825760405162461bcd60e51b815260206004820152600c60248201526b3737ba1037b832b930ba37b960a11b60448201526064015b60405180910390fd5b600084815260036020526040902060060154156103d45760405162461bcd60e51b815260206004820152601060248201526f185b1c9958591e481c9958dbdc99195960821b6044820152606401610379565b600086866040516103e6929190610cdf565b604051809103902090506000806103ff8b8b858961086d565b915091508181906104235760405162461bcd60e51b81526004016103799190610cef565b506040518060e001604052808c81526020018b81526020018481526020018781526020018681526020018581526020014281525060036000898152602001908152602001600020600082015181600001556020820151816001015560408201518160020155606082015181600301556080820151816004015560a0820151816005015560c0820151816006015590505085600460008d815260200190815260200160002060008c815260200190815260200160002060008282546104e79190610d1f565b909155505060008b815260056020526040812087916105096201518042610d38565b815260200190815260200160002060008282546105269190610d1f565b909155505060008b81526006602052604081208054889290610549908490610d1f565b909155505060008054908061055d83610d5a565b9190505550868a8c7f50f616ca013c1e223d8c12ff1986a37cf8c3c0697fcbe9ed0c4fa7ae90d540208c8c8b8b8b60405161059c959493929190610d9c565b60405180910390a45050505050505050505050565b336001600160a01b037f000000000000000000000000000000000000000000000000000000000000000016146106155760405162461bcd60e51b81526020600482015260096024820152683737ba1037bbb732b960b91b6044820152606401610379565b6040805160a0810182526001600160a01b0380871680835260208084018881528486018881526060860188815260016080880181815260008f815295829052948990209751885497166001600160a01b0319909716969096178755915194860194909455925160028501559151600384015590516004909201805492151560ff1990931692909217909155905186907fca18d46d967e07d9112c7d232fbdf4aa45be9354fda47a7952bd888ee4c88de8906106e6908790879087909283526020830191909152604082015260600190565b60405180910390a35050505050565b6000606061071c8787878760405161070e929190610cdf565b60405180910390208661086d565b915091509550959350505050565b336001600160a01b037f0000000000000000000000000000000000000000000000000000000000000000161461078e5760405162461bcd60e51b81526020600482015260096024820152683737ba1037bbb732b960b91b6044820152606401610379565b60005b828110156108665760008484838181106107ad576107ad610dcd565b90506020028101906107bf9190610de3565b6040516107cd929190610cdf565b6040805191829003909120600088815260026020908152838220838352905291909120805460ff1916851515179055905080867f09b9b57c6a7da1b19185eb92b3fd36e76e85b2cfad10e5a35609ce239ec147f387878681811061083357610833610dcd565b90506020028101906108459190610de3565b8760405161085593929190610e2a565b60405180910390a350600101610791565b5050505050565b600084815260016020526040812060048101546060919060ff166108b65750506040805180820190915260098152686e6f20706f6c69637960b81b602082015260009150610a2b565b600087815260026020908152604080832088845290915290205460ff1661090b5750506040805180820190915260128152711d995b991bdc881b9bdd08185b1b1bddd95960721b602082015260009150610a2b565b806001015484111561094757505060408051808201909152600e81526d1c195c8b58d85b1b081b1a5b5a5d60921b602082015260009150610a2b565b600281015460008881526004602090815260408083208a8452909152902054610971908690610d1f565b11156109a757505060408051808201909152600e81526d1c195c8b5d185cdac81b1a5b5a5d60921b602082015260009150610a2b565b6003810154600088815260056020526040812086916109c96201518042610d38565b8152602001908152602001600020546109e29190610d1f565b1115610a1557505060408051808201909152600b81526a19185a5b1e481b1a5b5a5d60aa1b602082015260009150610a2b565b5050604080516020810190915260008152600191505b94509492505050565b60008060408385031215610a4757600080fd5b50508035926020909101359150565b60008083601f840112610a6857600080fd5b50813567ffffffffffffffff811115610a8057600080fd5b602083019150836020828501011115610a9857600080fd5b9250929050565b60008060008060008060008060e0898b031215610abb57600080fd5b8835975060208901359650604089013567ffffffffffffffff811115610ae057600080fd5b610aec8b828c01610a56565b999c989b50996060810135986080820135985060a0820135975060c09091013595509350505050565b600080600080600060a08688031215610b2d57600080fd5b8535945060208601356001600160a01b0381168114610b4b57600080fd5b94979496505050506040830135926060810135926080909101359150565b600080600080600060808688031215610b8157600080fd5b8535945060208601359350604086013567ffffffffffffffff811115610ba657600080fd5b610bb288828901610a56565b96999598509660600135949350505050565b6000815180845260005b81811015610bea57602081850181015186830182015201610bce565b506000602082860101526020601f19601f83011685010191505092915050565b8215158152604060208201526000610c256040830184610bc4565b949350505050565b600060208284031215610c3f57600080fd5b5035919050565b60008060008060608587031215610c5c57600080fd5b84359350602085013567ffffffffffffffff811115610c7a57600080fd5b8501601f81018713610c8b57600080fd5b803567ffffffffffffffff811115610ca257600080fd5b8760208260051b8401011115610cb757600080fd5b6020919091019350915060408501358015158114610cd457600080fd5b939692955090935050565b8183823760009101908152919050565b602081526000610d026020830184610bc4565b9392505050565b634e487b7160e01b600052601160045260246000fd5b80820180821115610d3257610d32610d09565b92915050565b600082610d5557634e487b7160e01b600052601260045260246000fd5b500490565b600060018201610d6c57610d6c610d09565b5060010190565b81835281816020850137506000828201602090810191909152601f909101601f19169091010190565b608081526000610db0608083018789610d73565b602083019590955250604081019290925260609091015292915050565b634e487b7160e01b600052603260045260246000fd5b6000808335601e19843603018112610dfa57600080fd5b83018035915067ffffffffffffffff821115610e1557600080fd5b602001915036819003821315610a9857600080fd5b604081526000610e3e604083018587610d73565b9050821515602083015294935050505056fea2646970667358221220111fcb8278c185610f5693d43f21b0bb242d3dd66b4c09b89b6a74561fa3ea6464736f6c63430008250033"
+}

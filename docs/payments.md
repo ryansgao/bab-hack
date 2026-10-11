@@ -53,6 +53,36 @@ address and the treasury.
 Two payment services must not share wallet keys with separate ledgers: each would
 treat the other's floats as excess and return them to the owner.
 
+## Policy and audit trail on BNB chain
+
+Settlement stays in AUSD on Base Sepolia. The owner's permissions and a receipt for
+every payment live in `RoboMarketPolicy` on BSC Testnet
+(`services/payments/contracts/RoboMarketPolicy.sol`):
+
+- The owner sets, per robot, the operator key, the per-call, per-mission and daily
+  limits, and the allowed vendors.
+- Before signing, the payment service calls the contract's `check` view. A refusal
+  (`vendor not allowed`, `per-call limit`, `per-task limit`, `daily limit`) blocks the
+  purchase before any money moves. If BNB chain cannot be reached the purchase is not
+  blocked: the local Allowance enforces the same limits.
+- After settlement the operator calls `record` with the mission, vendor, amount and
+  the Base transaction hash. The contract re-checks the policy, refuses a second
+  receipt for the same request, and keeps running totals per mission and per day.
+  Receipts are not awaited by the purchase; `/transactions` shows
+  `audit_transaction_hash` once the receipt is mined.
+
+The contract holds no funds and cannot stop a transfer by itself; it makes the policy
+and the payment history public and tamper-evident. A payment settled on Base with no
+receipt on BNB chain is the signal that something bypassed the policy.
+
+Deploy: fund the operator address with testnet BNB, run
+`node --env-file=../../.env --import tsx scripts/deploy-policy.ts` from the payments
+folder (it reads the same limit and vendor settings as the service), and set
+`BNB_POLICY_CONTRACT`. Re-running it with the address set re-applies the limits and
+adds vendors; it does not revoke a vendor. `/wallet` reports the contract under
+`policy_chain`. The compiled artifact is committed (solc 0.8.37, optimizer 200 runs,
+EVM version paris); recompile with those settings if the source changes.
+
 ## Request lifecycle
 
 Scout checks the mission budget, then the wallet atomically reserves spend under
