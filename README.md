@@ -122,4 +122,7 @@ intent; the preview does not certify physical robot motion.
 
 Visual verification: “Find and inspect a coffee mug” produced and completed 16
 fixture-backed subtasks for 0.016 demo credits, with actual AUSD spending at zero.
-The optional preview was checked in the dashboard; no new automated tests added.
+“Sort packages by destination” produced and completed 28 subtasks for 0.028 demo
+credits, placing packages A and B in their shipping zones. The optional preview's
+default-off toggle, target selection, playback and placements were checked in
+the dashboard; no new automated tests added.

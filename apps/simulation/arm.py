@@ -41,7 +41,8 @@ class Arm:
                 self.progress=0
                 self.running=True
                 self.phase='approach'
-                self.reason='Executing paid control output with local force limit'
+                self.reason=('Executing simulated control output with local force limit' if result.source=='simulation'
+                    else 'Executing paid control output with local force limit')
     def tick(self):
         with self.lock:
             if self.running and self.output:
