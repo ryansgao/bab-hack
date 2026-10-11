@@ -1,102 +1,1462 @@
-import React, {useEffect, useState, useRef} from 'react';
-import {createRoot} from 'react-dom/client';
-import {Activity, ArrowDown, ArrowRight, Bot, Box, Check, ChevronRight, CircleDollarSign, Cpu, ExternalLink, Fingerprint, Layers, LoaderCircle, Pause, Play, Plus, Radio, RotateCcw, Search, Settings2, ShieldCheck, Sparkles, Upload, Wallet, X, Zap} from 'lucide-react';
-import './style.css';
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createRoot } from "react-dom/client";
+import {
+  Activity,
+  ArrowDown,
+  ArrowRight,
+  ArrowUp,
+  Bot,
+  Box,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  CircleHelp,
+  Clock3,
+  ExternalLink,
+  Eye,
+  Fingerprint,
+  Hand,
+  ImagePlus,
+  Layers3,
+  LoaderCircle,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
+  Pause,
+  Play,
+  Plus,
+  Search,
+  Settings2,
+  ShieldCheck,
+  Sparkles,
+  Wallet,
+  X,
+  Zap,
+} from "lucide-react";
+import "@fontsource-variable/inter";
+import "@fontsource/instrument-serif/400.css";
+import "@fontsource/instrument-serif/400-italic.css";
+import { ArmScene } from "./components/ArmScene";
+import { useRoboMarket, type RoboMarket } from "./lib/useRoboMarket";
+import {
+  humanize,
+  layerName,
+  money,
+  type Step,
+  type View,
+} from "./lib/types";
+import "./style.css";
 
-type Offer={id:string;name:string;provider_id:string;task_type:string;price_ausd:string;latency_ms:number;latency_source:string;quality:number|null;quality_source:string;kind:string;status:string};
-type Candidate={model:Offer;eligible:boolean;score:number|null;reasons:string[]};
-type Decision={selected_model_id:string|null;risk_score:number;candidates:Candidate[];explanation:string;safe_fallback:boolean};
-type Step={id:string;title:string;task_type:string;status:string;depends_on:string[];decision:Decision|null;requirements:{object_name:string;fragility:number}|null;error:string|null;payment:Receipt|null;result:{summary:string;output:Record<string,unknown>;inference_latency_ms:number;predictions:unknown[]}|null};
-type Plan={request:{task:string;budget_ausd:string;inference_deadline_ms:number;robot_card?:{gripper:string};image_base64?:string};id:string;status:string;subtasks:Step[];explanation:string;spent_ausd:string;estimated_cost_ausd:string};
-type Receipt={request_id:string;model_id:string;amount_ausd:string;status:string;transaction_hash:string|null;explorer_url:string|null;timestamp:string};
-type Arm={phase:string;progress:number;running:boolean;object_name:string;grasp_point_px:number[];output:{force_n:number;speed_mm_s:number}|null;reason:string};
-type WalletState={wallet_address:string|null;balance_ausd:string|null;remaining_allowance_ausd:string;session_used_ausd:string;setup_error:string|null;allowance:{max_per_task_ausd:string;max_per_request_ausd:string;max_daily_ausd:string}};
-const initialArm:Arm={phase:'idle',progress:0,running:false,object_name:'orange',grasp_point_px:[390,220],output:null,reason:'Awaiting purchased shard outputs'};
-const layerName=(s:string)=>({object_detection:'Perception',grasp:'Grasp planning',control:'Force control',path_planning:'Navigation',scene_inspection:'Inspection'}[s]||s);
-const dollars=(n:string|number)=>Number(n).toFixed(3);
-async function api<T>(path:string,body?:unknown):Promise<T>{const res=await fetch('/api'+path,body===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const data=await res.json();if(!res.ok)throw Error(data.error?.message||'Service unavailable');return data;}
-
-function ArmScene({arm}:{arm:Arm}){
- const active=arm.output!==null;
- const progress=arm.progress;
- const targetX=arm.grasp_point_px[0]*.65+90, targetY=arm.grasp_point_px[1]*.43+85;
- const blend=active?Math.min(1,progress*5):0;
- const endX=240+(targetX-240)*blend,endY=180+(targetY-180)*blend-(arm.phase==='lift'||arm.phase==='rotate'?35:0);
- return <svg className="arm-scene" viewBox="0 0 580 355" role="img" aria-label={`Simulated kitchen robot arm, ${arm.phase}`}>
-  <defs><pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#d2dbd0" strokeWidth=".7"/></pattern><linearGradient id="table" x2="0" y2="1"><stop stopColor="#e9eee5"/><stop offset="1" stopColor="#d4ddce"/></linearGradient><linearGradient id="orange" x2=".8" y2="1"><stop stopColor="#ffbc5e"/><stop offset="1" stopColor="#e97823"/></linearGradient></defs>
-  <rect width="580" height="355" fill="#edf1e9"/><rect width="580" height="355" fill="url(#grid)"/>
-  <path d="M70 86 L472 54 L530 244 L119 292 Z" fill="#c1caba"/><path d="M70 78 L472 46 L530 232 L119 280 Z" fill="url(#table)" stroke="#aebbab"/>
-  <path d="M270 98 L449 84 L480 188 L300 205 Z" fill="#d6b791" stroke="#bd9e7a"/><path d="M281 104L441 92M285 113L444 101M290 124L447 111M295 135L450 121M300 147L453 132M306 160L457 146M310 172L459 157M314 185L461 170" stroke="#c7a982" opacity=".5"/>
-  <ellipse cx="369" cy="148" rx="28" ry="13" fill="#b79c75" opacity=".3"/><circle cx="366" cy="129" r="25" fill="url(#orange)"/><path d="M365 107q6-16 19-10q-1 14-19 10" fill="#618156"/><path d="M352 115q-9 6-9 17" fill="none" stroke="#ffd39a" strokeWidth="3" strokeLinecap="round"/>
-  <ellipse cx="433" cy="177" rx="14" ry="6" fill="#b79c75" opacity=".3"/><circle cx="433" cy="168" r="10" fill="#83659b"/><circle cx="430" cy="164" r="3" fill="#bba4cb"/>
-  <ellipse cx="167" cy="259" rx="59" ry="18" fill="#a7b5a2" opacity=".45"/><path d="M134 239v17q30 17 64-1v-18" fill="#647769"/><ellipse cx="166" cy="239" rx="32" ry="13" fill="#899b87"/>
-  <path d={`M166 235 L139 165 L205 110 L${endX} ${endY}`} fill="none" stroke="#45594d" strokeWidth="24" strokeLinecap="round" strokeLinejoin="round"/>
-  <path d={`M166 231 L143 165 L206 114 L${endX} ${endY}`} fill="none" stroke="#d0d9cf" strokeWidth="17" strokeLinecap="round" strokeLinejoin="round"/>
-  {[[166,232],[141,165],[205,112]].map(([x,y],i)=><g key={i}><circle cx={x} cy={y} r="14" fill="#f4f6f1" stroke="#5f7566" strokeWidth="3"/><circle cx={x} cy={y} r="5" fill="#748977"/></g>)}
-  <g transform={`translate(${endX},${endY})`}><rect x="-12" y="-8" width="24" height="19" rx="5" fill="#4a6252"/><path d="M-12 6L-17 24L-6 30M12 6L17 24L6 30" fill="none" stroke="#34483b" strokeWidth="5" strokeLinecap="round"/></g>
-  {active&&<g><circle cx={targetX} cy={targetY} r="19" fill="none" stroke="#3b8060" strokeDasharray="4 3"/><path d={`M${targetX-27} ${targetY}h54M${targetX} ${targetY-27}v54`} stroke="#3b8060" strokeWidth="1"/></g>}
-  <g fontFamily="monospace" fontSize="9" fill="#718170"><text x="24" y="28">CAM 01 / KITCHEN STATION</text><text x="24" y="330">SIMULATED ARM · OUTPUT-DRIVEN MOTION</text><text x="490" y="330">6 DOF</text></g>
-  <g transform="translate(524,30)" stroke="#80917a" strokeWidth="1.4"><path d="M0 22V0M0 22H20"/><text x="-3" y="-6" stroke="none" fill="#80917a" fontSize="10">Y</text><text x="24" y="26" stroke="none" fill="#80917a" fontSize="10">X</text></g>
- </svg>;
+function readableMessage(message: string) {
+  if (/missing.*(ROBOT_PRIVATE_KEY|FACILITATOR_PRIVATE_KEY|PROVIDER_ADDRESS)/i.test(message)) {
+    return "Connect the robot wallet, settlement wallet, and provider recipient to execute a mission.";
+  }
+  return message.replaceAll("configured_estimate", "estimated latency").replaceAll("measured_ema", "measured latency");
 }
-function App(){
- const [tab,setTab]=useState('Mission control'),[task,setTask]=useState('Peel an orange'),[budget,setBudget]=useState('0.05'),[deadline,setDeadline]=useState(3000),[gripper,setGripper]=useState('parallel_jaw');
- const [models,setModels]=useState<Offer[]>([]),[plan,setPlan]=useState<Plan|null>(null),[selected,setSelected]=useState(0),[arm,setArm]=useState(initialArm),[wallet,setWallet]=useState<WalletState|null>(null),[receipts,setReceipts]=useState<Receipt[]>([]);
- const [busy,setBusy]=useState(false),[error,setError]=useState(''),[online,setOnline]=useState(false),[paymentError,setPaymentError]=useState(''),[image,setImage]=useState<string|undefined>(),[imageName,setImageName]=useState('Simulator RGB view'),[filter,setFilter]=useState('all');
- const pending=useRef(false),activePlan=useRef<Plan|null>(null);activePlan.current=plan;
- const reload=async()=>{
-  try{setModels(await api<Offer[]>('/marketplace/models'));setOnline(true)}catch{setOnline(false)}
-  try{setWallet(await api<WalletState>('/wallet/robot_001'));setReceipts(await api<Receipt[]>('/transactions'));setPaymentError('')}catch(e){setPaymentError((e as Error).message)}
- };
- useEffect(()=>{const saved=localStorage.getItem('robomarket-plan');if(saved)void api<Plan>('/agent/plans/'+saved).then(restored=>{setPlan(restored);setTask(restored.request.task);setBudget(restored.request.budget_ausd);setDeadline(restored.request.inference_deadline_ms);setGripper(restored.request.robot_card?.gripper||'parallel_jaw');if(restored.request.image_base64){setImage(restored.request.image_base64);setImageName('Saved task observation')}}).catch(()=>localStorage.removeItem('robomarket-plan'));void reload();void api<Arm>('/arm').then(setArm).catch(()=>{});const id=setInterval(()=>void reload(),12000);return()=>clearInterval(id)},[]);
- useEffect(()=>{const id=setInterval(async()=>{
-  if(pending.current)return;pending.current=true;
-  try{
-   const state=await api<Arm>('/arm/control',{action:'tick'});setArm(state);
-   const current=activePlan.current;
-   if(current?.status==='waiting_for_motion'&&state.phase==='complete')setPlan(await api<Plan>('/agent/execute',{plan_id:current.id}));
-  }catch{/* Main connection state comes from health polling. */}finally{pending.current=false}
- },500);return()=>clearInterval(id)},[]);
- useEffect(()=>{if(plan)localStorage.setItem('robomarket-plan',plan.id)},[plan]);
- const createPlan=async()=>{setBusy(true);setError('');try{const result=await api<Plan>('/agent/plan',{task,budget_ausd:budget,inference_deadline_ms:deadline,robot_card:{robot_id:'robot_001',embodiment:'6dof_arm',dof:6,gripper,max_payload_kg:1.5,sensors:['rgb','depth','wrist_force'],onboard_compute:'jetson_orin'},...(image?{image_base64:image}:{})});setPlan(result);setSelected(0);setTab('Mission control')}catch(e){setError((e as Error).message)}finally{setBusy(false)}};
- const execute=async()=>{if(!plan)return;setBusy(true);setError('');try{setPlan(await api<Plan>('/agent/execute',{plan_id:plan.id}));setArm(await api<Arm>('/arm'));void reload()}catch(e){setError((e as Error).message)}finally{setBusy(false)}};
- const reset=async()=>{try{if(plan&&plan.status!=='completed')await api('/agent/cancel',{plan_id:plan.id});localStorage.removeItem('robomarket-plan');setArm(await api<Arm>('/arm/control',{action:'reset'}));setPlan(null);setError('')}catch(e){setError((e as Error).message)}};
- const step=plan?.subtasks[selected];const decision=step?.decision;
- const candidates=decision?.candidates.filter(c=>c.model.task_type===step?.task_type)||[];
- const completed=plan?.subtasks.filter(s=>s.status==='completed').length||0;
- const upload=async(file:File)=>{if(file.size>5_000_000){setError('Choose an image under 5 MB');return;}const reader=new FileReader();reader.onload=()=>{setImage((reader.result as string).split(',')[1]);setImageName(file.name)};reader.readAsDataURL(file)};
- return <div className="app-shell">
-  <aside className="sidebar"><a className="brand" href="/" aria-label="RoboMarket home"><div className="brand-icon"><Layers size={23}/></div><span>robo<span className="light">market</span><small>INTELLIGENCE, ON DEMAND</small></span></a>
-   <div className="workspace-label">WORKSPACE <span>01</span></div><nav>{[{name:'Mission control',icon:Activity},{name:'Marketplace',icon:Box},{name:'Transactions',icon:CircleDollarSign}].map(({name,icon:Icon})=><button key={name} className={tab===name?'nav-item active':'nav-item'} onClick={()=>setTab(name)}><Icon size={18}/>{name}{tab===name&&<span className="nav-dot"/>}</button>)}</nav>
-   <div className="sidebar-note"><div className="tiny-label">THE ROBOT ECONOMY</div><p>Every task.<br/>The right intelligence.</p><div className="shard-mini"><Box size={17}/><span>Discover</span><ChevronRight size={12}/><span>Buy</span><ChevronRight size={12}/><span>Act</span></div></div>
-   <div className="sidebar-bottom"><div className="network-dot"/><span>Base Sepolia<small>AUSD testnet payments</small></span><ExternalLink size={13}/></div>
-  </aside>
-  <main><header className="topbar"><div className="breadcrumb">Workspace <ChevronRight size={13}/> <strong>{tab}</strong></div><div className="top-actions"><span className={'connection '+(online?'connected':'') }><i/>{online?'Backend connected':'Backend offline'}</span><span className="avatar">RM</span></div></header>
-   <div className="content"><div className="page-heading"><div><div className="eyebrow">AUTONOMOUS SKILL MARKETPLACE</div><h1>{tab==='Mission control'?'A task. A plan. The right shards.':tab==='Marketplace'?'Intelligence, by the layer.':'Every purchase, accounted for.'}</h1><p>{tab==='Mission control'?'Give your robot a goal. Scout finds and purchases the expertise to do it.':tab==='Marketplace'?'Discover specialized capabilities from independent vendors.':'Verified AUSD settlements and your programmable spending policy.'}</p></div><span className="pill outline"><Radio size={13}/> LAB / 001</span></div>
-   {error&&<div className="alert" role="alert"><span>{error}</span><button aria-label="Dismiss error" onClick={()=>setError('')}><X size={16}/></button></div>}
-   {tab==='Mission control'&&<>
-    <section className="mission-composer"><div className="composer-icon"><Sparkles size={20}/></div><div className="task-entry"><label htmlFor="mission">WHAT SHOULD YOUR ROBOT DO?</label><input id="mission" value={task} onChange={e=>setTask(e.target.value)} onKeyDown={e=>e.key==='Enter'&&void createPlan()}/><div className="suggestions"><span>Try a task</span>{['Peel an orange','Peel a grape','Inspect 2 oranges and a grape'].map(t=><button key={t} onClick={()=>setTask(t)}>{t}<ArrowRight size={10}/></button>)}</div></div><div className="composer-limits"><label htmlFor="budget">Task budget <span>AUSD</span></label><input id="budget" type="number" min="0" step="0.01" value={budget} onChange={e=>setBudget(e.target.value)}/></div><button className="primary" disabled={busy||!online||plan?.status==='waiting_for_motion'||plan?.status==='running'} onClick={()=>void createPlan()}>{busy?<LoaderCircle size={16} className="spin"/>:<Sparkles size={16}/>}Build plan<ArrowRight size={15}/></button></section>
-    <div className="control-grid">
-     <section className="panel simulation-panel"><div className="panel-title"><div><span className="section-no">01</span><h2>Robot workspace</h2></div><span className="pill muted"><span className="small-dot"/> SIMULATION</span></div><ArmScene arm={arm}/><div className="sim-toolbar"><span><i className={arm.running?'live-dot':'idle-dot'}/>{arm.phase==='idle'?'Ready for a mission':arm.phase.replaceAll('_',' ')}</span><div><button className="icon-button" disabled={busy} aria-label={arm.running?'Pause arm':'Resume arm'} onClick={()=>void api<Arm>('/arm/control',{action:arm.running?'pause':'start'}).then(setArm).catch(e=>setError(e.message))}>{arm.running?<Pause size={15}/>:<Play size={15}/>}</button><button className="icon-button" disabled={busy} aria-label="Reset arm" onClick={()=>void reset()}><RotateCcw size={15}/></button></div></div>
-      <div className="robot-card"><div className="robot-card-title"><span className="robot-avatar"><Bot size={22}/></span><div><h3>Kitchen arm <span>ARM–01</span></h3><p>6 degrees of freedom · 1.5 kg payload</p></div><Fingerprint size={18}/></div><div className="spec-grid"><div><span>GRIPPER</span><select aria-label="Robot gripper" value={gripper} onChange={e=>setGripper(e.target.value)}><option value="parallel_jaw">Parallel jaw</option><option value="suction">Suction</option></select></div><div><span>COMPUTE</span><strong>Jetson Orin</strong></div><div><span>SENSORS</span><strong>RGB · Depth · Force</strong></div><div><span>CONTROL OUTPUT</span><strong>{arm.output?`${arm.output.force_n.toFixed(2)} N · ${arm.output.speed_mm_s} mm/s`:'Awaiting inference'}</strong></div></div></div>
-      <div className="image-source"><Upload size={15}/><div><strong>{imageName}</strong><span>{image?'User-provided observation; no camera calibration':'Synthetic view · detector performance unvalidated'}</span></div><label className="text-button">Upload<input type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>e.target.files?.[0]&&void upload(e.target.files[0])}/></label></div><p className="small-note">Handling is simulated. Skin removal and material mechanics are not modeled.</p>
-     </section>
-     <section className="panel plan-panel"><div className="panel-title"><div><span className="section-no">02</span><h2>Scout’s task plan</h2></div><span className="pill muted">{plan?`${plan.subtasks.length} SHARDS`:'NO PLAN'}</span></div>
-      <div className="scout-intro"><span className="scout-icon"><Sparkles size={18}/></span><div><strong>{plan?'One goal, specialized expertise.':'Your mission starts here.'}</strong><p>{plan?'Vendor quotes each layer. Scout checks compatibility, risk, and the whole task budget.':'Build a plan to see your task become individually purchasable subtasks.'}</p></div></div>
-      <div className="steps">{plan?plan.subtasks.map((s,i)=><React.Fragment key={s.id}><button className={'step '+(i===selected?'selected ':'')+(s.status==='blocked'?'blocked':'')} onClick={()=>setSelected(i)}><span className={'step-number '+(s.status==='completed'?'done':'')}>{s.status==='completed'?<Check size={14}/>:String(i+1).padStart(2,'0')}</span><div><span className="step-layer">{layerName(s.task_type)}</span><strong>{s.requirements?.object_name?`${s.requirements.object_name[0].toUpperCase()+s.requirements.object_name.slice(1)} · `:''}{s.decision?.selected_model_id?models.find(m=>m.id===s.decision?.selected_model_id)?.name||s.decision.selected_model_id:'No eligible shard'}</strong><small>{s.error||s.status.replaceAll('_',' ')}</small></div><span className="step-price">{s.decision?.selected_model_id?dollars(models.find(m=>m.id===s.decision?.selected_model_id)?.price_ausd||0):'—'}<small>AUSD</small></span></button>{i<plan.subtasks.length-1&&<div className="step-link"><ArrowDown size={12}/><span>output → input</span></div>}</React.Fragment>):<div className="empty-plan"><Layers size={32}/><strong>Small skills. Bigger possibilities.</strong><p>Perception, grasp, control—and as many steps as the task needs.</p></div>}</div>
-      {plan?.status==='blocked'&&<div className="blocked-reason" role="status">{plan.subtasks.find(s=>s.error)?.error||plan.explanation}</div>}<div className="plan-footer"><div><span>Estimated task cost</span><strong>{plan?dollars(plan.estimated_cost_ausd):'0.000'} <small>AUSD</small></strong></div><button className="primary" disabled={!plan||busy||plan.status!=='planned'} onClick={()=>void execute()}>{busy?<LoaderCircle size={15} className="spin"/>:<Play size={14}/>}Execute plan</button></div>{plan&&<div className="plan-status"><span>{completed}/{plan.subtasks.length} completed</span><strong>{plan.status.replaceAll('_',' ')}</strong><div className="progress"><i style={{width:`${completed/plan.subtasks.length*100}%`}}/></div></div>}
-     </section>
-     <div className="right-column"><section className="panel wallet-panel"><div className="panel-title"><div><Wallet size={17}/><h2>Scout wallet</h2></div><span className="pill mint">AUSD</span></div><div className="wallet-balance"><span>ONCHAIN BALANCE</span><strong>{wallet?.balance_ausd?Number(wallet.balance_ausd).toFixed(3):'—'}<small>AUSD</small></strong><div className="wallet-address">{wallet?.wallet_address?`${wallet.wallet_address.slice(0,8)}…${wallet.wallet_address.slice(-5)}`:'Wallet not configured'}</div></div><div className="allowance"><div><ShieldCheck size={16}/><strong>Allowance</strong><span>{wallet&&!paymentError?'ENFORCED':'OFFLINE'}</span></div><dl><dt>Per call</dt><dd>{wallet?.allowance.max_per_request_ausd||'—'} AUSD</dd><dt>Per task</dt><dd>{wallet?.allowance.max_per_task_ausd||'—'} AUSD</dd><dt>Session remaining</dt><dd>{wallet?.remaining_allowance_ausd||'—'} AUSD</dd></dl></div>{(paymentError||wallet?.setup_error)&&<div className="setup-note"><span className="amber-dot"/><p>Testnet setup needed<small>{wallet?.setup_error||'Payment service is offline. Start it to connect the wallet.'}</small></p></div>}</section>
-      <section className="panel reasoning-panel"><div className="panel-title"><div><Cpu size={17}/><h2>Decision context</h2></div><span className="tiny-tag">SCOUT</span></div><div className="risk-row"><span>Task / environmental risk</span><strong>{decision?`${Math.round(decision.risk_score*100)}%`:'—'}</strong></div><div className="risk-track"><i style={{width:`${(decision?.risk_score||0)*100}%`}}/></div><p className="reasoning">{decision?.explanation||'Scout will compare the available shards against your Robot Card and task requirements.'}</p><div className="deadline"><label htmlFor="deadline"><Settings2 size={13}/> Inference deadline</label><select id="deadline" value={deadline} onChange={e=>setDeadline(Number(e.target.value))}>{[100,800,3000,10000,30000].map(n=><option key={n} value={n}>{n} ms</option>)}</select></div><p className="small-note">Applies to new plans. Chain settlement is outside the inference deadline.</p></section></div>
+
+const LayerIcon = ({ type, size = 18 }: { type: string; size?: number }) => {
+  const Icon =
+    type === "object_detection"
+      ? Eye
+      : type === "grasp"
+        ? Hand
+        : type === "control"
+          ? Activity
+          : type === "path_planning"
+            ? ArrowRight
+            : Layers3;
+  return <Icon size={size} strokeWidth={1.7} />;
+};
+function BrandMark({ small = false }: { small?: boolean }) {
+  return (
+    <span className={"brand-mark " + (small ? "small" : "")} aria-hidden="true">
+      <Layers3 size={small ? 16 : 19} strokeWidth={1.5} />
+    </span>
+  );
+}
+function IconButton({
+  label,
+  onClick,
+  children,
+  disabled = false,
+}: {
+  label: string;
+  onClick: () => void;
+  children: ReactNode;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      className="icon-button"
+      type="button"
+      title={label}
+      aria-label={label}
+      onClick={onClick}
+      disabled={disabled}
+    >
+      {children}
+    </button>
+  );
+}
+function Status({ value }: { value: string }) {
+  return (
+    <span className={"status status-" + value}>
+      <i />
+      {humanize(value)}
+    </span>
+  );
+}
+function EmptyState({
+  icon,
+  title,
+  children,
+}: {
+  icon: ReactNode;
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="empty-state">
+      <span className="empty-icon">{icon}</span>
+      <h3>{title}</h3>
+      <p>{children}</p>
     </div>
-    <section className="panel comparison-panel"><div className="panel-title"><div><span className="section-no">03</span><h2>Why this shard?</h2><span className="comparison-label">{step?layerName(step.task_type):'Candidate comparison'}</span></div><span className="tiny-tag">LOWER SCORE IS BETTER</span></div><div className="table-wrap"><table><thead><tr><th>SHARD / VENDOR</th><th>PRICE / CALL</th><th>LATENCY</th><th>QUALITY</th><th>SCORE</th><th>SCOUT’S DECISION</th></tr></thead><tbody>{candidates.length?candidates.map(c=><tr key={c.model.id} className={decision?.selected_model_id===c.model.id?'chosen':''}><td><strong>{c.model.name}</strong><small>{c.model.provider_id}</small></td><td>{dollars(c.model.price_ausd)} <small className="inline">AUSD</small></td><td>{c.model.latency_ms.toFixed(0)} ms<small>{c.model.latency_source==='measured_ema'?'measured EMA':'startup estimate'}</small></td><td>{c.model.quality===null?'Not benchmarked':`${(c.model.quality*100).toFixed(0)}%`}<small>{c.model.quality_source.replaceAll('_',' ')}</small></td><td>{c.score?.toFixed(3)||'—'}</td><td><span className={'decision-chip '+(decision?.selected_model_id===c.model.id?'won':c.eligible?'':'rejected')}>{decision?.selected_model_id===c.model.id?<Check size={12}/>:c.eligible?<ChevronRight size={12}/>:<X size={12}/>} {decision?.selected_model_id===c.model.id?'Selected':c.eligible?'Alternative':'Excluded'}</span><small className="reason-detail">{c.reasons.join('. ')}</small></td></tr>):<tr><td colSpan={6} className="table-empty">Build a plan, then select a subtask to compare its candidate shards.</td></tr>}</tbody></table></div></section>
-    {step?.result&&<section className="panel result-panel"><div className="panel-title"><div><Cpu size={17}/><h2>Purchased shard output</h2></div><span className="tiny-tag">{step.result.inference_latency_ms.toFixed(1)} MS MEASURED</span></div><p>{step.result.summary}</p><pre>{JSON.stringify(step.result.output&&Object.keys(step.result.output).length?step.result.output:step.result.predictions,null,2)}</pre>{step.payment?.explorer_url&&<a href={step.payment.explorer_url} target="_blank" rel="noreferrer">View verified payment <ExternalLink size={12}/></a>}</section>}{plan&&<details className="method-note"><summary>How Scout built this plan</summary><p>{plan.explanation}</p><p>Requirements parser: documented grammar fallback. Grasp and control: analytic heuristics. Detector confidence is not measured accuracy.</p></details>}
-   </>}
-   {tab==='Marketplace'&&<><div className="market-filters">{['all','object_detection','grasp','control','path_planning','scene_inspection'].map(f=><button key={f} className={filter===f?'active':''} onClick={()=>setFilter(f)}>{f==='all'?'All shards':layerName(f)}</button>)}</div><div className="market-grid">{models.filter(m=>filter==='all'||m.task_type===filter).map(m=><article className="panel market-card" key={m.id}><div className="market-card-icon"><Box size={25}/><span className="pill muted">{m.kind==='algorithm'?'HEURISTIC / ALGORITHM':'PRETRAINED MODEL'}</span></div><span className="eyebrow">{layerName(m.task_type)}</span><h2>{m.name}</h2><p>{m.provider_id}</p><div className="market-price">{dollars(m.price_ausd)} <small>AUSD / call</small></div><dl><dt>Latency</dt><dd>{m.latency_ms.toFixed(0)} ms · {m.latency_source==='measured_ema'?'measured':'estimate'}</dd><dt>Quality</dt><dd>{m.quality===null?'Not benchmarked':m.quality_source.replaceAll('_',' ')}</dd><dt>Registry status</dt><dd>{m.status}</dd></dl><p className="small-note">Availability is provider-declared. Runtime readiness is checked on execution.</p></article>)}</div></>}
-   {tab==='Transactions'&&<section className="panel"><div className="panel-title"><div><ShieldCheck size={18}/><h2>Payment ledger</h2></div><span className="pill mint">BASE SEPOLIA</span></div><div className="table-wrap"><table><thead><tr><th>SHARD</th><th>AMOUNT</th><th>STATUS</th><th>TRANSACTION</th><th>TIME (UTC)</th></tr></thead><tbody>{receipts.length?receipts.map(r=><tr key={r.request_id}><td>{r.model_id}</td><td>{r.amount_ausd} AUSD</td><td>{r.status}</td><td>{r.explorer_url?<a href={r.explorer_url} target="_blank" rel="noreferrer">{r.transaction_hash?.slice(0,12)}… <ExternalLink size={12}/></a>:'No confirmed receipt'}</td><td>{r.timestamp}</td></tr>):<tr><td colSpan={5}><div className="empty-plan"><Wallet size={32}/><strong>No purchases recorded</strong><p>{paymentError||'Execute a plan with funded testnet wallets to see verified payments here.'}</p></div></td></tr>}</tbody></table></div></section>}
-   <footer><span><Layers size={13}/> RoboMarket <span className="footer-divider">/</span> Mixture of Merchants</span><span>Robot-aware. Budget-aware. Explainable.</span></footer>
-   </div>
-  </main>
- </div>
+  );
 }
-createRoot(document.getElementById('root')!).render(<App/>);
+function Background() {
+  return (
+    <div className="ambient" aria-hidden="true">
+      <div className="ambient-color" />
+      <div className="ambient-landscape" />
+      <div className="ambient-light" />
+      <div className="ambient-wash" />
+    </div>
+  );
+}
+
+function RobotCard({
+  data,
+  compact = false,
+}: {
+  data: RoboMarket;
+  compact?: boolean;
+}) {
+  const { arm, busy, plan } = data;
+  return (
+    <section className={"glass robot-card " + (compact ? "compact" : "")}>
+      <div className="panel-heading">
+        <span className="eyebrow">Kitchen station</span>
+        <Status
+          value={
+            arm.running
+              ? "running"
+              : arm.phase === "complete"
+                ? "completed"
+                : "idle"
+          }
+        />
+      </div>
+      <div className="scene-wrap">
+        <ArmScene arm={arm} />
+      </div>
+      <div className="robot-card-body">
+        <div className="robot-title">
+          <span className="soft-icon">
+            <Bot size={19} />
+          </span>
+          <div>
+            <h3>Scout’s pair of hands</h3>
+            <p>6-axis arm · kitchen workspace</p>
+          </div>
+        </div>
+        <dl className="spec-list">
+          <div>
+            <dt>Gripper</dt>
+            <dd>
+              {humanize(plan?.request.robot_card?.gripper || data.gripper)}
+            </dd>
+          </div>
+          <div>
+            <dt>Payload</dt>
+            <dd>1.5 kg</dd>
+          </div>
+          <div>
+            <dt>Senses</dt>
+            <dd>RGB · depth · force</dd>
+          </div>
+          <div>
+            <dt>Compute</dt>
+            <dd>Jetson Orin</dd>
+          </div>
+        </dl>
+        {arm.output && (
+          <div className="motion-readout">
+            <div>
+              <span>Grip force</span>
+              <strong>
+                {arm.output.force_n.toFixed(2)} <small>N</small>
+              </strong>
+            </div>
+            <div>
+              <span>Speed</span>
+              <strong>
+                {arm.output.speed_mm_s} <small>mm/s</small>
+              </strong>
+            </div>
+          </div>
+        )}
+        <div className="robot-caption">
+          <span className="tiny-dot" />
+          {arm.reason}
+        </div>
+        {plan?.status === "waiting_for_motion" && (
+          <button
+            className="secondary full-width"
+            disabled={busy}
+            onClick={() => void data.control(arm.running ? "pause" : "start")}
+          >
+            {arm.running ? <Pause size={14} /> : <Play size={14} />}
+            {arm.running ? "Pause motion" : "Resume motion"}
+          </button>
+        )}
+        <p className="fine-print">
+          Simulated handling. Skin removal and material physics are not modeled.
+        </p>
+      </div>
+    </section>
+  );
+}
+function WalletCard({
+  data,
+  compact = false,
+}: {
+  data: RoboMarket;
+  compact?: boolean;
+}) {
+  const { wallet, paymentError } = data;
+  return (
+    <section className={"glass wallet-card " + (compact ? "compact" : "")}>
+      <div className="panel-heading">
+        <span className="label-with-icon">
+          <Wallet size={16} /> Scout wallet
+        </span>
+        <span className="tag">Base Sepolia</span>
+      </div>
+      <div className="wallet-amount">
+        <span className="eyebrow">Available balance</span>
+        <strong>
+          {wallet?.balance_ausd !== null && wallet?.balance_ausd !== undefined
+            ? money(wallet.balance_ausd)
+            : "—"}{" "}
+          <small>AUSD</small>
+        </strong>
+        <span className="wallet-address">
+          {wallet?.wallet_address
+            ? `${wallet.wallet_address.slice(0, 8)}…${wallet.wallet_address.slice(-6)}`
+            : "Connect a funded testnet wallet to execute."}
+        </span>
+      </div>
+      <div className="allowance-heading">
+        <ShieldCheck size={16} />
+        <strong>Spending allowance</strong>
+        <span className="tiny-dot" />
+      </div>
+      <dl className="spec-list">
+        <div>
+          <dt>Per purchase</dt>
+          <dd>
+            {wallet ? money(wallet.allowance.max_per_request_ausd) : "—"} AUSD
+          </dd>
+        </div>
+        <div>
+          <dt>Per mission</dt>
+          <dd>
+            {wallet ? money(wallet.allowance.max_per_task_ausd) : "—"} AUSD
+          </dd>
+        </div>
+        <div>
+          <dt>Session remaining</dt>
+          <dd>{wallet ? money(wallet.remaining_allowance_ausd) : "—"} AUSD</dd>
+        </div>
+      </dl>
+      {(paymentError || wallet?.setup_error) && (
+        <div className="quiet-notice">
+          <CircleHelp size={15} />
+          <div>
+            <strong>Wallet setup needed</strong>
+            <p>{readableMessage(wallet?.setup_error || paymentError)}</p>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function Composer({
+  data,
+  onPlanned,
+}: {
+  data: RoboMarket;
+  onPlanned: () => void;
+}) {
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const input = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    input.current?.focus();
+  }, []);
+  async function submit() {
+    if (
+      data.task.trim().length >= 3 &&
+      !data.busy &&
+      !data.restoring &&
+      data.online
+    )
+      if (await data.createPlan()) onPlanned();
+  }
+  return (
+    <div className="compose-page enter">
+      <div className="hero-heading">
+        <span className="hero-symbol">
+          <Sparkles size={23} strokeWidth={1.4} />
+        </span>
+        <h1>
+          What should we
+          <br />
+          <em>put in motion?</em>
+        </h1>
+        <p>
+          Give Scout a task. It will find the right expertise,
+          <br className="desktop-break" /> fit it to your robot, and bring the
+          pieces together.
+        </p>
+      </div>
+      <div className="composer glass-raised">
+        <textarea
+          ref={input}
+          rows={2}
+          maxLength={500}
+          aria-label="Mission task"
+          placeholder="Try “peel an orange”…"
+          value={data.task}
+          onChange={(event) => data.setTask(event.target.value)}
+          onKeyDown={(event) => {
+            if (
+              event.key === "Enter" &&
+              !event.shiftKey &&
+              !event.nativeEvent.isComposing
+            ) {
+              event.preventDefault();
+              void submit();
+            }
+          }}
+        />
+        {data.image && (
+          <div className="attachment">
+            <ImagePlus size={14} />
+            <span>{data.imageName}</span>
+            <IconButton label="Remove image" onClick={data.clearImage}>
+              <X size={13} />
+            </IconButton>
+          </div>
+        )}
+        <div className="composer-toolbar">
+          <div className="composer-tools">
+            <label
+              className="icon-button upload-button"
+              title="Attach observation image"
+            >
+              <ImagePlus size={18} />
+              <span className="sr-only">Attach observation image</span>
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) void data.upload(file);
+                  event.target.value = "";
+                }}
+              />
+            </label>
+            <button
+              type="button"
+              className={"settings-trigger " + (settingsOpen ? "active" : "")}
+              aria-expanded={settingsOpen}
+              aria-controls="mission-settings"
+              onClick={() => setSettingsOpen(!settingsOpen)}
+            >
+              <Settings2 size={15} />
+              <span>Parameters</span>
+            </button>
+          </div>
+          <span className="budget-hint">
+            {money(data.budget || "0")} AUSD limit
+          </span>
+          <button
+            className="send-button"
+            title="Build mission plan"
+            aria-label="Build mission plan"
+            disabled={
+              data.busy ||
+              data.restoring ||
+              !data.online ||
+              data.task.trim().length < 3
+            }
+            onClick={() => void submit()}
+          >
+            {data.busy ? (
+              <LoaderCircle className="spin" size={19} />
+            ) : (
+              <ArrowUp size={20} />
+            )}
+          </button>
+        </div>
+        {settingsOpen && (
+          <div id="mission-settings" className="mission-settings">
+            <label>
+              Mission budget <span>AUSD</span>
+              <input
+                aria-label="Mission budget"
+                type="number"
+                min="0.001"
+                step="0.001"
+                max="99999999"
+                value={data.budget}
+                onChange={(event) => data.setBudget(event.target.value)}
+              />
+            </label>
+            <label>
+              Inference deadline
+              <select
+                aria-label="Inference deadline"
+                value={data.deadline}
+                onChange={(event) =>
+                  data.setDeadline(Number(event.target.value))
+                }
+              >
+                {[100, 800, 3000, 10000, 30000].map((value) => (
+                  <option key={value} value={value}>
+                    {value >= 1000 ? `${value / 1000} seconds` : `${value} ms`}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Gripper
+              <select
+                aria-label="Gripper"
+                value={data.gripper}
+                onChange={(event) => data.setGripper(event.target.value)}
+              >
+                <option value="parallel_jaw">Parallel jaw</option>
+                <option value="suction">Suction</option>
+                <option value="none">None</option>
+              </select>
+            </label>
+            <p>
+              Parameters apply to this plan. Settlement time is separate from
+              inference time.
+            </p>
+          </div>
+        )}
+      </div>
+      <div className="suggestions">
+        <span>A place to start</span>
+        {[
+          "Peel an orange",
+          "Inspect a grape",
+          "Peel 2 oranges and a grape",
+        ].map((task) => (
+          <button
+            key={task}
+            onClick={() => {
+              data.setTask(task);
+              input.current?.focus();
+            }}
+          >
+            {task}
+            <ArrowUp size={12} />
+          </button>
+        ))}
+      </div>
+      <div className="composer-note">
+        <ShieldCheck size={13} />
+        <span>Review the plan and its cost before any purchase.</span>
+      </div>
+    </div>
+  );
+}
+
+function StepDetail({ step }: { step: Step }) {
+  const [detail, setDetail] = useState<"providers" | "output">("providers");
+  const decision = step.decision;
+  const candidates =
+    decision?.candidates.filter(
+      (candidate) => candidate.model.task_type === step.task_type,
+    ) || [];
+  candidates.sort((a, b) => {
+    if (a.model.id === decision?.selected_model_id) return -1;
+    if (b.model.id === decision?.selected_model_id) return 1;
+    return Number(b.eligible) - Number(a.eligible) || (a.score ?? Infinity) - (b.score ?? Infinity);
+  });
+  return (
+    <section className="glass detail-panel">
+      <div className="detail-top">
+        <span className={"layer-icon layer-" + step.task_type}>
+          <LayerIcon type={step.task_type} size={22} />
+        </span>
+        <div>
+          <span className="eyebrow">
+            {step.requirements?.object_name || "Mission capability"}
+          </span>
+          <h2>{layerName(step.task_type)}</h2>
+        </div>
+        <Status value={step.status} />
+      </div>
+      <div className="detail-tabs" role="tablist" aria-label="Shard details">
+        <button
+          role="tab"
+          aria-selected={detail === "providers"}
+          onClick={() => setDetail("providers")}
+        >
+          Provider comparison <span>{candidates.length}</span>
+        </button>
+        <button
+          role="tab"
+          aria-selected={detail === "output"}
+          onClick={() => setDetail("output")}
+        >
+          Purchased output {step.result && <i className="tiny-dot" />}
+        </button>
+      </div>
+      {detail === "providers" ? (
+        <div className="detail-content">
+          <div className="decision-summary">
+            <Sparkles size={16} />
+            <p>{readableMessage(decision?.explanation || "Provider selection is pending.")}</p>
+          </div>
+          <div className="candidate-list">
+            {candidates.map((candidate) => {
+              const chosen = decision?.selected_model_id === candidate.model.id;
+              return (
+                <article
+                  key={candidate.model.id}
+                  className={"candidate " + (chosen ? "chosen" : "")}
+                >
+                  <div className="candidate-heading">
+                    <span className="provider-avatar">
+                      {candidate.model.provider_id[0].toUpperCase()}
+                    </span>
+                    <div>
+                      <h3>{candidate.model.name}</h3>
+                      <span>{humanize(candidate.model.provider_id)}</span>
+                    </div>
+                    <span
+                      className={
+                        "selection-label " +
+                        (chosen
+                          ? "selected"
+                          : !candidate.eligible
+                            ? "excluded"
+                            : "")
+                      }
+                    >
+                      {chosen ? (
+                        <Check size={12} />
+                      ) : !candidate.eligible ? (
+                        <X size={12} />
+                      ) : null}
+                      {chosen
+                        ? "Selected"
+                        : candidate.eligible
+                          ? "Alternative"
+                          : "Excluded"}
+                    </span>
+                  </div>
+                  <div className="candidate-metrics">
+                    <div>
+                      <span>Per call</span>
+                      <strong>
+                        {money(candidate.model.price_ausd)} <small>AUSD</small>
+                      </strong>
+                    </div>
+                    <div>
+                      <span>
+                        {candidate.model.latency_source === "measured_ema"
+                          ? "Measured EMA"
+                          : "Latency estimate"}
+                      </span>
+                      <strong>
+                        {candidate.model.latency_ms.toFixed(0)}{" "}
+                        <small>ms</small>
+                      </strong>
+                    </div>
+                    <div>
+                      <span>Score ↓</span>
+                      <strong>{candidate.score?.toFixed(3) ?? "—"}</strong>
+                    </div>
+                  </div>
+                  <p className="candidate-reasons">
+                    {candidate.reasons.join(". ")}.
+                  </p>
+                </article>
+              );
+            })}
+          </div>
+          <div className="detail-footnote">
+            <ShieldCheck size={13} />
+            Lower scores are preferred. Quality estimates are not benchmarks.
+          </div>
+        </div>
+      ) : (
+        <div className="detail-content">
+          {step.result ? (
+            <>
+              <div className="output-meta">
+                <Status value="completed" />
+                <span>
+                  {step.result.inference_latency_ms.toFixed(1)} ms measured
+                </span>
+              </div>
+              <p className="result-summary">{step.result.summary}</p>
+              <pre className="result-json">
+                {JSON.stringify(
+                  Object.keys(step.result.output).length
+                    ? step.result.output
+                    : step.result.predictions,
+                  null,
+                  2,
+                )}
+              </pre>
+              {step.payment?.explorer_url && (
+                <a
+                  className="text-link"
+                  href={step.payment.explorer_url}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  View verified receipt <ExternalLink size={13} />
+                </a>
+              )}
+            </>
+          ) : (
+            <EmptyState
+              icon={<Box size={26} />}
+              title="Expertise, ready when you are."
+            >
+              Execute this mission to see the purchased result here. Each output
+              becomes the next shard’s input.
+            </EmptyState>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function Mission({ data, onNew }: { data: RoboMarket; onNew: () => void }) {
+  const [selected, setSelected] = useState(0);
+  const detailPanel = useRef<HTMLDivElement>(null);
+  const { plan, busy } = data;
+  useEffect(() => setSelected(0), [plan?.id]);
+  if (!plan) return <Composer data={data} onPlanned={() => setSelected(0)} />;
+  const completed = plan.subtasks.filter(
+    (step) => step.status === "completed",
+  ).length;
+  const step = plan.subtasks[Math.min(selected, plan.subtasks.length - 1)];
+  const blocked = plan.subtasks.find((item) => item.error)?.error;
+  return (
+    <div className="page mission-page enter">
+      <div className="page-heading">
+        <div>
+          <div className="heading-kicker">
+            <Sparkles size={14} /> Your mission, considered.
+          </div>
+          <h1>{plan.request.task}</h1>
+          <p>
+            One goal. {plan.subtasks.length} specialized shards. Every choice
+            explained.
+          </p>
+        </div>
+        <button className="secondary" onClick={onNew} disabled={busy}>
+          <Plus size={15} />
+          New mission
+        </button>
+      </div>
+      <div className="mission-summary glass-quiet">
+        <div>
+          <span className="eyebrow">Mission status</span>
+          <Status value={plan.status} />
+        </div>
+        <div>
+          <span className="eyebrow">Quoted cost</span>
+          <strong>
+            {money(plan.estimated_cost_ausd)} <small>AUSD</small>
+          </strong>
+        </div>
+        <div>
+          <span className="eyebrow">Budget</span>
+          <strong>
+            {money(plan.request.budget_ausd)} <small>AUSD</small>
+          </strong>
+        </div>
+        <div>
+          <span className="eyebrow">Purchased</span>
+          <strong>
+            {completed} <small>/ {plan.subtasks.length} shards</small>
+          </strong>
+        </div>
+        <div className="summary-progress">
+          <span
+            style={{
+              width: `${(completed / Math.max(1, plan.subtasks.length)) * 100}%`,
+            }}
+          />
+        </div>
+      </div>
+      {plan.status === "blocked" && (
+        <div className="mission-alert" role="status">
+          <CircleHelp size={19} />
+          <div>
+            <strong>This mission needs your attention.</strong>
+            <p>{readableMessage(blocked || plan.explanation)}</p>
+          </div>
+        </div>
+      )}
+      {plan.status === "cancelled" && (
+        <div className="mission-alert neutral">
+          <ShieldCheck size={18} />
+          <p>
+            Mission cancelled. Existing purchases and receipts are retained.
+          </p>
+        </div>
+      )}
+      <div className="mission-grid">
+        <section className="plan-column">
+          <div className="section-label">
+            <span>Execution plan</span>
+            <span>{plan.subtasks.length} shards</span>
+          </div>
+          <div className="step-list">
+            {plan.subtasks.map((item, index) => (
+              <div key={item.id}>
+                <button
+                  className={
+                    "step-card glass-quiet " +
+                    (selected === index ? "selected" : "")
+                  }
+                  onClick={() => {
+                    setSelected(index);
+                    if (window.innerWidth <= 1000) detailPanel.current?.scrollIntoView({ block: "start" });
+                  }}
+                  aria-pressed={selected === index}
+                >
+                  <span
+                    className={
+                      "step-number " +
+                      (item.status === "completed" ? "done" : "")
+                    }
+                  >
+                    {item.status === "completed" ? (
+                      <Check size={15} />
+                    ) : (
+                      String(index + 1).padStart(2, "0")
+                    )}
+                  </span>
+                  <span className="step-copy">
+                    <span>
+                      {item.requirements?.object_name || "Robot"} ·{" "}
+                      {layerName(item.task_type)}
+                    </span>
+                    <strong>
+                      {item.decision?.selected_model_id
+                        ? item.decision.candidates.find(
+                            (candidate) =>
+                              candidate.model.id ===
+                              item.decision?.selected_model_id,
+                          )?.model.name
+                        : "No compatible provider"}
+                    </strong>
+                    <small>{humanize(item.status)}</small>
+                  </span>
+                  <ChevronRight size={15} />
+                </button>
+                {index < plan.subtasks.length - 1 && (
+                  <span className="step-connector">
+                    <ArrowDown size={11} />
+                    output → input
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="execution-actions">
+            <button
+              className="primary full-width"
+              disabled={busy || plan.status !== "planned"}
+              onClick={() => void data.execute()}
+            >
+              {busy ? (
+                <LoaderCircle size={15} className="spin" />
+              ) : (
+                <Play size={14} />
+              )}
+              {busy
+                ? "Working on your mission…"
+                : plan.status === "completed"
+                  ? "Mission completed"
+                  : "Execute mission"}
+              {!busy && plan.status === "planned" && (
+                <span>{money(plan.estimated_cost_ausd)} AUSD</span>
+              )}
+            </button>
+            {!["completed", "cancelled"].includes(plan.status) && (
+              <button
+                className="text-button cancel-button"
+                disabled={busy}
+                onClick={() => void data.cancel()}
+              >
+                Cancel mission
+              </button>
+            )}
+            <p className="fine-print">
+              Each shard is purchased separately within your allowance.
+            </p>
+          </div>
+        </section>
+        {step && <div ref={detailPanel}><StepDetail key={step.id + plan.id} step={step} /></div>}
+      </div>
+      <details className="method-note">
+        <summary>
+          <CircleHelp size={14} />
+          How Scout built this plan
+          <ChevronDown size={14} />
+        </summary>
+        <p>{plan.explanation}</p>
+        <p>
+          Task parsing uses a documented grammar. Grasp and control use analytic
+          heuristics. Perception must locate the object before handling can
+          proceed.
+        </p>
+      </details>
+    </div>
+  );
+}
+
+function Marketplace({ data }: { data: RoboMarket }) {
+  const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const shown = data.models.filter(
+    (model) =>
+      (filter === "all" || model.task_type === filter) &&
+      `${model.name} ${model.provider_id} ${model.task_type}`
+        .toLowerCase()
+        .includes(search.toLowerCase()),
+  );
+  return (
+    <div className="page market-page enter">
+      <div className="page-heading">
+        <div>
+          <div className="heading-kicker">
+            <Layers3 size={14} /> The right skill, on demand.
+          </div>
+          <h1>A little more capability.</h1>
+          <p>Specialized expertise for the things your robot needs to do.</p>
+        </div>
+        <span className="count-badge">{data.models.length} expert shards</span>
+      </div>
+      <div className="market-toolbar">
+        <div className="filter-list" aria-label="Filter expertise">
+          {[
+            "all",
+            "object_detection",
+            "grasp",
+            "control",
+            "path_planning",
+            "scene_inspection",
+          ].map((value) => (
+            <button
+              key={value}
+              className={filter === value ? "active" : ""}
+              aria-pressed={filter === value}
+              onClick={() => setFilter(value)}
+            >
+              {value === "all" ? "All expertise" : layerName(value)}
+            </button>
+          ))}
+        </div>
+        <label className="search-input glass-quiet">
+          <Search size={15} />
+          <input
+            aria-label="Search shards"
+            placeholder="Find a skill…"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+        </label>
+      </div>
+      <div className="market-grid">
+        {shown.map((model) => (
+          <article className="glass market-card" key={model.id}>
+            <div className="market-card-top">
+              <span className={"layer-icon layer-" + model.task_type}>
+                <LayerIcon type={model.task_type} size={22} />
+              </span>
+              <span className="tag">
+                {model.kind === "algorithm" ? "Algorithm" : "Pretrained model"}
+              </span>
+            </div>
+            <span className="eyebrow">{layerName(model.task_type)}</span>
+            <h2>{model.name}</h2>
+            <span className="vendor-name">
+              by {humanize(model.provider_id)}
+            </span>
+            <div className="market-card-bottom">
+              <div>
+                <strong>{money(model.price_ausd)}</strong>
+                <span>AUSD / call</span>
+              </div>
+              <span className="latency-label">
+                <Clock3 size={12} />
+                {model.latency_ms.toFixed(0)} ms
+                <small>
+                  {model.latency_source === "measured_ema"
+                    ? "measured EMA"
+                    : "estimate"}
+                </small>
+              </span>
+            </div>
+            <button
+              className="card-details-toggle"
+              aria-expanded={expanded === model.id}
+              onClick={() =>
+                setExpanded(expanded === model.id ? null : model.id)
+              }
+            >
+              Compatibility & details
+              <ChevronDown size={14} />
+            </button>
+            {expanded === model.id && (
+              <div className="offer-details">
+                <dl className="spec-list">
+                  <div>
+                    <dt>Robots</dt>
+                    <dd>{model.embodiments.map(humanize).join(", ")}</dd>
+                  </div>
+                  <div>
+                    <dt>Sensors</dt>
+                    <dd>
+                      {model.required_sensors.map(humanize).join(", ") ||
+                        "None required"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Objects</dt>
+                    <dd>
+                      {model.supported_objects.join(", ") || "Task dependent"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Quality</dt>
+                    <dd>
+                      {model.quality === null
+                        ? "Not benchmarked"
+                        : `${Math.round(model.quality * 100)}% · ${humanize(model.quality_source)}`}
+                    </dd>
+                  </div>
+                </dl>
+                <p className="fine-print">
+                  Availability is provider-declared. Readiness is checked on
+                  execution.
+                </p>
+              </div>
+            )}
+          </article>
+        ))}
+      </div>
+      {!shown.length && (
+        <EmptyState
+          icon={<Search size={26} />}
+          title={
+            data.online === false
+              ? "The marketplace is offline."
+              : "No matching expertise."
+          }
+        >
+          {data.online === false
+            ? "Start the local services, then refresh to load available shards."
+            : "Try another search or choose a different capability."}
+        </EmptyState>
+      )}
+      <p className="market-note">
+        <ShieldCheck size={14} />
+        Scout checks compatibility, task risk, latency, and your budget before
+        selecting a provider.
+      </p>
+    </div>
+  );
+}
+
+function WalletPage({ data }: { data: RoboMarket }) {
+  return (
+    <div className="page enter">
+      <div className="page-heading">
+        <div>
+          <div className="heading-kicker">
+            <ShieldCheck size={14} /> Every purchase, accounted for.
+          </div>
+          <h1>Intelligence has a receipt.</h1>
+          <p>A clear view of what Scout spends, and what it gets in return.</p>
+        </div>
+        <button className="secondary" onClick={() => void data.refresh()}>
+          <Wallet size={14} />
+          Refresh wallet
+        </button>
+      </div>
+      <div className="wallet-layout">
+        <WalletCard data={data} />
+        <section className="glass ledger">
+          <div className="panel-heading">
+            <span className="label-with-icon">
+              <Fingerprint size={17} />
+              Purchase history
+            </span>
+            <span className="tag">{data.receipts.length} receipts</span>
+          </div>
+          {data.receipts.length ? (
+            <div className="receipt-list">
+              {data.receipts.map((receipt) => (
+                <article className="receipt" key={receipt.request_id}>
+                  <span className="soft-icon">
+                    <Box size={17} />
+                  </span>
+                  <div>
+                    <h3>
+                      {data.models.find(
+                        (model) => model.id === receipt.model_id,
+                      )?.name || receipt.model_id}
+                    </h3>
+                    <Status value={receipt.status} />
+                    <small>{receipt.timestamp} UTC</small>
+                  </div>
+                  <div className="receipt-price">
+                    <strong>
+                      {money(receipt.amount_ausd)} <small>AUSD</small>
+                    </strong>
+                    {receipt.explorer_url ? (
+                      <a
+                        href={receipt.explorer_url}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        View receipt <ExternalLink size={12} />
+                      </a>
+                    ) : (
+                      <span>No confirmed receipt</span>
+                    )}
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <EmptyState icon={<Fingerprint size={30} />} title="A clean slate.">
+              Your purchases will appear here, each with its amount, status, and
+              verified onchain receipt when settled.
+            </EmptyState>
+          )}
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  const data = useRoboMarket();
+  const [view, setView] = useState<View>("home");
+  const [navOpen, setNavOpen] = useState(() => window.innerWidth > 760);
+  const [contextOpen, setContextOpen] = useState(false);
+  const restored = useRef(false);
+  const content = useRef<HTMLElement>(null);
+  useEffect(() => {
+    content.current?.scrollTo({ top: 0 });
+  }, [view, data.plan?.id]);
+  useEffect(() => {
+    if (!data.restoring && !restored.current) {
+      restored.current = true;
+      if (data.plan) setView("mission");
+    }
+  }, [data.restoring, data.plan]);
+  useEffect(() => {
+    function escape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setContextOpen(false);
+        if (window.innerWidth <= 760) setNavOpen(false);
+      }
+    }
+    window.addEventListener("keydown", escape);
+    return () => window.removeEventListener("keydown", escape);
+  }, []);
+  function navigate(next: View) {
+    setView(next);
+    data.setError("");
+    if (window.innerWidth <= 760) setNavOpen(false);
+  }
+  async function newMission() {
+    if (await data.newMission()) navigate("mission");
+  }
+  const nav = [
+    { key: "mission" as View, title: "Missions", icon: Sparkles },
+    { key: "marketplace" as View, title: "Marketplace", icon: Layers3 },
+    { key: "robot" as View, title: "Robot station", icon: Bot },
+    { key: "wallet" as View, title: "Wallet & receipts", icon: Wallet },
+  ];
+  return (
+    <div
+      className={
+        "app-shell " +
+        (navOpen ? "nav-open " : "") +
+        (contextOpen ? "context-open" : "")
+      }
+    >
+      <Background />
+      {navOpen && (
+        <button
+          className="mobile-scrim"
+          aria-label="Close navigation"
+          onClick={() => setNavOpen(false)}
+        />
+      )}
+      <aside className="sidebar" aria-label="Main navigation" inert={!navOpen}>
+        <div className="brand-row">
+          <button
+            className="brand"
+            onClick={() => navigate("home")}
+            aria-label="RoboMarket home"
+          >
+            <BrandMark />
+            <span>robomarket</span>
+          </button>
+          <IconButton
+            label="Collapse sidebar"
+            onClick={() => setNavOpen(false)}
+          >
+            <PanelLeftClose size={17} />
+          </IconButton>
+        </div>
+        <button
+          className="new-mission"
+          disabled={data.busy || data.restoring}
+          onClick={() => void newMission()}
+        >
+          <Plus size={16} />
+          New mission<span>↗</span>
+        </button>
+        <nav>
+          {nav.map((item) => (
+            <button
+              key={item.key}
+              className={
+                view === item.key || (view === "home" && item.key === "mission")
+                  ? "active"
+                  : ""
+              }
+              aria-current={view === item.key ? "page" : undefined}
+              onClick={() => navigate(item.key)}
+            >
+              <item.icon size={18} strokeWidth={1.7} />
+              <span>{item.title}</span>
+              {item.key === "mission" && data.plan && (
+                <span className="nav-count">1</span>
+              )}
+            </button>
+          ))}
+        </nav>
+        <div className="recent-missions">
+          <div className="section-label">
+            <span>Recent missions</span>
+            <Plus size={12} />
+          </div>
+          {data.recent.length ? (
+            data.recent.map((item) => (
+              <button
+                key={item.id}
+                disabled={data.busy}
+                className={
+                  data.plan?.id === item.id && view === "mission"
+                    ? "active"
+                    : ""
+                }
+                onClick={() =>
+                  void data.openMission(item.id).then((next) => {
+                    if (next) navigate("mission");
+                  })
+                }
+              >
+                <span className="recent-dot" />
+                <span>{item.title}</span>
+              </button>
+            ))
+          ) : (
+            <p>Your next idea starts here.</p>
+          )}
+        </div>
+        <div className="sidebar-bottom">
+          <div className="sidebar-note">
+            <span className="tiny-dot" />
+            {data.online === null
+              ? "Connecting to workspace"
+              : data.online
+                ? "Local workspace connected"
+                : "Workspace offline"}
+          </div>
+          <button className="profile-button" onClick={() => navigate("robot")}>
+            <span className="profile-avatar">
+              <Bot size={18} />
+            </span>
+            <span>
+              <strong>Scout</strong>
+              <small>Kitchen workspace</small>
+            </span>
+            <ChevronRight size={14} />
+          </button>
+        </div>
+      </aside>
+      <div className="main-shell">
+        <header className="topbar">
+          <div className="topbar-left">
+            {!navOpen && (
+              <IconButton label="Show sidebar" onClick={() => setNavOpen(true)}>
+                <PanelLeftOpen size={17} />
+              </IconButton>
+            )}
+            {view !== "home" && (
+              <>
+                <button
+                  className="breadcrumb-home"
+                  onClick={() => navigate("home")}
+                >
+                  Workspace
+                </button>
+                <ChevronRight size={12} />
+                <span>
+                  {view === "mission"
+                    ? "Missions"
+                    : view === "marketplace"
+                      ? "Marketplace"
+                      : view === "wallet"
+                        ? "Wallet & receipts"
+                        : "Robot station"}
+                </span>
+              </>
+            )}
+          </div>
+          <div className="topbar-right">
+            <span className="workspace-status">
+              <span
+                className={
+                  "tiny-dot " + (data.online === false ? "offline" : "")
+                }
+              />
+              {data.online === null
+                ? "Connecting"
+                : data.online
+                  ? "Scout is online"
+                  : "Offline"}
+            </span>
+            <span className="topbar-divider" />
+            <IconButton
+              label={contextOpen ? "Hide robot context" : "Show robot context"}
+              onClick={() => setContextOpen(!contextOpen)}
+            >
+              {contextOpen ? (
+                <PanelRightClose size={17} />
+              ) : (
+                <PanelRightOpen size={17} />
+              )}
+            </IconButton>
+          </div>
+        </header>
+        <main ref={content} id="main-content" className="main-content">
+          {data.error && (
+            <div className="error-banner" role="alert">
+              <CircleHelp size={17} />
+              <p>{data.error}</p>
+              <IconButton
+                label="Dismiss error"
+                onClick={() => data.setError("")}
+              >
+                <X size={15} />
+              </IconButton>
+            </div>
+          )}
+          {view === "home" && (
+            <div className="landing enter">
+              <div className="hero-heading">
+                <div className="landing-eyebrow">
+                  <span className="tiny-dot" />A workspace for robot
+                  intelligence
+                </div>
+                <h1>Start with a task.</h1>
+                <p>
+                  Your robot has the hands. Scout finds the expertise.
+                  <br />A little intelligence, exactly when it’s needed.
+                </p>
+              </div>
+              <div className="welcome-cards">
+                <button
+                  className="welcome-card glass-raised"
+                  onClick={() => navigate("mission")}
+                >
+                  <div className="welcome-card-title">
+                    <span className="welcome-icon">
+                      <Zap size={19} strokeWidth={1.7} />
+                    </span>
+                    <h2>{data.plan ? "Your mission" : "Run a mission"}</h2>
+                    <ArrowRight size={17} />
+                  </div>
+                  <p>
+                    {data.plan
+                      ? "Pick up where you left off. Review the plan, see every decision, and follow your robot’s progress."
+                      : "Describe what needs doing. Scout builds a plan, chooses the right skills, and puts them to work."}
+                  </p>
+                  <div className="welcome-card-footer">
+                    <span className="skill-bubble">
+                      <Eye size={13} />
+                    </span>
+                    <span className="skill-bubble">
+                      <Hand size={13} />
+                    </span>
+                    <span className="skill-bubble">
+                      <Activity size={13} />
+                    </span>
+                    <span>perceive · plan · act</span>
+                  </div>
+                </button>
+                <button
+                  className="welcome-card glass"
+                  onClick={() => navigate("marketplace")}
+                >
+                  <div className="welcome-card-title">
+                    <span className="welcome-icon neutral">
+                      <Layers3 size={19} strokeWidth={1.7} />
+                    </span>
+                    <h2>Explore expertise</h2>
+                    <ArrowRight size={17} />
+                  </div>
+                  <p>
+                    A marketplace of specialized skills. Find the models and
+                    controllers that fit your robot and your budget.
+                  </p>
+                  <div className="welcome-card-footer">
+                    <span className="soft-pill">Perception</span>
+                    <span className="soft-pill">Grasp</span>
+                    <span className="soft-pill">Control</span>
+                  </div>
+                </button>
+              </div>
+              <div className="landing-note">
+                <ShieldCheck size={13} />
+                Your robot. Your budget. Every decision explained.
+              </div>
+            </div>
+          )}
+          {view === "mission" && (
+            <Mission data={data} onNew={() => void newMission()} />
+          )}
+          {view === "marketplace" && <Marketplace data={data} />}
+          {view === "wallet" && <WalletPage data={data} />}
+          {view === "robot" && (
+            <div className="page enter">
+              <div className="page-heading">
+                <div>
+                  <div className="heading-kicker">
+                    <Bot size={14} /> Your robot, in context.
+                  </div>
+                  <h1>Meet the hands behind it.</h1>
+                  <p>
+                    The workspace, capabilities, and live state Scout plans
+                    around.
+                  </p>
+                </div>
+                <button
+                  className="secondary"
+                  onClick={() => navigate("mission")}
+                >
+                  <Sparkles size={15} />
+                  Open mission
+                  <ArrowRight size={14} />
+                </button>
+              </div>
+              <div className="station-layout">
+                <RobotCard data={data} />
+                <div className="station-notes">
+                  <section className="glass station-note">
+                    <span className="soft-icon">
+                      <Eye size={20} />
+                    </span>
+                    <h2>Start with what it sees.</h2>
+                    <p>
+                      Attach a clear photo of an orange or grape when composing
+                      a mission. Scout needs a successful detection before it
+                      can plan a grasp.
+                    </p>
+                    <span className="tag">
+                      {data.image
+                        ? data.imageName
+                        : "Using synthetic observation"}
+                    </span>
+                  </section>
+                  <section className="glass station-note">
+                    <span className="soft-icon">
+                      <ShieldCheck size={20} />
+                    </span>
+                    <h2>A considered next move.</h2>
+                    <p>
+                      Every provider is checked against the arm’s gripper,
+                      sensors, payload, and the object’s handling needs. Motion
+                      follows purchased control output.
+                    </p>
+                    <p className="fine-print">
+                      Image coordinates are not calibrated to a physical robot.
+                      Keep this dashboard open to advance the simulation.
+                    </p>
+                  </section>
+                </div>
+              </div>
+            </div>
+          )}
+        </main>
+        <footer className="app-footer">
+          <span>Small skills. Bigger possibilities.</span>
+          <span>
+            RoboMarket <i /> Testnet workspace
+          </span>
+        </footer>
+      </div>
+      {contextOpen && (
+        <>
+          <button
+            className="context-scrim"
+            aria-label="Close robot context"
+            onClick={() => setContextOpen(false)}
+          />
+          <aside className="context-panel" aria-label="Robot context">
+            <div className="context-heading">
+              <span className="eyebrow">Robot context</span>
+              <IconButton
+                label="Close context panel"
+                onClick={() => setContextOpen(false)}
+              >
+                <X size={16} />
+              </IconButton>
+            </div>
+            <RobotCard data={data} compact />
+            <WalletCard data={data} compact />
+          </aside>
+        </>
+      )}
+    </div>
+  );
+}
+createRoot(document.getElementById("root")!).render(<App />);
