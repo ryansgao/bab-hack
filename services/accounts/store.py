@@ -70,11 +70,13 @@ def visitor(request: Request):
 
 
 def same_origin(request: Request):
-    """Refuse a state-changing request sent from another site. The cookie is SameSite=Lax as well."""
+    """Refuse a state-changing request sent from another site. The cookie is SameSite=Lax as well.
+    Host names are compared without ports: a proxy in front may listen on a different port than the
+    one the browser used, and cookies are not scoped by port either."""
     origin = request.headers.get('origin')
     if not origin: return
-    host = request.headers.get('x-forwarded-host') or request.headers.get('host', '')
-    if urlparse(origin).netloc.lower() != host.lower(): raise HTTPException(403, 'Cross-site request refused')
+    sent_to = {urlparse('//' + (request.headers.get(name) or '').split(',')[0].strip()).hostname for name in ('x-forwarded-host', 'host')}
+    if urlparse(origin).hostname not in sent_to - {None}: raise HTTPException(403, 'Cross-site request refused')
 
 
 def throttle(key, limit, seconds):

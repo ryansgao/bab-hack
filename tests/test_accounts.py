@@ -55,6 +55,9 @@ def test_a_mission_belongs_to_the_account_that_claimed_it(client):
 def test_cross_site_requests_are_refused(client):
     join(client)
     assert client.patch('/api/account', json={'name': 'x'}, headers={'origin': 'https://elsewhere.example'}).status_code == 403
+    # Behind a proxy the browser's port can differ from the one the gateway is reached on.
+    proxied = {'origin': 'https://app.example:8443', 'host': '127.0.0.1:8000', 'x-forwarded-host': 'app.example'}
+    assert client.patch('/api/account', json={'name': 'y'}, headers=proxied).status_code == 200
 
 
 def test_password_change_export_and_delete(client):

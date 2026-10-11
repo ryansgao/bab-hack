@@ -169,6 +169,8 @@ async def account_activity(user):
         receipts, floats, transfers, ledger_online = {}, {}, [], False
     orders = []
     for plan, created in plans:
+        # A test payment that was prepared but never authorized is not an order.
+        if plan['planner'] == 'account_test_payment' and plan['status'] == 'planned': continue
         real = plan['request']['execution_mode'] == 'testnet'
         steps = []
         for step in plan['subtasks']:
