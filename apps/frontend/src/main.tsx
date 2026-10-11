@@ -506,34 +506,6 @@ function Composer({
           </div>
         )}
       </div>
-      <div className="simulation-mode glass-quiet"><label>Execution mode <select aria-label="Execution mode" value={data.executionMode} onChange={e=>data.setExecutionMode(e.target.value as "simulation"|"testnet")}><option value="simulation">Simulation · demo credits</option><option value="testnet">Real providers · AUSD testnet</option></select></label><p>{data.executionMode==="simulation"?"Your prompt creates the demo scene. Available marketplace skills run locally; missing skills use free virtual effects and can open producer bounties. Claude planning usage still applies.":"Real model inference and testnet payments. Supply an observation and funded wallets."}</p></div>
-      {data.executionMode === "simulation" && <TaskPreviewToggle data={data} />}
-      <div className="auto-bounty-settings glass-quiet"><label><input type="checkbox" checked={data.autoBounties} onChange={e=>data.setAutoBounties(e.target.checked)} /> Automatically post bounties for missing skills</label>{data.autoBounties && <label className="bounty-reward-setting">Reward per missing capability <input aria-label="Automatic bounty reward" type="number" min="0.000001" step="0.001" value={data.bountyReward} onChange={e=>data.setBountyReward(e.target.value)} /><span>{data.executionMode==='simulation'?'demo credits':'AUSD pledge'}</span></label>}<p>Creates a producer request when no compatible skill exists. Posting commits a reward pledge; it does not send a payment.</p></div>
-      <div className="suggestions">
-        {[
-          "Organize my workbench",
-          "Find and inspect a coffee mug",
-          "Sort packages by destination",
-        ].map((task) => (
-          <button
-            key={task}
-            onClick={() => {
-              data.setTask(task);
-              input.current?.focus();
-            }}
-          >
-            {task}
-            <ArrowUp size={12} />
-          </button>
-        ))}
-      </div>
-      <div className="planner-status glass-quiet" role="status">
-        <Sparkles size={15} />
-        <div>
-          <strong>{data.planner?.configured ? "Planner connected" : "Planner setup needed"}</strong>
-          <p>{data.planner?.configured ? data.planner.model : "Add ANTHROPIC_API_KEY on the server to plan missions."}</p>
-        </div>
-      </div>
       {footer}
     </div>
   );
