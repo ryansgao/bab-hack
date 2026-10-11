@@ -158,7 +158,8 @@ def validate_graph(draft, request):
             step.requirements.source = 'llm_estimate'
             step.object_name = step.object_name or step.requirements.object_name
             if step.object_name != step.requirements.object_name:
-                raise ValueError('Planner returned mismatched object requirements')
+                if request.execution_mode=='simulation': step.requirements.object_name=step.object_name
+                else: raise ValueError('Planner returned mismatched object requirements')
         if step.task_type in ('grasp', 'control') and request.execution_mode!='simulation':
             if not step.requirements: draft.blockers.append(f'{step.title}: physical object requirements are missing.')
             prerequisite = 'object_detection' if step.task_type == 'grasp' else 'grasp'

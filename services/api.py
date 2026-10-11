@@ -94,7 +94,11 @@ def arm_control(request: SimulationControl):
 
 @app.get('/api/agent/plans/{plan_id}', response_model=MissionPlan)
 def read_plan(plan_id: str):
-    try: return get(plan_id)
+    try:
+        mission=get(plan_id)
+        from apps.simulation.mission import recover_legacy_demo
+        if recover_legacy_demo(mission): return save(auto_post(quote(mission)))
+        return mission
     except KeyError: raise HTTPException(404, 'Plan not found')
 
 @app.post('/api/agent/execute', response_model=MissionPlan)

@@ -125,6 +125,8 @@ They never enter the shared catalog and cannot be used in real-provider mode.
 When a fixture adapter cannot satisfy its inputs, its step can also use an explicit
 virtual effect without charging for failed inference. Real-provider constraints
 and verified payment requirements remain enforced.
+Untouched older blocked simulation plans recover locally when opened; missions
+with receipts or inference results are preserved. Recovery makes no new LLM call.
 
 Simulation prices are shown per provider; niche listings cost 0.0008 demo credits
 per call. Execution records `simulated`
@@ -179,3 +181,11 @@ submitted a fixture adapter setting `peel_state=peeled`; acceptance published th
 skill and recorded a 0.05 demo-credit reward. Rebuilding selected that provider and
 completed all five steps for 0.0034 demo credits, with actual AUSD spent at zero.
 The optional 3D preview showed phone/orange targets. No automated tests were added.
+
+Prompt-generated scene checks: “Eat the cheese” completed four steps for 0.0018
+demo credits, including a free virtual consumption effect and an automatic bounty.
+“Wash my shirt and fold it, then put it in the laundry basket” completed eight steps
+for 0.0036 demo credits. It generated both objects, opened washing/folding bounties,
+and placed the shirt at the basket's simulated location. The 3D preview showed the
+generated objects and placement. These are fictional demo outcomes, not physical
+eating or laundry operations. No automated tests added.

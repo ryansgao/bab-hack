@@ -6,6 +6,9 @@ from apps.simulation.world import world
 from apps.simulation.arm import arm
 
 def quote(plan):
+    if plan.request.execution_mode=='simulation' and plan.simulation_fallbacks:
+        from apps.simulation.mission import align_destinations
+        align_destinations(plan.simulation_scene,plan.subtasks)
     offers=list_models()
     obs=arm.observation() if plan.request.robot_card and plan.request.robot_card.embodiment=='6dof_arm' else world.observe()
     cheapest=[]

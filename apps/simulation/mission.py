@@ -57,10 +57,17 @@ def build_scene(reference, drafts, steps, identity):
         cx=70+(index%columns+.5)*cell_w; cy=60+(index//columns+.5)*cell_h
         width=min(100,cell_w*.65); height=min(75,cell_h*.65)
         obj['bbox']=[cx-width/2,cy-height/2,cx+width/2,cy+height/2]
+    align_destinations(scene,steps)
+    return scene
+
+def align_destinations(scene, steps):
     destinations=list(dict.fromkeys(s.destination for s in steps if s.destination))
     for index,name in enumerate(destinations):
-        if name not in scene['zones']: scene['zones'][name]=[85+(index%5)*110,335-(index//5)*30]
-    return scene
+        target=find_objects(scene,name.replace('_',' '))
+        if len(target)==1:
+            x1,y1,x2,y2=target[0]['bbox']
+            scene['zones'][name]=[(x1+x2)/2,(y1+y2)/2]
+        elif name not in scene['zones']: scene['zones'][name]=[85+(index%5)*110,335-(index//5)*30]
 
 def attach_virtual_effects(plan):
     if plan.request.execution_mode!='simulation': return plan
@@ -74,6 +81,37 @@ def attach_virtual_effects(plan):
             description='Mission-scoped virtual effect. No trained inference, physical execution or marketplace purchase. A producer skill is still needed.',
             simulation_program={'operation':'virtual_effect','effect':effect.model_dump(),'step_id':step.id}))
     return plan
+
+def recover_legacy_demo(plan):
+    """Upgrade untouched blocked demos locally, without repeating an LLM call."""
+    if (plan.request.execution_mode!='simulation' or plan.status!='blocked' or plan.simulation_fallbacks
+        or float(plan.spent_ausd) or float(plan.simulation_cost_ausd)
+        or any(s.result or s.payment for s in plan.subtasks)):
+        return False
+    from services.agent.planner import validate_graph
+    from shared.schemas.contracts import Subtask, Point
+    from apps.simulation.catalog import scene_for_task
+    plan.blockers=[]
+    try: plan.subtasks=validate_graph(plan,plan.request)
+    except ValueError:
+        # A legacy refusal may contain only validation wrappers. Represent the
+        # requested outcome as one explicit virtual action instead of failing GET.
+        plan.subtasks=[Subtask(id='demo_action',title=plan.request.task[:200],
+            task_type='task_demonstration',description='Virtual demonstration of the requested goal.',
+            success_criteria='Record the requested outcome in the demo.',depends_on=[],target=Point(x=12,y=8))]
+    plan.simulation_scene=build_scene(plan.simulation_scene or scene_for_task(plan.request.task),[],plan.subtasks,plan.id)
+    for step in plan.subtasks:
+        step.title=re.sub(r'\s*\(unsupported\)','',step.title,flags=re.I)
+        step.status='pending'; step.error=None
+        if step.decision and step.decision.safe_fallback:
+            step.description='Demonstrate the requested action with a virtual fixture effect while a producer skill is requested.'
+            step.simulation_effect=SimulationEffect(summary='Demonstrate '+step.title+' in the virtual scene.',
+                state_changes={step.task_type:'demonstrated'},hide_object='consumption' in step.task_type)
+    plan.status='planned'
+    plan.explanation='This demo creates the objects required by your task and uses free virtual effects for marketplace skills that are still missing.'
+    plan.assumptions.append('Recovered an unstarted demo with generated fixtures and virtual effects; no new planning call or physical execution.')
+    attach_virtual_effects(plan)
+    return True
 
 def infer_virtual(request, offer):
     started=time.perf_counter()
