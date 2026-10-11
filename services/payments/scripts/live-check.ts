@@ -14,7 +14,7 @@ import { x402Client, x402HTTPClient } from '@x402/core/client';
 import { decodePaymentRequiredHeader } from '@x402/core/http';
 import { ExactEvmScheme as BuyerScheme } from '@x402/evm/exact/client';
 import { Ledger, fingerprint, units } from '../src/ledger.js';
-import { chain, requirements, AUSD, NETWORK } from '../src/chain.js';
+import { chain, requirements, payoutAddress, transfer, AUSD, NETWORK } from '../src/chain.js';
 
 const out = process.argv[2] || 'live-check.json';
 const KEY = process.env.SERVICE_KEY!;
@@ -48,8 +48,16 @@ const stubServer = stub.listen(STUB, '127.0.0.1');
 
 // ---- payment service instances ----
 const children: ChildProcess[] = [];
+// The first groups test the robot paying from its own balance, so the owner wallet and the
+// per-vendor addresses are switched off for them. The mission-float group switches them back on.
+let baseEnv: Record<string, string> = { OWNER_PRIVATE_KEY: '', VENDOR_SEED: '' };
+async function eventually<T>(read: () => Promise<T>, ok: (v: T) => boolean, ms = 40_000): Promise<T> {
+  const until = Date.now() + ms; let v = await read();
+  while (!ok(v) && Date.now() < until) { await sleep(1500); v = await read(); }
+  return v;
+}
 async function instance(port: number, overrides: Record<string, string> = {}, db = join(dir, `pay-${port}.sqlite`)) {
-  const env = { ...process.env, PAYMENT_PORT: String(port), PAYMENT_DB: db, API_URL: `http://127.0.0.1:${STUB}`, MODEL_URL: `http://127.0.0.1:${STUB}`, ...overrides } as Record<string, string>;
+  const env = { ...process.env, PAYMENT_PORT: String(port), PAYMENT_DB: db, API_URL: `http://127.0.0.1:${STUB}`, MODEL_URL: `http://127.0.0.1:${STUB}`, ...baseEnv, ...overrides } as Record<string, string>;
   for (const k of Object.keys(env)) if (env[k] === '') delete env[k];
   const child = spawn('node', ['--import', 'tsx', 'src/server.ts'], { env, stdio: 'ignore' });
   children.push(child);
@@ -74,14 +82,26 @@ function record(group: string, name: string, expect: string, got: string, pass: 
 }
 const msg = (r: { status: number; json: any }) => `HTTP ${r.status} ${r.json?.error?.code || r.json?.payment?.status || ''} ${r.json?.error?.message || ''}`.trim();
 
+const ownerAccount = process.env.OWNER_PRIVATE_KEY ? privateKeyToAccount(process.env.OWNER_PRIVATE_KEY as Hex) : null;
+if (ownerAccount && await ausd(robot) < 500_000n) {
+  // A previous run left the treasury with the owner; the robot-pays groups need the robot funded.
+  const c = await chain();
+  const funder = new x402HTTPClient(x402Client.fromConfig({ schemes: [{ network: NETWORK, client: new BuyerScheme(ownerAccount) }], spendControls: { allowedAssets: [{ network: NETWORK, asset: AUSD }] } }));
+  console.log('funding the robot with 1 AUSD for the robot-pays groups:', await transfer(c, funder, robot, 1_000_000, 'test-funding'));
+  await eventually(() => ausd(robot), v => v >= 500_000n);
+}
 const start = { robot: await ausd(robot), provider: await ausd(provider), robotEth: await pub.getBalance({ address: robot }), facEth: await pub.getBalance({ address: facilitator }) };
 const settledTx: string[] = [];
 
 try {
+  let r: Awaited<ReturnType<typeof call>> = { status: 0, json: null, headers: new Headers() }; let t = 0, ms = 0;
+  // LIVE_ONLY=float skips the robot-pays groups (about three minutes) when only the float changed.
+  robotPays: {
+  if (process.env.LIVE_ONLY === 'float') break robotPays;
   const A = await instance(4391);
 
   // ---- access and input ----
-  let r = await call(A.port, '/wallet', undefined, H('wrong-key'));
+  r = await call(A.port, '/wallet', undefined, H('wrong-key'));
   record('Access', 'Wallet endpoint with a wrong service key', '403', msg(r), r.status === 403);
   r = await call(A.port, '/purchase', req(`a${run}`, 'det_small'), { 'Content-Type': 'application/json' });
   record('Access', 'Purchase with no service key', '403', msg(r), r.status === 403);
@@ -93,7 +113,7 @@ try {
   // ---- happy path ----
   const b0 = { robot: await ausd(robot), provider: await ausd(provider) };
   const happy = req(`h${run}`, 'det_small');
-  let t = Date.now(); r = await buy(A.port, happy); let ms = Date.now() - t;
+  t = Date.now(); r = await buy(A.port, happy); ms = Date.now() - t;
   const tx1 = r.json?.payment?.transaction_hash as Hex | undefined;
   record('Happy path', 'Buy one inference for 0.002 AUSD', '200, settled, transaction hash, inference returned', `${msg(r)} inference=${!!r.json?.inference}`, r.status === 200 && r.json?.payment?.status === 'settled' && !!tx1 && !!r.json?.inference, tx1, ms);
   if (tx1) settledTx.push(tx1);
@@ -252,13 +272,86 @@ try {
   r = await buy(I.port, req(`z${run}`, 'det_small'));
   record('Setup', 'Purchase attempt with a key missing', 'refused, message names the missing key, no fake receipt', msg(r), r.status === 503 && /missing/i.test(r.json?.error?.message || '') && !r.json?.payment);
 
-  // ---- final accounting ----
+  // ---- accounting for the robot-pays groups ----
   await sleep(2500);
-  const end = { robot: await ausd(robot), provider: await ausd(provider), robotEth: await pub.getBalance({ address: robot }), facEth: await pub.getBalance({ address: facilitator }) };
+  const mid = { robot: await ausd(robot), provider: await ausd(provider) };
+  record('Accounting', 'AUSD that left the robot equals AUSD that reached the vendor', 'equal', `robot -${formatUnits(start.robot - mid.robot, 6)}, vendor +${formatUnits(mid.provider - start.provider, 6)}`, start.robot - mid.robot === mid.provider - start.provider);
+
+  }
+
+  // ================= owner wallet, mission float, one address per vendor =================
+  let owner: Address | null = null; const floatTx: string[] = [];
+  if (ownerAccount && process.env.VENDOR_SEED) {
+    for (const c of children) c.kill(); children.length = 0; await sleep(800);
+    baseEnv = {}; owner = ownerAccount.address;
+    const visionAddr = payoutAddress('vision_lab'), navAddr = payoutAddress('navigation_lab');
+    const tracked = [robot, owner, provider, visionAddr, navAddr];
+    const total = async () => (await Promise.all(tracked.map(ausd))).reduce((a, b) => a + b, 0n);
+    const total0 = await total();
+    const M = await instance(4400, { FLOAT_IDLE_SECONDS: '25' });
+    const mission = async (task: string) => ((await call(M.port, '/missions')).json || []).find((m: any) => m.task_id === task);
+
+    const emptied = await eventually(() => ausd(robot), v => v === 0n, 60_000);
+    let w = (await call(M.port, '/wallet')).json;
+    record('Mission float', 'At start, the robot\'s whole balance moves to the owner treasury', 'robot 0 AUSD, custody mission_float, treasury above 0', `robot ${formatUnits(emptied, 6)}, custody ${w?.custody}, treasury ${w?.owner_treasury_ausd}`, emptied === 0n && w?.custody === 'mission_float' && Number(w?.owner_treasury_ausd) > 0);
+
+    const m1 = `f1${run}`; const nav0 = await ausd(navAddr), vis0 = await ausd(visionAddr);
+    t = Date.now(); r = await buy(M.port, req(m1, 'det_small')); ms = Date.now() - t;
+    let mv = await mission(m1); const fundTx = mv?.transfers?.[0]?.transaction_hash as Hex | undefined; if (fundTx) floatTx.push(fundTx);
+    const held1 = await eventually(() => ausd(robot), v => v === 98_000n);
+    record('Mission float', 'First purchase of a mission: the owner sends the robot that mission\'s allowance, then the robot pays', '200 settled; funded 0.10, spent 0.002, robot holds 0.098 on-chain', `${msg(r)}; funded ${mv?.funded_ausd}, spent ${mv?.spent_ausd}, robot on-chain ${formatUnits(held1, 6)}`, r.status === 200 && mv?.funded_ausd === '0.100000' && mv?.spent_ausd === '0.002000' && held1 === 98_000n && mv?.transfers?.[0]?.kind === 'owner_to_robot', fundTx, ms);
+    if (fundTx) { const rc = await pub.getTransactionReceipt({ hash: fundTx }); record('Mission float', 'The funding transfer is gasless for the owner too (sent by the facilitator)', `from = facilitator, owner holds 0 ETH`, `from = ${rc.from.slice(0, 8)}, owner ETH ${formatEther(await pub.getBalance({ address: owner }))}`, rc.from.toLowerCase() === facilitator.toLowerCase() && (await pub.getBalance({ address: owner })) === 0n, fundTx); }
+    const pay1 = r.json?.payment?.pay_to; if (r.json?.payment?.transaction_hash) settledTx.push(r.json.payment.transaction_hash);
+
+    r = await buy(M.port, req(m1, 'det_cap')); if (r.json?.payment?.transaction_hash) settledTx.push(r.json.payment.transaction_hash);
+    mv = await mission(m1); const pay2 = r.json?.payment?.pay_to;
+    const navGot = await eventually(async () => (await ausd(navAddr)) - nav0, v => v === 50_000n); const visGot = (await ausd(visionAddr)) - vis0;
+    record('Vendor addresses', 'Two vendors are paid at two different addresses', 'vision_lab +2000 units and navigation_lab +50000 units at their own addresses', `vision_lab ${String(pay1).slice(0, 8)} +${visGot}, navigation_lab ${String(pay2).slice(0, 8)} +${navGot}`, pay1?.toLowerCase() === visionAddr.toLowerCase() && pay2?.toLowerCase() === navAddr.toLowerCase() && pay1 !== pay2 && navGot === 50_000n && visGot === 2000n, r.json?.payment?.transaction_hash);
+    record('Mission float', 'A second purchase in the same mission does not fund again', 'still one owner-to-robot transfer; robot holds 0.048', `${msg(r)}; transfers ${mv?.transfers?.length}, held ${mv?.held_by_robot_ausd}`, r.status === 200 && mv?.transfers?.length === 1 && mv?.held_by_robot_ausd === '0.048000');
+    const vendors = (await call(M.port, '/vendors')).json || [];
+    record('Vendor addresses', 'Every approved vendor has its own address', 'as many distinct addresses as vendors', `${vendors.length} vendors, ${new Set(vendors.map((v: any) => v.pay_to)).size} addresses; vision_lab earned ${vendors.find((v: any) => v.provider_id === 'vision_lab')?.earned_ausd}`, vendors.length > 1 && new Set(vendors.map((v: any) => v.pay_to)).size === vendors.length);
+
+    r = await buy(M.port, req(m1, 'det_cap')); mv = await mission(m1);
+    record('Mission float', 'A purchase over the mission limit', 'refused: per-task; float untouched', `${msg(r)}; held ${mv?.held_by_robot_ausd}`, r.status === 503 && /Per-task/.test(r.json?.error?.message || '') && mv?.held_by_robot_ausd === '0.048000');
+
+    r = await call(M.port, `/missions/${m1}/close`, {}); if (r.json?.transaction_hash) floatTx.push(r.json.transaction_hash);
+    const afterClose = await eventually(() => ausd(robot), v => v === 0n);
+    record('Mission float', 'Closing the mission returns the unspent float to the owner', 'returned 0.048; robot back to 0 on-chain', `returned=${r.json?.returned}, returned_ausd ${r.json?.mission?.returned_ausd}, robot on-chain ${formatUnits(afterClose, 6)}`, r.json?.returned === true && r.json?.mission?.returned_ausd === '0.048000' && afterClose === 0n, r.json?.transaction_hash);
+    r = await call(M.port, `/missions/${m1}/close`, {});
+    record('Mission float', 'Closing the same mission again', 'nothing to return, no transaction', `returned=${r.json?.returned}, tx ${r.json?.transaction_hash}`, r.json?.returned === false && !r.json?.transaction_hash);
+
+    const m2 = `f2${run}`; r = await buy(M.port, req(m2, 'rogue_model'));
+    record('Mission float', 'A purchase the limits refuse moves no money at all', 'refused: allowlist; no float funded for that mission', `${msg(r)}; mission funded=${!!(await mission(m2))}`, r.status === 503 && /allowlist/.test(r.json?.error?.message || '') && !(await mission(m2)));
+
+    const m3 = `f3${run}`;
+    const trio = await Promise.all([1, 2, 3].map(() => buy(M.port, req(m3, 'det_small'))));
+    for (const x of trio) if (x.json?.payment?.transaction_hash) settledTx.push(x.json.payment.transaction_hash);
+    mv = await mission(m3); for (const tr of mv?.transfers || []) floatTx.push(tr.transaction_hash);
+    record('Mission float', 'Three purchases start a new mission at the same instant', 'all three settle; the float is funded exactly once', `${trio.map(x => x.status).join('/')}; owner-to-robot transfers ${mv?.transfers?.filter((x: any) => x.kind === 'owner_to_robot').length}, funded ${mv?.funded_ausd}, spent ${mv?.spent_ausd}`, trio.every(x => x.status === 200) && mv?.transfers?.filter((x: any) => x.kind === 'owner_to_robot').length === 1 && mv?.funded_ausd === '0.100000' && mv?.spent_ausd === '0.006000');
+
+    t = Date.now(); mv = await eventually(() => mission(m3), v => v?.held_by_robot_ausd === '0.000000', 90_000); ms = Date.now() - t;
+    const idleTx = mv?.transfers?.find((x: any) => x.kind === 'robot_to_owner')?.transaction_hash; if (idleTx) floatTx.push(idleTx);
+    record('Mission float', 'A mission left idle (25 s in this test) returns its float with no call from anyone', 'returned 0.094 automatically; robot 0', `held ${mv?.held_by_robot_ausd}, returned ${mv?.returned_ausd}, after ${Math.round(ms / 1000)} s; robot on-chain ${formatUnits(await eventually(() => ausd(robot), v => v === 0n), 6)}`, mv?.held_by_robot_ausd === '0.000000' && mv?.returned_ausd === '0.094000' && (await ausd(robot)) === 0n, idleTx, ms);
+
+    r = await buy(M.port, req(m3, 'det_small')); if (r.json?.payment?.transaction_hash) settledTx.push(r.json.payment.transaction_hash);
+    mv = await mission(m3);
+    record('Mission float', 'The mission buys again after its float was returned', 'funded again up to the mission limit; settled', `${msg(r)}; funded ${mv?.funded_ausd}, returned ${mv?.returned_ausd}, spent ${mv?.spent_ausd}, held ${mv?.held_by_robot_ausd}`, r.status === 200 && mv?.funded_ausd === '0.194000' && mv?.spent_ausd === '0.008000' && mv?.held_by_robot_ausd === '0.092000');
+    r = await call(M.port, `/missions/${m3}/close`, {}); if (r.json?.transaction_hash) floatTx.push(r.json.transaction_hash);
+
+    const N = await instance(4401, { ROBOT_PRIVATE_KEY: generatePrivateKey(), OWNER_PRIVATE_KEY: generatePrivateKey() });
+    r = await buy(N.port, req(`f4${run}`, 'det_small'));
+    const nRows = (await call(N.port, '/transactions')).json || [];
+    record('Mission float', 'Owner treasury is empty', 'refused: treasury cannot fund the float; nothing reserved', `${msg(r)}; ledger rows ${nRows.length}`, r.status === 503 && /treasury/.test(r.json?.error?.message || '') && nRows.length === 0);
+
+    const robotEnd = await eventually(() => ausd(robot), v => v === 0n); const total1 = await eventually(total, v => v === total0, 15_000);
+    record('Accounting', 'After every mission is closed the robot holds nothing', '0 AUSD and 0 ETH', `${formatUnits(robotEnd, 6)} AUSD, ${formatEther(await pub.getBalance({ address: robot }))} ETH`, robotEnd === 0n && (await pub.getBalance({ address: robot })) === 0n);
+    record('Accounting', 'No AUSD was created or lost across owner, robot and vendors', 'sum unchanged', `before ${formatUnits(total0, 6)}, after ${formatUnits(total1, 6)}`, total0 === total1);
+  }
+
+  const end = { robot: await ausd(robot), provider: await ausd(provider), owner: owner ? await ausd(owner) : null, robotEth: await pub.getBalance({ address: robot }), facEth: await pub.getBalance({ address: facilitator }) };
   const unique = [...new Set(settledTx)];
-  record('Accounting', 'AUSD that left the robot equals AUSD that reached the vendor', 'equal', `robot -${formatUnits(start.robot - end.robot, 6)}, vendor +${formatUnits(end.provider - start.provider, 6)}`, start.robot - end.robot === end.provider - start.provider);
-  writeFileSync(out, JSON.stringify({ ran_at: new Date().toISOString(), network: NETWORK, asset: AUSD, robot, facilitator, provider, start: { robot_ausd: formatUnits(start.robot, 6), provider_ausd: formatUnits(start.provider, 6), facilitator_eth: formatEther(start.facEth) }, end: { robot_ausd: formatUnits(end.robot, 6), provider_ausd: formatUnits(end.provider, 6), robot_eth: formatEther(end.robotEth), facilitator_eth: formatEther(end.facEth) }, gas_spent_eth: formatEther(start.facEth - end.facEth), settled_transactions: unique, results }, null, 1));
-  console.log(`\n${results.filter(x => x.pass).length}/${results.length} passed; ${unique.length} on-chain payments; wrote ${out}`);
+  writeFileSync(out, JSON.stringify({ ran_at: new Date().toISOString(), network: NETWORK, asset: AUSD, robot, facilitator, provider, owner, start: { robot_ausd: formatUnits(start.robot, 6), provider_ausd: formatUnits(start.provider, 6), facilitator_eth: formatEther(start.facEth) }, end: { robot_ausd: formatUnits(end.robot, 6), provider_ausd: formatUnits(end.provider, 6), owner_ausd: end.owner === null ? null : formatUnits(end.owner, 6), robot_eth: formatEther(end.robotEth), facilitator_eth: formatEther(end.facEth) }, gas_spent_eth: formatEther(start.facEth - end.facEth), settled_transactions: unique, float_transactions: [...new Set(floatTx)], results }, null, 1));
+  console.log(`\n${results.filter(x => x.pass).length}/${results.length} passed; ${unique.length} on-chain payments, ${new Set(floatTx).size} float transfers; wrote ${out}`);
 } catch (e) {
   console.error('HARNESS ERROR', e);
   writeFileSync(out, JSON.stringify({ harness_error: String(e), results }, null, 1));

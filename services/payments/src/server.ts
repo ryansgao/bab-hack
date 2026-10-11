@@ -56,6 +56,9 @@ const ensureFloat = (c: Chain, task: string, amount: number) => withMission(task
   if (await balanceOf(c, c.owner!.address) < topUp) throw new Error('Owner treasury cannot fund the mission float');
   const tx = await settleSerially(() => transfer(c, c.ownerSigner!, c.robot.address, topUp, 'mission-float'));
   ledger.floatAdd(task, 'fund', topUp, tx);
+  // The float is confirmed onchain, but a lagging RPC node can still show the robot's old
+  // balance and make the purchase that follows look unfunded. Wait until the read catches up.
+  for (let i = 0; i < 30 && await balanceOf(c, c.robot.address) < amount; i++) await new Promise(resolve => setTimeout(resolve, 500));
 });
 const returnFloat = (c: Chain, task: string) => withMission(task, async () => {
   if ((purchasing.get(task) || 0) > 0 || ledger.inFlight(task)) return null;

@@ -78,7 +78,9 @@ export async function transfer(c: Chain, signer: x402HTTPClient, to: Address, am
   if (!verified.isValid) throw new Error(`${what} authorization rejected: ${verified.invalidReason || 'invalid'}`);
   const settled = await c.facilitator.settle(payload, required);
   if (!settled.success || !settled.transaction) throw new Error(`${what} did not settle`);
-  const receipt = await c.publicClient.waitForTransactionReceipt({ hash: settled.transaction as Hex, confirmations: 1, timeout: 60_000 });
+  // Two confirmations: the public RPC is load-balanced and a node one block behind would
+  // still report the old balance to whatever reads it next.
+  const receipt = await c.publicClient.waitForTransactionReceipt({ hash: settled.transaction as Hex, confirmations: 2, timeout: 60_000 });
   if (receipt.status !== 'success') throw new Error(`${what} reverted onchain`);
   return settled.transaction as Hex;
 }

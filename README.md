@@ -59,6 +59,7 @@ weights before any purchase. There are no fake detection or payment fallbacks.
 - Two torchvision detector adapters, optional OWL-ViT, and analytic grasp/control.
 - Official x402 v2 SDK integration with explicit Base Sepolia AUSD configuration.
 - Persistent Allowance limits, idempotency, replay checks, and uncertain-payment holds.
+- Owner treasury with a per-mission float returned on close or idle, and one payout address per vendor.
 - Separate component entry points and Docker Compose configuration.
 
 ## Current limits
@@ -66,15 +67,21 @@ weights before any purchase. There are no fake detection or payment fallbacks.
 Live Anthropic planning was verified with `claude-opus-5-5`: a camera-localization
 request returned a valid subtask graph and flagged its missing image. Credentials
 remain local to the ignored `.env`; the committed template is intentionally blank.
-Live AUSD settlement also remains unverified; testnet wallets need funding. Build
-and browser setup/error flows were checked, with no additional automated test suite.
+Live AUSD settlement was verified on Base Sepolia with funded testnet wallets: the
+payment service's live check (`services/payments/scripts/live-check.ts`) settles real
+AUSD payments and exercises every Allowance rule, replay, concurrency and failure
+case against a stub marketplace and model worker. A full mission through the real
+marketplace and model workers with live settlement is not yet recorded here. Build
+and browser setup/error flows were checked.
 No generated plans, payments, or detections are presented as live results.
 
 LLM-inferred physical requirements are labeled simulation estimates. The workcell
 is illustrative; arbitrary physical tasks are not implemented by the generic arm
 animation. The server blocks interrupted missions after restart because simulation
-state is not durable. Provider registration also needs a model adapter, and seeded
-vendors share one configured recipient. Payments are intended for localhost and
+state is not durable. Provider registration also needs a model adapter. Each vendor
+is paid at its own address when `VENDOR_SEED` is set; with `OWNER_PRIVATE_KEY` set an
+owner wallet holds the treasury and the robot holds only one mission float at a time
+(see the payment setup). Payments are intended for localhost and
 need authentication before any public deployment. The gateway alone (dashboard,
 marketplace, planning) can be hosted publicly with `render.yaml`; planning calls
 are capped per visitor and per day. See the integration guide.
