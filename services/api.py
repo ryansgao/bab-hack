@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from shared.schemas.contracts import (ModelOffer, SelectionRequest, SelectionDecision, MissionRequest,
     MissionPlan, ExecuteRequest, SimulationControl)
 from services.marketplace import registry
+from services.marketplace.routes import router as marketplace_router
 from services.agent.selection import select
 from services.agent.planner import decompose, planner_status, PlannerError
 from services.agent.quote import quote
@@ -61,6 +62,8 @@ def register(model: ModelOffer, x_service_key: str = Header(default='')):
     key = os.getenv('SERVICE_KEY','')
     if not key or not secrets.compare_digest(key, x_service_key): raise HTTPException(403, 'Service key required')
     return registry.register(model)
+
+app.include_router(marketplace_router)
 
 @app.post('/api/agent/select', response_model=SelectionDecision)
 def selection(request: SelectionRequest): return select(request, registry.list_models())
