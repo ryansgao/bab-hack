@@ -131,6 +131,12 @@ export default function TaskPreview3D({ scene: fixture, plan, selected = 0, onSe
         const fruit = mesh(new THREE.SphereGeometry(Math.min(width,depth)*.48,24,18),objectMaterial,group);
         fruit.scale.y = Math.max(.65,height / Math.min(width,depth)); fruit.position.y = height*.48;
         box(.025,.07,.025,dark,0,height,0,group);
+      } else if (item.shape === 'sphere') {
+        const ball=mesh(new THREE.SphereGeometry(Math.min(width,depth)*.48,24,18),objectMaterial,group);
+        ball.position.y=height*.5; ball.scale.y=height/Math.min(width,depth);
+      } else if (item.shape === 'cylinder') {
+        const cylinder=mesh(new THREE.CylinderGeometry(Math.min(width,depth)*.45,Math.min(width,depth)*.45,height,24),objectMaterial,group);
+        cylinder.position.y=height*.5;
       } else if (item.category === 'electronics') {
         box(width*.8,.09,depth,objectMaterial,0,.07,0,group);
         box(width*.7,.012,depth*.8,dark,0,.121,0,group);
@@ -203,6 +209,14 @@ export default function TaskPreview3D({ scene: fixture, plan, selected = 0, onSe
           if (zone) position.copy(coordinates(...zone));
         }
         const focused = matches(item, current);
+        const virtualBefore=currentPlan?.subtasks.slice(0,index).filter(s=>matches(item,s) && s.simulation_effect?.hide_object);
+        group.visible=item.visible!==false && !virtualBefore?.length;
+        group.scale.setScalar(focused && current?.simulation_effect?.hide_object ? Math.max(.01,1-progress) : 1);
+        const virtualDestination=currentPlan?.subtasks.slice(0,index).filter(s=>matches(item,s) && s.destination);
+        for (const action of virtualDestination || []) {
+          const zone=fixture.zones[action.destination!];
+          if (zone) position.copy(coordinates(...zone));
+        }
         rings.get(item.id).visible = focused || (!current && currentPlan?.subtasks.some(s => matches(item, s)));
         labels.get(item.id).material.color.set(focused ? 0x286946 : 0xffffff);
         if (focused && current && ["placement_planning", "object_placement"].includes(current.task_type)) {

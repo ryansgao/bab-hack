@@ -1235,6 +1235,14 @@
       },
       "MissionPlan": {
         "properties": {
+          "simulation_fallbacks": {
+            "items": {
+              "$ref": "#/components/schemas/ModelOffer"
+            },
+            "type": "array",
+            "maxItems": 64,
+            "title": "Simulation Fallbacks"
+          },
           "bounty_ids": {
             "items": {
               "type": "string"
@@ -1433,6 +1441,11 @@
       },
       "ModelOffer": {
         "properties": {
+          "simulation_placeholder": {
+            "type": "boolean",
+            "title": "Simulation Placeholder",
+            "default": false
+          },
           "category": {
             "type": "string",
             "maxLength": 60,
@@ -2166,6 +2179,33 @@
         ],
         "title": "SimulationControl"
       },
+      "SimulationEffect": {
+        "properties": {
+          "summary": {
+            "type": "string",
+            "maxLength": 1000,
+            "title": "Summary",
+            "default": ""
+          },
+          "state_changes": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "maxProperties": 20,
+            "title": "State Changes"
+          },
+          "hide_object": {
+            "type": "boolean",
+            "title": "Hide Object",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SimulationEffect",
+        "description": "Declarative fictional outcome, never executable code or a hardware command."
+      },
       "StatusUpdate": {
         "properties": {
           "status": {
@@ -2248,6 +2288,16 @@
       },
       "Subtask": {
         "properties": {
+          "simulation_effect": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SimulationEffect"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "destination": {
             "anyOf": [
               {

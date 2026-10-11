@@ -46,6 +46,7 @@ class Requirements(Contract):
     source: Literal['documented_task_prior', 'operator', 'llm_estimate'] = 'documented_task_prior'
 
 class ModelOffer(Contract):
+    simulation_placeholder: bool = False
     category: str = Field(default='', max_length=60)
     tags: list[str] = Field(default_factory=list, max_length=20)
     specialist: bool = False
@@ -149,7 +150,14 @@ class InferenceResult(Contract):
     source: Literal['pretrained_model', 'algorithm', 'simulation']
     observation_revision: int
 
+class SimulationEffect(Contract):
+    """Declarative fictional outcome, never executable code or a hardware command."""
+    summary: str = Field(default='', max_length=1000)
+    state_changes: dict[str, str] = Field(default_factory=dict, max_length=20)
+    hide_object: bool = False
+
 class Subtask(Contract):
+    simulation_effect: SimulationEffect | None = None
     destination: str | None = None
     object_name: str | None = None
     description: str = ''
@@ -167,6 +175,7 @@ class Subtask(Contract):
     error: str | None = None
 
 class MissionPlan(Contract):
+    simulation_fallbacks: list[ModelOffer] = Field(default_factory=list, max_length=64)
     bounty_ids: list[str] = Field(default_factory=list)
     simulation_scene: dict = Field(default_factory=dict)
     simulation_cost_ausd: Money = '0'

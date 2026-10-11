@@ -60,7 +60,7 @@ def infer_simulated(request):
     matches=find_objects(scene,data.object_name)
     generic={'camera_capture','image_quality','scene_mapping','completion_verification'}
     if cap not in generic and len(matches)!=1:
-        raise ValueError('This shard needs one named fixture object. Choose coffee mug, wrench, screwdriver, package a or package b.')
+        raise ValueError('This shard needs one named object from this mission’s generated scene.')
     obj=matches[0] if len(matches)==1 else None
     if request.model_id in NICHES and (not obj or obj['name']!=NICHES[request.model_id][1]['name']):
         raise ValueError('This specialist only serves its advertised object')
@@ -111,7 +111,7 @@ def infer_simulated(request):
         elif cap=='dimension_estimation': out.update(dimensions_mm=obj['size_mm'],mass_kg=obj['mass_kg'])
         elif cap=='reachability_check': out.update(reachable=60<=center[0]<=580 and 60<=center[1]<=360,center_px=center)
         elif cap=='collision_check':
-            clearance=min((max(o['bbox'][0]-x2,x1-o['bbox'][2],0)**2+max(o['bbox'][1]-y2,y1-o['bbox'][3],0)**2)**.5 for o in scene['objects'] if o['id']!=obj['id'])
+            clearance=min(((max(o['bbox'][0]-x2,x1-o['bbox'][2],0)**2+max(o['bbox'][1]-y2,y1-o['bbox'][3],0)**2)**.5 for o in scene['objects'] if o['id']!=obj['id']),default=640)
             out.update(clearance_px=round(clearance,2),overlap=clearance==0)
         elif cap=='handle_detection': out.update(has_handle=obj['handle'],handle_center_px=[x2,center[1]] if obj['handle'] else None)
         elif cap=='surface_inspection': out.update(dirt_fraction=obj['surface_dirt'],condition='needs cleaning' if obj['surface_dirt']>.1 else 'clean')

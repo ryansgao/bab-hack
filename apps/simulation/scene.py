@@ -31,6 +31,7 @@ def render_scene(scene):
         draw.rectangle((x-35,y-15,x+35,y+15),outline='#b1b6a5')
         draw.text((x-33,y-10),name.replace('_',' '),fill='#7a8170')
     for item in scene['objects']:
+        if item.get('visible') is False: continue
         x1,y1,x2,y2=item['bbox']
         draw.rounded_rectangle(tuple(item['bbox']),radius=8,fill=item['color'],outline='#626e61',width=2)
         if item['id']=='mug':

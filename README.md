@@ -94,8 +94,11 @@ weights, images, and runtime databases out of Git.
 
 ## Simulation missions
 
-New dashboard missions default to **Simulation · demo credits**. The built-in
-camera scene contains a coffee mug, wrench, screwdriver and two labeled packages.
+New dashboard missions default to **Simulation · demo credits**. Claude creates
+the objects and initial fixture traits needed by the prompt in the same planning
+call, including objects outside the sample catalog. The starter workbench is only
+a reference scene. Named destinations are created automatically, and the 3D
+preview renders the generated objects with box, sphere or cylinder geometry.
 Local producer adapters expose capture, mapping, detection, geometry, condition,
 grasp, placement and reporting capabilities, alongside the niche catalog below.
 Claude plans only actions needed for the goal, with no minimum subtask count.
@@ -107,7 +110,14 @@ detection, grasp planning and handling; larger goals add actual requested work.
 Simulation providers compute from explicit scene fixtures, not learned perception.
 The mug has a dirt patch; packages can have damage and sealed/unknown contents.
 These findings are visible in the per-step output. A missing upload is not a blocker
-in this mode. Unknown objects and unsupported operations still appear as gaps.
+in this mode. Unknown objects become prompt-generated fixtures. Unsupported
+operations use free, mission-scoped **virtual demo effects** while genuine catalog
+gaps still create bounties. Virtual effects record expected state transitions;
+they are not trained inference, hardware execution, producer listings or purchases.
+They never enter the shared catalog and cannot be used in real-provider mode.
+When a fixture adapter cannot satisfy its inputs, its step can also use an explicit
+virtual effect without charging for failed inference. Real-provider constraints
+and verified payment requirements remain enforced.
 
 Simulation prices are shown per provider; niche listings cost 0.0008 demo credits
 per call. Execution records `simulated`
@@ -149,7 +159,9 @@ persist in SQLite with mission links and acceptance criteria. The Bounties page
 also accepts manual requests and producer submissions. Accepting a demo solution
 publishes its scoped fixture adapter and records an idempotent demo reward. A
 producer can read an existing object attribute or change an attribute; these
-declarative programs never execute uploaded code. Rebuild the blocked mission
+declarative programs never execute uploaded code. Bounties retain the generated
+object fixture so producers can deliver solutions for unfamiliar objects too.
+Rebuild the mission
 to use the new listing. Demo awards do not transfer AUSD. Real submissions remain
 unavailable pending adapter integration, and their reward remains an unfunded
 pledge until an actual settlement flow is configured.

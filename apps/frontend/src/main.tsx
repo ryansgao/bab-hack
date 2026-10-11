@@ -357,7 +357,7 @@ function Composer({
           pieces together.
         </p>
       </div>
-      <div className="simulation-mode glass-quiet"><label>Execution mode <select aria-label="Execution mode" value={data.executionMode} onChange={e=>data.setExecutionMode(e.target.value as "simulation"|"testnet")}><option value="simulation">Simulation · demo credits</option><option value="testnet">Real providers · AUSD testnet</option></select></label><p>{data.executionMode==="simulation"?"Built-in scenes and hundreds of object-specific skills. No upload or funded wallet needed. Claude API usage still applies.":"Real model inference and testnet payments. Supply an observation and funded wallets."}</p></div>
+      <div className="simulation-mode glass-quiet"><label>Execution mode <select aria-label="Execution mode" value={data.executionMode} onChange={e=>data.setExecutionMode(e.target.value as "simulation"|"testnet")}><option value="simulation">Simulation · demo credits</option><option value="testnet">Real providers · AUSD testnet</option></select></label><p>{data.executionMode==="simulation"?"Your prompt creates the demo scene. Available marketplace skills run locally; missing skills use free virtual effects and can open producer bounties. Claude planning usage still applies.":"Real model inference and testnet payments. Supply an observation and funded wallets."}</p></div>
       <div className="composer glass-raised">
         <textarea
           ref={input}
@@ -649,7 +649,7 @@ function StepDetail({ step }: { step: Step }) {
                   {step.result.inference_latency_ms.toFixed(1)} ms measured
                 </span>
               </div>
-              {step.result.source==="simulation"&&<p className="simulation-label">SIMULATION · Fixture-backed output · No on-chain payment</p>}
+              {step.result.source==="simulation"&&<p className="simulation-label">{step.result.output.virtual_effect?'VIRTUAL DEMO · Expected outcome only · No model purchase':'SIMULATION · Fixture-backed output · No on-chain payment'}</p>}
               <p className="result-summary">{step.result.summary}</p>
               <pre className="result-json">
                 {JSON.stringify(
@@ -698,6 +698,7 @@ function Mission({ data, onNew, onBounties }: { data: RoboMarket; onNew: () => v
   ).length;
   const step = plan.subtasks[Math.min(selected, plan.subtasks.length - 1)];
   const blocked = plan.subtasks.find((item) => item.error)?.error;
+  const virtualSteps=plan.subtasks.filter(item=>item.decision?.candidates.some(candidate=>candidate.model.id===item.decision?.selected_model_id && candidate.model.simulation_placeholder));
   return (
     <div className="page mission-page enter">
       <div className="page-heading">
@@ -716,7 +717,7 @@ function Mission({ data, onNew, onBounties }: { data: RoboMarket; onNew: () => v
           New mission
         </button>
       </div>
-      {simulated&&<div className="simulation-mode glass-quiet"><strong>Simulation mission · Built-in camera and local demo providers</strong><p>Spent {money(plan.simulation_cost_ausd||"0")} demo credits. Actual AUSD spent: {money(plan.spent_ausd)}. No blockchain transactions.</p></div>}
+      {simulated&&<div className="simulation-mode glass-quiet"><strong>Simulation mission · Scene generated for your prompt</strong><p>Spent {money(plan.simulation_cost_ausd||"0")} demo credits. Actual AUSD spent: {money(plan.spent_ausd)}. No blockchain transactions.</p>{!!virtualSteps.length && <p><strong>{virtualSteps.length} {virtualSteps.length===1?'step uses':'steps use'} free virtual demo effects.</strong> These illustrate the expected outcome while marketplace skills are unavailable. They do not run trained models or physical hardware.</p>}</div>}
       <div className="mission-summary glass-quiet">
         <div>
           <span className="eyebrow">Mission status</span>
@@ -749,13 +750,13 @@ function Mission({ data, onNew, onBounties }: { data: RoboMarket; onNew: () => v
         </div>
       </div>
       {simulated && <TaskPreviewToggle data={data} plan={plan} selected={selected} onSelect={setSelected} />}
-      {!!plan.bounty_ids?.length && <div className="bounty-mission-notice glass-quiet"><Flag size={18}/><div><strong>{plan.bounty_ids.length} missing-skill {plan.bounty_ids.length===1?'bounty':'bounties'} posted automatically</strong><p>Producers can deliver the missing capabilities. Review submissions in the bounty board, then rebuild this plan with the published solution.</p><button className="secondary" onClick={onBounties}>View bounties</button><button className="secondary" disabled={busy || plan.status!=='blocked'} onClick={()=>void data.replan()}>Rebuild with new expertise</button></div></div>}
+      {!!plan.bounty_ids?.length && <div className="bounty-mission-notice glass-quiet"><Flag size={18}/><div><strong>{plan.bounty_ids.length} missing-skill {plan.bounty_ids.length===1?'bounty':'bounties'} posted automatically</strong><p>{simulated?'Your demo can continue with virtual effects while producers deliver these skills.':'Producers can deliver the missing capabilities.'} Review submissions, then rebuild to use a published solution.</p><button className="secondary" onClick={onBounties}>View bounties</button><button className="secondary" disabled={busy || !['blocked','planned','completed'].includes(plan.status)} onClick={()=>void data.replan()}>Rebuild with new expertise</button></div></div>}
       {plan.status === "blocked" && (
         <div className="mission-alert" role="status">
           <CircleHelp size={19} />
           <div>
             <strong>This mission needs your attention.</strong>
-            <p>{readableMessage(blocked || plan.blockers?.join(" ") || plan.explanation)}</p>{!simulated&&<button className="secondary" disabled={busy} onClick={()=>void data.rebuildInSimulation()}>{busy?"Decomposing simulation…":"Rebuild with simulation providers"}</button>}
+            <p>{readableMessage(blocked || plan.blockers?.join(" ") || plan.explanation)}</p><button className="secondary" disabled={busy} onClick={()=>void (simulated?data.replan():data.rebuildInSimulation())}>{busy?"Preparing demo…":simulated?"Refresh demo for this prompt":"Rebuild with simulation providers"}</button>
           </div>
         </div>
       )}

@@ -1,6 +1,6 @@
 from decimal import Decimal
 from shared.schemas.contracts import SelectionRequest
-from services.agent.selection import select
+from services.agent.mission_selection import select_step
 from services.marketplace.registry import list_models
 from apps.simulation.world import world
 from apps.simulation.arm import arm
@@ -13,7 +13,7 @@ def quote(plan):
         req=SelectionRequest(execution_mode=plan.request.execution_mode,observation=obs,task_type=step.task_type,robot_card=plan.request.robot_card,
             requirements=step.requirements,object_name=step.object_name,remaining_budget_ausd=plan.request.budget_ausd,
             inference_deadline_ms=plan.request.inference_deadline_ms,minimum_quality=plan.request.minimum_quality)
-        decision=select(req,offers)
+        decision=select_step(plan,step,req,offers)
         eligible=[Decimal(c.model.price_ausd) for c in decision.candidates if c.eligible]
         cheapest.append(min(eligible) if eligible else None)
         step.decision=decision
@@ -26,7 +26,7 @@ def quote(plan):
     for index,step in enumerate(plan.subtasks):
         future=sum(cheapest[index+1:],Decimal(0))
         spendable=max(Decimal(0),remaining-future)
-        decision=select(SelectionRequest(execution_mode=plan.request.execution_mode,observation=obs,task_type=step.task_type,robot_card=plan.request.robot_card,
+        decision=select_step(plan,step,SelectionRequest(execution_mode=plan.request.execution_mode,observation=obs,task_type=step.task_type,robot_card=plan.request.robot_card,
             requirements=step.requirements,object_name=step.object_name,remaining_budget_ausd=str(spendable),inference_deadline_ms=plan.request.inference_deadline_ms,
             minimum_quality=plan.request.minimum_quality),offers)
         step.decision=decision

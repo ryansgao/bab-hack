@@ -1,5 +1,6 @@
 export type View = "home" | "mission" | "marketplace" | "bounties" | "wallet" | "robot";
 export type Offer = {
+  simulation_placeholder?: boolean;
   category: string; tags: string[]; specialist: boolean;
   execution_mode: "simulation" | "testnet";
   description: string;
@@ -54,9 +55,11 @@ export type SimulationScene = {
     bbox: [number, number, number, number]; size_mm: [number, number, number];
     color: string; destination: string; surface_dirt: number; defects: string[];
     contents: string | null; handle: boolean;
+    shape?: string; visible?: boolean; traits?: Record<string,string>;
   }[];
 };
 export type Step = {
+  simulation_effect?: {summary: string; state_changes: Record<string,string>; hide_object: boolean} | null;
   destination: string | null;
   object_name: string | null; description: string; success_criteria: string;
   id: string;
@@ -77,6 +80,7 @@ export type Step = {
   } | null;
 };
 export type Plan = {
+  simulation_fallbacks?: Offer[];
   bounty_ids: string[];
   simulation_scene: SimulationScene | null;
   planner: string; planner_model: string | null; assumptions: string[]; blockers: string[];

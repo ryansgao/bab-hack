@@ -76,6 +76,10 @@ def auto_post(plan):
                 bounty=_create(BountyRequest(title=step.title,description=step.description or step.title,
                     task_type=step.task_type,object_name=step.object_name,execution_mode=plan.request.execution_mode,
                     reward_ausd=plan.request.bounty_reward_ausd,success_criteria=step.success_criteria),plan.id,step.id)
+            if plan.request.execution_mode=='simulation' and step.object_name:
+                from apps.simulation.scene import find_objects
+                objects=find_objects(plan.simulation_scene,step.object_name)
+                if len(objects)==1: bounty['simulation_object']=objects[0]
             _save(conn,bounty)
             if bounty['id'] not in plan.bounty_ids: plan.bounty_ids.append(bounty['id'])
     return plan
@@ -111,12 +115,11 @@ def accept(identity: str, request: Acceptance):
         if not solution: raise HTTPException(404,'Submission not found')
         simulated=bounty['execution_mode']=='simulation'
         if simulated:
-            from apps.simulation.catalog import scene_for_task
-            from apps.simulation.scene import find_objects
-            objects=find_objects(scene_for_task(bounty['object_name'] or ''),bounty['object_name'])
-            if not bounty['object_name'] or len(objects)!=1:
-                raise HTTPException(422,'A demo solution needs one named object available in the simulation fixture.')
-            if solution['operation']=='inspect_attribute' and solution['attribute'] not in objects[0].get('traits',{}):
+            from apps.simulation.mission import fixture_object
+            if not bounty['object_name']:
+                raise HTTPException(422,'A demo producer solution needs one named object.')
+            obj=bounty.get('simulation_object') or fixture_object(bounty['object_name'])
+            if solution['operation']=='inspect_attribute' and solution['attribute'] not in obj.get('traits',{}):
                 raise HTTPException(422,'This attribute is absent from the object fixture. Choose an existing attribute to inspect.')
         model=ModelOffer(id='bounty_'+solution['id'],name=solution['model_name'],provider_id=solution['producer_id'],
             task_type=bounty['task_type'],price_ausd=solution['price_ausd'],latency_ms=25,kind='algorithm',

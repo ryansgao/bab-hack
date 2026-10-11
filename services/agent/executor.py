@@ -8,7 +8,7 @@ import httpx
 from shared.schemas.contracts import MissionPlan, SelectionRequest, InferenceInput, InferenceRequest, InferenceResult, Point
 from services.storage import db, event
 from services.marketplace.registry import list_models, feedback
-from services.agent.selection import select
+from services.agent.mission_selection import select_step, virtual_decision
 from apps.simulation.world import world
 from apps.simulation.arm import arm
 from services.agent.quote import quote
@@ -88,7 +88,7 @@ def execute(plan_id, purchase=None):
                 robot_card=plan.request.robot_card, requirements=step.requirements, object_name=step.object_name,
                 remaining_budget_ausd=str(max(Decimal(0), remaining)), inference_deadline_ms=plan.request.inference_deadline_ms,
                 minimum_quality=plan.request.minimum_quality)
-            step.decision = select(request, list_models())
+            step.decision = select_step(plan, step, request, list_models())
             event({'type': 'selection', 'plan_id': plan.id, 'step_id': step.id, **step.decision.model_dump()})
             if step.decision.safe_fallback:
                 step.status, step.error, plan.status = 'blocked', step.decision.explanation, 'blocked'
@@ -110,6 +110,9 @@ def execute(plan_id, purchase=None):
                             for object_id,traits in completed_step.result.output.get('trait_updates',{}).items():
                                 for obj in scene.get('objects',[]):
                                     if obj['id']==object_id: obj.setdefault('traits',{}).update(traits)
+                            for object_id,visible in completed_step.result.output.get('visibility_updates',{}).items():
+                                for obj in scene.get('objects',[]):
+                                    if obj['id']==object_id: obj['visible']=visible
                 from apps.simulation.scene import scene_image
                 body = InferenceRequest(request_id=f'{plan.id}_{step.id}', model_id=step.decision.selected_model_id,
                     input=InferenceInput(execution_mode=plan.request.execution_mode,simulation_scene=scene,destination=step.destination,observation=request.observation, target=step.target,
@@ -122,11 +125,25 @@ def execute(plan_id, purchase=None):
                     from services.models.simulation import infer_simulated
                     from services.marketplace.registry import get_model
                     offer=get_model(body.model_id)
+                    if offer is None: offer=next((m for m in plan.simulation_fallbacks if m.id==body.model_id),None)
                     if not offer or offer.execution_mode!='simulation': raise ValueError('Simulation requires a simulation provider')
                     if Decimal(offer.price_ausd)>remaining: raise ValueError('Demo credit budget exceeded')
-                    result=infer_simulated(body)
+                    if offer.simulation_placeholder:
+                        from apps.simulation.mission import infer_virtual
+                        result=infer_virtual(body,offer)
+                    else:
+                        try: result=infer_simulated(body)
+                        except (ValueError,KeyError):
+                            # A fixture cannot satisfy this adapter's inputs. Keep
+                            # the demo virtual, without charging for failed inference.
+                            step.decision=virtual_decision(plan,step,step.decision)
+                            offer=next((m for m in plan.simulation_fallbacks if m.id==step.decision.selected_model_id),None)
+                            if offer is None: raise
+                            from apps.simulation.mission import infer_virtual
+                            body.model_id=offer.id
+                            result=infer_virtual(body,offer)
                     response={'inference':result.model_dump(),'payment':{'request_id':body.request_id,'model_id':body.model_id,
-                        'amount_ausd':offer.price_ausd,'status':'simulated','transaction_hash':None,'explorer_url':None,
+                        'amount_ausd':offer.price_ausd,'status':'virtual_effect' if offer.simulation_placeholder else 'simulated','transaction_hash':None,'explorer_url':None,
                         'timestamp':datetime.now(timezone.utc).isoformat(),'mode':'simulation'}}
                 elif purchase:
                     response = purchase(body)
@@ -143,15 +160,20 @@ def execute(plan_id, purchase=None):
                                     plan.spent_ausd = str(Decimal(plan.spent_ausd) + Decimal(step.payment['amount_ausd']))
                             raise ValueError(response.get('error', {}).get('message', 'Payment service rejected purchase'))
                 step.payment = response['payment']
-                if step.payment.get('status') != ('simulated' if simulated else 'settled'): raise ValueError('Payment is not verified as settled')
+                if step.payment.get('status') not in (('simulated','virtual_effect') if simulated else ('settled',)): raise ValueError('Payment is not verified as settled')
                 if simulated: plan.simulation_cost_ausd = str(Decimal(plan.simulation_cost_ausd) + Decimal(step.payment['amount_ausd']))
                 else: plan.spent_ausd = str(Decimal(plan.spent_ausd) + Decimal(step.payment['amount_ausd']))
                 result = InferenceResult.model_validate(response['inference'])
                 step.result = result
-                feedback(result.model_id, result.inference_latency_ms)
+                if not result.output.get('virtual_effect'): feedback(result.model_id, result.inference_latency_ms)
                 event({'type': 'inference', 'plan_id': plan.id, 'step_id': step.id, **result.model_dump()})
-                if result.inference_latency_ms > plan.request.inference_deadline_ms:
+                if not result.output.get('virtual_effect') and result.inference_latency_ms > plan.request.inference_deadline_ms:
                     raise ValueError('Inference exceeded deadline; receipt retained, robot stopped')
+                if result.output.get('virtual_effect'):
+                    # A virtual state transition does not drive arm/base motion.
+                    step.status='completed'
+                    save(plan)
+                    continue
                 if is_arm:
                     if not simulated and step.task_type == 'object_detection' and step.object_name and not any(step.object_name.lower() in p.label.lower() for p in result.predictions):
                         raise ValueError('The selected provider did not detect the requested object. Supply a suitable camera image; grasp/control remain blocked.')
