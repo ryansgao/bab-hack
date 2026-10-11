@@ -1,311 +1,187 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense } from "react";
 import type { Offer } from "../lib/types";
-// @ts-expect-error Local Three.js distribution is bundled with its license.
-import * as THREE from "../vendor/three.module.min.js";
 
-const labels: Record<string, string> = {
-  object_detection: "LOCATE / IDENTIFY",
-  grasp: "ALIGN / GRIP",
-  control: "FEEL / MOVE",
-  path_planning: "ROUTE / AVOID",
-  scene_inspection: "SCAN / UNDERSTAND",
+const GraspPreview3D = lazy(() => import("./GraspPreview3D"));
+
+const captions: Record<string, string> = {
+  ssdlite: "IMAGE → BOX + CLASS",
+  fasterrcnn: "PROPOSE → REFINE",
+  owlvit: "TEXT QUERY → LOCALIZE",
+  astar: "GRID → COLLISION-FREE ROUTE",
+  scene_summary: "OBSERVATION → SUMMARY",
+  power_grasp: "WHOLE-OBJECT CONTACT",
+  precision_grasp: "FINGERTIP CONTACT",
+  standard_control: "FORCE + MOTION POLICY",
+  soft_control: "GENTLE FORCE POLICY",
 };
-const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+
+function SampleObjects() {
+  return (
+    <>
+      <rect x="26" y="42" width="248" height="104" rx="10" fill="#1b2c2b" stroke="#466658" strokeWidth=".8" />
+      <path d="M26 119H274M83 42V146M207 42V146" stroke="#49645a" strokeOpacity=".4" strokeWidth=".7" />
+      <ellipse cx="86" cy="122" rx="41" ry="7" fill="#0a1517" opacity=".5" />
+      <rect x="57" y="73" width="57" height="44" rx="4" fill="#c8a877" />
+      <path d="M57 83H114M71 73V117M101 73V117" stroke="#826d50" strokeOpacity=".75" strokeWidth="1.5" />
+      <ellipse cx="195" cy="125" rx="31" ry="6" fill="#0a1517" opacity=".5" />
+      <path d="M178 76H213L209 119Q195 125 182 119Z" fill="#d5e6d9" />
+      <ellipse cx="195" cy="76" rx="17.5" ry="4" fill="#9cb6a8" />
+      <ellipse cx="195" cy="77" rx="13" ry="2.4" fill="#172727" />
+      <path d="M212 86Q229 84 227 97Q225 107 212 105" fill="none" stroke="#d5e6d9" strokeWidth="5" />
+      <path d="M43 55h17M43 55v11M257 55h-17M257 55v11M43 134h17M43 134v-11M257 134h-17M257 134v-11" stroke="#8cae96" strokeOpacity=".46" strokeWidth="1.2" />
+    </>
+  );
+}
+
+function CornerBox({ x, y, width, height, color = "#9cf2b8", className = "" }: {
+  x: number; y: number; width: number; height: number; color?: string; className?: string;
+}) {
+  const c = 8;
+  return (
+    <path
+      className={className}
+      d={`M${x + c} ${y}H${x}V${y + c}M${x + width - c} ${y}H${x + width}V${y + c}M${x} ${y + height - c}V${y + height}H${x + c}M${x + width - c} ${y + height}H${x + width}V${y + height - c}`}
+      fill="none" stroke={color} strokeWidth="2" strokeLinecap="round"
+    />
+  );
+}
+
+function DetectorDiagram({ id }: { id: string }) {
+  const proposals = id === "fasterrcnn";
+  return (
+    <svg className="skill-diagram" viewBox="0 0 300 180" aria-hidden="true">
+      <SampleObjects />
+      {proposals && (
+        <g className="preview-proposals" stroke="#e2ba80" strokeWidth="1" fill="none" strokeDasharray="3 3">
+          <rect x="43" y="65" width="86" height="64" rx="3" />
+          <rect x="165" y="69" width="69" height="62" rx="3" />
+          <rect x="174" y="82" width="43" height="43" rx="3" />
+        </g>
+      )}
+      <CornerBox x={174} y={70} width={51} height={55} className="preview-detection-lock" />
+      {!proposals && <CornerBox x={52} y={69} width={68} height={54} color="#e6bd84" className="preview-detection-lock preview-delay" />}
+      <g className="preview-detection-label">
+        <rect x="174" y="56" width="49" height="14" rx="3" fill="#9cf2b8" />
+        <text x="181" y="66" fill="#123024" fontSize="8" fontWeight="700" fontFamily="sans-serif">CUP</text>
+      </g>
+      {!proposals && <g><rect x="52" y="55" width="48" height="14" rx="3" fill="#e6bd84" /><text x="59" y="65" fill="#302519" fontSize="8" fontWeight="700" fontFamily="sans-serif">BOX</text></g>}
+      <path className="preview-scan-line" d="M33 44V143" stroke="#9cf2b8" strokeWidth="1.2" strokeOpacity=".7" />
+      <text x="35" y="136" fill="#a9c5b6" fontSize="8" letterSpacing="1.2" fontFamily="monospace">{proposals ? "TWO-STAGE DETECTOR" : "IMAGE DETECTOR"}</text>
+    </svg>
+  );
+}
+
+function VocabularyDiagram() {
+  return (
+    <svg className="skill-diagram" viewBox="0 0 300 180" aria-hidden="true">
+      <rect x="25" y="45" width="250" height="96" rx="10" fill="#1b2c2b" stroke="#466658" strokeWidth=".8" />
+      <rect x="38" y="58" width="138" height="32" rx="6" fill="#263c37" stroke="#719981" strokeWidth=".8" />
+      <text x="49" y="70" fill="#81aa91" fontSize="7" letterSpacing="1" fontFamily="monospace">TEXT PROMPT</text>
+      <text x="49" y="82" fill="#e3efe2" fontSize="10" fontFamily="sans-serif">“a ceramic cup”</text>
+      <path d="M177 75H195m-5-4 5 4-5 4" fill="none" stroke="#9cf2b8" strokeWidth="1.4" />
+      <ellipse cx="228" cy="121" rx="29" ry="5" fill="#0a1517" opacity=".5" />
+      <path d="M212 77H244L241 117Q228 123 215 117Z" fill="#d6e8db" />
+      <ellipse cx="228" cy="77" rx="16" ry="4" fill="#9bb6a7" />
+      <ellipse cx="228" cy="78" rx="12" ry="2.2" fill="#172727" />
+      <path d="M243 87Q258 86 256 97Q255 105 243 104" fill="none" stroke="#d6e8db" strokeWidth="4.5" />
+      <CornerBox x={205} y={69} width={53} height={58} className="preview-detection-lock" />
+      <g className="preview-detection-label"><rect x="205" y="54" width="53" height="15" rx="3" fill="#9cf2b8" /><text x="212" y="65" fill="#123024" fontSize="8" fontWeight="700" fontFamily="sans-serif">MATCH</text></g>
+      <path className="preview-vocab-link" d="M168 96Q183 128 204 111" fill="none" stroke="#9cf2b8" strokeWidth="1" strokeDasharray="3 3" />
+      <text x="39" y="122" fill="#9eb8aa" fontSize="8" fontFamily="monospace">QUERY-DRIVEN SEARCH</text>
+    </svg>
+  );
+}
+
+const blocked = new Set(["2,1", "3,1", "3,2", "6,3", "8,2", "8,3"]);
+function RouteDiagram() {
+  return (
+    <svg className="skill-diagram" viewBox="0 0 300 180" aria-hidden="true">
+      <rect x="24" y="41" width="252" height="107" rx="10" fill="#1b2c2b" stroke="#466658" strokeWidth=".8" />
+      {Array.from({ length: 55 }, (_, index) => {
+        const col = index % 11;
+        const row = Math.floor(index / 11);
+        const obstacle = blocked.has(`${col},${row}`);
+        return <rect key={index} x={36 + col * 21} y={46 + row * 20} width="19" height="18" rx="2" fill={obstacle ? "#536f65" : "#263c37"} stroke={obstacle ? "#84a994" : "#36574a"} strokeWidth=".6" />;
+      })}
+      <polyline className="preview-route-line" points="45,134 66,134 87,134 108,134 108,114 129,114 150,114 150,94 150,74 171,74 192,74 192,54 213,54 234,54 255,54" fill="none" stroke="#a4f3bb" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="45" cy="134" r="5" fill="#e9b476" stroke="#1b2c2b" strokeWidth="2" />
+      <circle cx="255" cy="54" r="6" fill="#a4f3bb" stroke="#1b2c2b" strokeWidth="2" />
+      <text x="34" y="161" fill="#b8d2bd" fontSize="8" fontFamily="monospace">START</text>
+      <text x="239" y="161" fill="#b8d2bd" fontSize="8" fontFamily="monospace">GOAL</text>
+      <text x="159" y="137" fill="#9ab8a7" fontSize="7" fontFamily="monospace">OBSTACLES</text>
+    </svg>
+  );
+}
+
+function InspectionDiagram() {
+  return (
+    <svg className="skill-diagram" viewBox="0 0 300 180" aria-hidden="true">
+      <rect x="24" y="41" width="135" height="108" rx="9" fill="#1b2c2b" stroke="#466658" strokeWidth=".8" />
+      <path d="M24 68H159M24 95H159M24 122H159M51 41V149M78 41V149M105 41V149M132 41V149" stroke="#4a675b" strokeOpacity=".44" strokeWidth=".7" />
+      <circle cx="82" cy="105" r="25" fill="none" stroke="#91cba2" strokeOpacity=".65" strokeWidth="1" strokeDasharray="3 3" />
+      <circle cx="82" cy="105" r="7" fill="#cbded0" />
+      <path d="M82 98v-8M76 111l-6 6M88 111l6 6" stroke="#cbded0" strokeWidth="2" strokeLinecap="round" />
+      <circle className="preview-agent-dot" cx="123" cy="65" r="5" fill="#e3ad70" />
+      <circle className="preview-agent-dot preview-delay" cx="51" cy="77" r="5" fill="#e3ad70" />
+      <rect x="120" y="113" width="24" height="9" rx="2" fill="#648172" />
+      <path className="preview-inspection-sweep" d="M82 105L126 54" stroke="#a5f1b8" strokeWidth="1.5" />
+      <text x="174" y="55" fill="#87a997" fontSize="8" letterSpacing="1" fontFamily="monospace">SCENE SIGNALS</text>
+      <g fontFamily="sans-serif" fontSize="10" fill="#d8e9d9">
+        <text x="174" y="76">Nearby agents</text>
+        <text x="174" y="104">Person detections</text>
+        <text x="174" y="132">Obstacle clearance</text>
+      </g>
+      <g stroke="#8ac69c" strokeWidth="2"><path d="M174 82H261M174 110H253M174 138H267" /></g>
+    </svg>
+  );
+}
+
+function ControlDiagram({ soft }: { soft: boolean }) {
+  return (
+    <svg className="skill-diagram" viewBox="0 0 300 180" aria-hidden="true">
+      <rect x="23" y="42" width="254" height="106" rx="9" fill="#1b2c2b" stroke="#466658" strokeWidth=".8" />
+      <path d="M43 59V129H265M43 77H265M43 99H265" fill="none" stroke="#48695a" strokeOpacity=".7" strokeWidth="1" />
+      <path d="M43 66H265" fill="none" stroke="#e7ad73" strokeWidth="1" strokeDasharray="4 4" />
+      <text x="192" y="60" fill="#d8ad7c" fontSize="7" fontFamily="monospace">SAFETY LIMIT</text>
+      <path d={soft ? "M44 127C76 127 83 118 105 111S151 100 181 100H260" : "M44 127H76L105 91Q120 82 154 82H260"} fill="none" stroke="#9cf2b8" strokeWidth="3" strokeLinecap="round" className="preview-force-line" />
+      <circle cx={soft ? "181" : "154"} cy={soft ? "100" : "82"} r="5" fill="#9cf2b8" className="preview-force-point" />
+      <text x="43" y="157" fill="#b8d3bf" fontSize="8" fontFamily="monospace">{soft ? "LOWER FLOOR · SLOWER MOTION" : "STANDARD FLOOR · FASTER MOTION"}</text>
+      <text x="48" y="75" fill="#88a698" fontSize="7" fontFamily="monospace">FORCE</text>
+      <text x="240" y="140" fill="#88a698" fontSize="7" fontFamily="monospace">TIME</text>
+    </svg>
+  );
+}
+
+function GenericDiagram() {
+  return (
+    <svg className="skill-diagram" viewBox="0 0 300 180" aria-hidden="true">
+      <rect x="32" y="55" width="62" height="68" rx="8" fill="#263c37" stroke="#87b89a" />
+      <rect x="119" y="55" width="62" height="68" rx="8" fill="#263c37" stroke="#87b89a" />
+      <rect x="206" y="55" width="62" height="68" rx="8" fill="#263c37" stroke="#87b89a" />
+      <path d="M94 89h25m62 0h25" stroke="#9cf2b8" strokeWidth="2" />
+      <text x="48" y="93" fill="#d5e8d9" fontSize="10" fontFamily="monospace">IN</text>
+      <text x="131" y="93" fill="#d5e8d9" fontSize="10" fontFamily="monospace">SKILL</text>
+      <text x="219" y="93" fill="#d5e8d9" fontSize="10" fontFamily="monospace">OUT</text>
+    </svg>
+  );
+}
 
 export function SkillPreview({ offer }: { offer: Offer }) {
-  const mount = useRef<HTMLDivElement>(null);
-  const [unsupported, setUnsupported] = useState(false);
-
-  useEffect(() => {
-    const host = mount.current;
-    if (!host) return;
-    let renderer: any;
-    let scene: any;
-    let camera: any;
-    let resizeObserver: ResizeObserver | undefined;
-    let raf = 0;
-    let active = false;
-    let initialized = false;
-    let last = 0;
-    let start = 0;
-    const animations: Array<(time: number) => void> = [];
-
-    const build = () => {
-      try {
-        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "low-power" });
-      } catch {
-        initialized = true;
-        setUnsupported(true);
-        return;
-      }
-      initialized = true;
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.35));
-      renderer.outputColorSpace = THREE.SRGBColorSpace;
-      renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1.35;
-      renderer.domElement.setAttribute("aria-hidden", "true");
-      host.appendChild(renderer.domElement);
-      scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x101d1e);
-      scene.fog = new THREE.FogExp2(0x101d1e, 0.07);
-      camera = new THREE.PerspectiveCamera(37, 1, 0.1, 40);
-      scene.add(new THREE.HemisphereLight(0xd9eedc, 0x122323, 2.7));
-      const key = new THREE.DirectionalLight(0xeaf8e6, 3.4);
-      key.position.set(-3, 6, 5);
-      scene.add(key);
-      const edgeLight = new THREE.PointLight(0x77e4b5, 21, 6);
-      edgeLight.position.set(2, 2.2, -2.1);
-      scene.add(edgeLight);
-      const warmLight = new THREE.PointLight(0xffb26e, 12, 5);
-      warmLight.position.set(-2, 1.2, 1.2);
-      scene.add(warmLight);
-
-      const ink = new THREE.MeshStandardMaterial({ color: 0x152325, metalness: 0.65, roughness: 0.42 });
-      const deck = new THREE.MeshStandardMaterial({ color: 0x243636, metalness: 0.5, roughness: 0.58 });
-      const silver = new THREE.MeshStandardMaterial({ color: 0xcbdccf, metalness: 0.44, roughness: 0.35 });
-      const mint = new THREE.MeshStandardMaterial({ color: 0x9cc9ad, metalness: 0.4, roughness: 0.42 });
-      const amber = new THREE.MeshStandardMaterial({ color: 0xe6a46b, metalness: 0.43, roughness: 0.38 });
-      const light = new THREE.MeshBasicMaterial({ color: 0x8ff5b9 });
-      const line = new THREE.LineBasicMaterial({ color: 0x80f7af, transparent: true, opacity: 0.85 });
-      const ringLight = new THREE.MeshBasicMaterial({ color: 0x80f7af, transparent: true, opacity: 0.85 });
-      const transparent = new THREE.MeshBasicMaterial({ color: 0x77f4af, transparent: true, opacity: 0.13, depthWrite: false, side: THREE.DoubleSide });
-      const add = (geometry: any, material: any, x = 0, y = 0, z = 0) => {
-        const mesh = new THREE.Mesh(geometry, material);
-        mesh.position.set(x, y, z);
-        scene.add(mesh);
-        return mesh;
-      };
-      const box = (w: number, h: number, d: number, material: any, x = 0, y = 0, z = 0) => add(new THREE.BoxGeometry(w, h, d), material, x, y, z);
-      const sphere = (radius: number, material: any, x = 0, y = 0, z = 0) => add(new THREE.SphereGeometry(radius, 16, 12), material, x, y, z);
-      const cylinder = (radius: number, height: number, material: any, x = 0, y = 0, z = 0) => add(new THREE.CylinderGeometry(radius, radius, height, 20), material, x, y, z);
-      const ring = (radius: number, material: any, x = 0, y = 0, z = 0) => {
-        const mesh = add(new THREE.TorusGeometry(radius, 0.012, 5, 48), material, x, y, z);
-        mesh.rotation.x = Math.PI / 2;
-        return mesh;
-      };
-      const link = (radius: number, material: any) => add(new THREE.CylinderGeometry(radius * 0.85, radius, 1, 12), material);
-      const placeLink = (mesh: any, a: any, b: any) => {
-        const delta = b.clone().sub(a);
-        mesh.position.copy(a).add(b).multiplyScalar(0.5);
-        mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), delta.clone().normalize());
-        mesh.scale.y = delta.length();
-      };
-      const edgeBox = (w: number, h: number, d: number, x: number, y: number, z: number) => {
-        const outline = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(w, h, d)), line);
-        outline.position.set(x, y, z);
-        scene.add(outline);
-        return outline;
-      };
-
-      // Each preview is an instrument-sized workcell, with one task-specific action.
-      box(4.4, 0.14, 2.9, ink, 0, -0.22, 0);
-      box(4.19, 0.035, 2.69, deck, 0, -0.13, 0);
-      for (let i = -9; i <= 9; i++) box(0.005, 0.002, 2.65, transparent, i * 0.22, -0.108, 0);
-      for (let i = -5; i <= 5; i++) box(4.14, 0.002, 0.005, transparent, 0, -0.107, i * 0.22);
-      for (const z of [-1.37, 1.37]) box(4.3, 0.035, 0.045, mint, 0, -0.16, z);
-      for (const x of [-2.1, 2.1]) box(0.045, 0.035, 2.7, mint, x, -0.16, 0);
-      for (let i = 0; i < 5; i++) box(0.09, 0.028, 0.009, i < 3 ? light : amber, -1.88 + i * 0.15, -0.18, 1.48);
-      const ground = add(new THREE.PlaneGeometry(30, 30), new THREE.MeshStandardMaterial({ color: 0x101d1e, roughness: 0.87 }), 0, -0.32, 0);
-      ground.rotation.x = -Math.PI / 2;
-      const grid = new THREE.GridHelper(12, 20, 0x3d6154, 0x27433d);
-      grid.position.y = -0.308;
-      (grid.material as any).transparent = true;
-      (grid.material as any).opacity = 0.32;
-      scene.add(grid);
-
-      const type = offer.task_type;
-      if (type === "object_detection") {
-        box(0.63, 0.56, 0.6, silver, -0.75, 0.21, 0.05);
-        box(0.65, 0.055, 0.62, amber, -0.75, 0.52, 0.05);
-        cylinder(0.21, 0.62, mint, 0.55, 0.23, -0.42);
-        sphere(0.23, amber, 1.12, 0.12, 0.55);
-        const boxes = [edgeBox(0.84, 0.76, 0.81, -0.75, 0.23, 0.05), edgeBox(0.62, 0.82, 0.6, 0.55, 0.26, -0.42)];
-        const sweep = box(0.018, 0.9, 2.08, transparent, -1.45, 0.44, 0);
-        const target = ring(0.44, ringLight, -0.75, -0.095, 0.05);
-        animations.push((time) => {
-          sweep.position.x = -1.45 + ((time * (offer.id === "fasterrcnn" ? 0.48 : 0.7)) % 2.9);
-          boxes.forEach((outline, index) => { outline.visible = offer.id === "owlvit" ? index === 1 || Math.sin(time * 1.4) > 0 : true; });
-          target.scale.setScalar(1 + Math.sin(time * 2.6) * 0.08);
-        });
-      } else if (type === "grasp") {
-        const precise = offer.id.includes("precision");
-        cylinder(0.43, 0.21, ink, -1.44, 0.02, 0);
-        cylinder(0.32, 0.42, silver, -1.44, 0.31, 0);
-        const shoulder = new THREE.Vector3(-1.44, 0.58, 0);
-        sphere(0.18, amber, shoulder.x, shoulder.y, shoulder.z);
-        const upper = link(0.145, silver);
-        const fore = link(0.11, mint);
-        const elbow = sphere(0.16, ink);
-        const wrist = sphere(0.12, amber);
-        const leftJaw = box(0.065, 0.28, 0.11, silver);
-        const rightJaw = box(0.065, 0.28, 0.11, silver);
-        const workpiece = precise ? sphere(0.17, amber, 0.62, 0.1, 0.02) : box(0.47, 0.42, 0.45, amber, 0.64, 0.12, 0.02);
-        box(0.75, 0.055, 0.63, ink, 0.63, -0.07, 0.02);
-        edgeBox(0.78, 0.13, 0.66, 0.63, -0.04, 0.02);
-        animations.push((time) => {
-          const cycle = (time * (precise ? 0.43 : 0.54)) % 2;
-          const approach = cycle < 1 ? cycle : 2 - cycle;
-          const wristPoint = new THREE.Vector3(-0.44 + approach * 1.06, 1.03 - approach * 0.37 + Math.max(0, approach - 0.75) * 0.32, 0.02);
-          const elbowPoint = new THREE.Vector3(-0.65 + approach * 0.22, 1.27 + Math.sin(time * 0.55) * 0.03, -0.16);
-          placeLink(upper, shoulder, elbowPoint);
-          placeLink(fore, elbowPoint, wristPoint);
-          elbow.position.copy(elbowPoint);
-          wrist.position.copy(wristPoint);
-          const width = precise ? 0.12 : 0.19;
-          const closed = approach > 0.7 ? width * 0.72 : width;
-          leftJaw.position.set(wristPoint.x - closed, wristPoint.y - 0.27, wristPoint.z);
-          rightJaw.position.set(wristPoint.x + closed, wristPoint.y - 0.27, wristPoint.z);
-          workpiece.position.y = (precise ? 0.1 : 0.12) + (approach > 0.84 ? (approach - 0.84) * 0.9 : 0);
-        });
-      } else if (type === "control") {
-        const soft = offer.id.includes("soft");
-        box(1.2, 0.12, 0.9, ink, 0.58, -0.025, 0);
-        const pad = box(0.82, 0.19, 0.58, soft ? mint : amber, 0.58, 0.135, 0);
-        const probe = cylinder(0.17, 0.6, silver, 0.58, 1.08, 0);
-        cylinder(0.28, 0.13, ink, 0.58, 1.48, 0);
-        const contact = cylinder(0.26, 0.08, mint, 0.58, 0.75, 0);
-        const pressure = [0.33, 0.51, 0.7].map((radius) => ring(radius, ringLight, 0.58, 0.245, 0));
-        const gauge = box(0.1, 0.95, 0.08, ink, -1.19, 0.46, -0.05);
-        const fill = box(0.106, 0.44, 0.09, light, -1.19, 0.25, 0.01);
-        for (let i = 0; i < 4; i++) box(0.2, 0.015, 0.02, mint, -1.19, 0.07 + i * 0.25, 0.1);
-        gauge.rotation.z = 0;
-        animations.push((time) => {
-          const wave = 0.5 + Math.sin(time * (soft ? 2.1 : 3.3)) * 0.5;
-          probe.position.y = 1.08 - wave * (soft ? 0.27 : 0.39);
-          contact.position.y = 0.75 - wave * (soft ? 0.27 : 0.39);
-          pad.scale.y = 1 - wave * (soft ? 0.13 : 0.26);
-          fill.scale.y = 0.35 + wave * 0.7;
-          fill.position.y = 0.07 + fill.scale.y * 0.22;
-          pressure.forEach((r, index) => { r.scale.setScalar(0.9 + ((time * 0.5 + index / 3) % 1) * 0.26); });
-        });
-      } else if (type === "path_planning") {
-        for (const [x, z] of [[-0.5, -0.2], [0.48, 0.45], [1.02, -0.58]]) {
-          box(0.42, 0.42, 0.42, silver, x, 0.11, z);
-          edgeBox(0.46, 0.46, 0.46, x, 0.11, z);
-        }
-        const nodes = [new THREE.Vector3(-1.68, -0.07, 0.57), new THREE.Vector3(-0.9, -0.07, 0.7), new THREE.Vector3(-0.28, -0.07, 0.62), new THREE.Vector3(0.23, -0.07, -0.42), new THREE.Vector3(0.94, -0.07, -0.93), new THREE.Vector3(1.62, -0.07, -0.55)];
-        const curve = new THREE.CatmullRomCurve3(nodes);
-        add(new THREE.TubeGeometry(curve, 80, 0.018, 5, false), light);
-        nodes.forEach((n) => cylinder(0.055, 0.012, amber, n.x, n.y, n.z));
-        const rover = new THREE.Group();
-        scene.add(rover);
-        const body = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.29, 0.15, 20), silver);
-        body.position.y = 0.22;
-        rover.add(body);
-        const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.07, 20), ink);
-        cap.position.y = 0.33;
-        rover.add(cap);
-        for (const x of [-0.26, 0.26]) for (const z of [-0.18, 0.18]) {
-          const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.08, 12), ink);
-          wheel.rotation.z = Math.PI / 2;
-          wheel.position.set(x, 0.12, z);
-          rover.add(wheel);
-        }
-        ring(0.31, ringLight, 1.62, -0.07, -0.55);
-        animations.push((time) => {
-          const progress = (time * 0.13) % 1;
-          const location = curve.getPointAt(progress);
-          const tangent = curve.getTangentAt(progress);
-          rover.position.set(location.x, 0, location.z);
-          rover.rotation.y = Math.atan2(tangent.x, tangent.z);
-        });
-      } else if (type === "scene_inspection") {
-        const cameraRig = box(0.92, 0.27, 0.62, silver, 0.1, 1.78, -0.1);
-        const lens = cylinder(0.22, 0.3, ink, 0.1, 1.48, -0.1);
-        const glass = cylinder(0.17, 0.02, light, 0.1, 1.32, -0.1);
-        const beam = add(new THREE.ConeGeometry(1.1, 1.55, 4, 1, true), transparent, 0.1, 0.57, -0.1);
-        beam.rotation.y = Math.PI / 4;
-        box(0.62, 0.48, 0.58, amber, -0.85, 0.16, 0.2);
-        cylinder(0.23, 0.6, mint, 0.65, 0.22, -0.35);
-        sphere(0.18, silver, 1.25, 0.08, 0.47);
-        const scan = box(0.025, 0.04, 2.1, light, -1.25, 0.045, -0.1);
-        const bounds = edgeBox(2.75, 0.88, 1.68, 0.1, 0.36, 0);
-        animations.push((time) => {
-          const shift = Math.sin(time * 1.6);
-          scan.position.x = shift * 1.22;
-          bounds.material.opacity = 0.52 + Math.sin(time * 2) * 0.22;
-          cameraRig.rotation.y = lens.rotation.y = glass.rotation.y = shift * 0.12;
-          beam.material.opacity = 0.1 + Math.sin(time * 2.1) * 0.04;
-        });
-      } else {
-        const module = box(0.92, 0.92, 0.92, silver, 0, 0.52, 0);
-        edgeBox(1.16, 1.16, 1.16, 0, 0.52, 0);
-        ring(0.85, ringLight, 0, -0.08, 0);
-        animations.push((time) => { module.rotation.y = time * 0.48; module.rotation.x = Math.sin(time * 0.4) * 0.15; });
-      }
-
-      const resize = () => {
-        const width = Math.max(host.clientWidth, 1);
-        const height = Math.max(host.clientHeight, 1);
-        camera.aspect = width / height;
-        camera.position.set(3.4, 2.8, width < 190 ? 6.9 : 5.8);
-        camera.lookAt(0, 0.5, 0);
-        camera.updateProjectionMatrix();
-        renderer.setSize(width, height, false);
-      };
-      resizeObserver = new ResizeObserver(resize);
-      resizeObserver.observe(host);
-      resize();
-    };
-
-    const tick = (timestamp: number) => {
-      if (!active) return;
-      raf = requestAnimationFrame(tick);
-      if (timestamp - last < 1000 / 24) return;
-      last = timestamp;
-      const time = Math.max(0, (timestamp - start) / 1000);
-      if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) animations.forEach((animate) => animate(time));
-      renderer.render(scene, camera);
-    };
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting && !document.hidden) {
-        if (!initialized) build();
-        if (!renderer || active) return;
-        active = true;
-        start = performance.now();
-        raf = requestAnimationFrame(tick);
-      } else {
-        active = false;
-        cancelAnimationFrame(raf);
-      }
-    }, { rootMargin: "80px" });
-    observer.observe(host);
-    const onVisibility = () => {
-      if (document.hidden) {
-        active = false;
-        cancelAnimationFrame(raf);
-      } else if (host.getBoundingClientRect().top < window.innerHeight && host.getBoundingClientRect().bottom > 0 && renderer && !active) {
-        active = true;
-        start = performance.now();
-        raf = requestAnimationFrame(tick);
-      }
-    };
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => {
-      active = false;
-      cancelAnimationFrame(raf);
-      observer.disconnect();
-      resizeObserver?.disconnect();
-      document.removeEventListener("visibilitychange", onVisibility);
-      scene?.traverse((object: any) => {
-        object.geometry?.dispose();
-        if (object.material) {
-          const materials = Array.isArray(object.material) ? object.material : [object.material];
-          materials.forEach((material: any) => material.dispose());
-        }
-      });
-      renderer?.dispose();
-      renderer?.forceContextLoss();
-      renderer?.domElement.remove();
-    };
-  }, [offer.id, offer.task_type]);
-
+  const grasp = offer.task_type === "grasp";
   return (
-    <div className={`skill-preview skill-preview-${offer.task_type}`} aria-label={`${offer.name} illustrative 3D preview`}>
-      <div className="skill-preview-canvas" ref={mount} aria-hidden="true" />
-      <div className="skill-preview-top" aria-hidden="true"><span><i /> SKILL STUDY</span><span>3D / {offer.id.toUpperCase().replaceAll("_", " ")}</span></div>
-      <div className="skill-preview-bottom" aria-hidden="true"><span>{labels[offer.task_type] || "PROCESS / ACT"}</span><span>↗</span></div>
-      {unsupported && <span className="skill-preview-unavailable">3D preview unavailable</span>}
+    <div className={`skill-preview skill-preview-${offer.task_type}`} role="img" aria-label={`${offer.name} illustrative skill preview`}>
+      {grasp ? (
+        <Suspense fallback={<div className="skill-preview-grasp-loading" />}>
+          <GraspPreview3D precision={offer.id === "precision_grasp"} />
+        </Suspense>
+      ) : offer.id === "owlvit" ? <VocabularyDiagram />
+        : offer.id === "ssdlite" || offer.id === "fasterrcnn" ? <DetectorDiagram id={offer.id} />
+          : offer.id === "astar" ? <RouteDiagram />
+            : offer.id === "scene_summary" ? <InspectionDiagram />
+              : offer.task_type === "control" ? <ControlDiagram soft={offer.id === "soft_control"} />
+                : <GenericDiagram />}
+      <div className="skill-preview-top" aria-hidden="true"><span><i /> {grasp ? "PHYSICAL STUDY" : "CONCEPT STUDY"}</span><span>{offer.id.toUpperCase().replaceAll("_", " ")}</span></div>
+      <div className="skill-preview-bottom" aria-hidden="true"><span>{captions[offer.id] || offer.task_type.replaceAll("_", " ").toUpperCase()}</span><span>↗</span></div>
     </div>
   );
 }

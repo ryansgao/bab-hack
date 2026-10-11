@@ -918,7 +918,7 @@ function Marketplace({ data }: { data: RoboMarket }) {
             <span className="vendor-name">
               by {humanize(model.provider_id)}
             </span>
-            <Suspense fallback={<div className="skill-preview skill-preview-loading" aria-label="Loading 3D skill preview" />}>
+            <Suspense fallback={<div className="skill-preview skill-preview-loading" aria-label="Loading skill preview" />}>
               <SkillPreview offer={model} />
             </Suspense>
             <div className="market-card-bottom">

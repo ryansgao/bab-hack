@@ -1439,13 +1439,13 @@ nav > button.active {
 }
 .skill-preview {
   position: relative;
-  height: 166px;
+  height: 178px;
   overflow: hidden;
   isolation: isolate;
   margin-top: 19px;
   border-radius: 12px;
   color: #dcefe3;
-  background: radial-gradient(circle at 54% 51%, #2c4841, #101d1e 67%);
+  background: #101d1e;
   box-shadow: inset 0 0 0 1px #bffbd126, 0 9px 18px #223c3211;
 }
 .skill-preview::after {
@@ -1454,8 +1454,44 @@ nav > button.active {
   inset: 0;
   z-index: 1;
   pointer-events: none;
-  background: linear-gradient(0deg, #0c171bbd, transparent 35%, transparent 73%, #0c171b9e);
+  background: linear-gradient(0deg, #0c171b8a, transparent 24%, transparent 80%, #0c171b84);
 }
+.skill-diagram {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.skill-preview-grasp-loading {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 52% 48%, #244039, #101d1e 75%);
+}
+.skill-preview-grasp[data-unavailable="true"]::after {
+  content: "3D preview unavailable on this device";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: max-content;
+  max-width: 90%;
+  color: #dcefe3;
+  font-size: 9px;
+}
+.preview-scan-line { animation: preview-sweep 3.2s ease-in-out infinite alternate; }
+.preview-detection-lock { animation: preview-lock 2.6s ease-in-out infinite; }
+.preview-delay { animation-delay: -.8s; }
+.preview-detection-label { animation: preview-lock 2.6s ease-in-out infinite; }
+.preview-proposals { animation: preview-propose 3.4s ease-in-out infinite; }
+.preview-vocab-link { animation: preview-link 3s linear infinite; }
+.preview-agent-dot { animation: preview-agent 2.8s ease-in-out infinite; }
+.preview-inspection-sweep { transform-origin: 82px 105px; animation: preview-inspect 3.5s ease-in-out infinite alternate; }
+.preview-force-point { animation: preview-agent 3.7s ease-in-out infinite; }
+@keyframes preview-sweep { from { transform: translateX(0); opacity: .2; } to { transform: translateX(226px); opacity: .75; } }
+@keyframes preview-lock { 0%, 100% { opacity: .68; } 50% { opacity: 1; } }
+@keyframes preview-propose { 0%, 100% { opacity: .12; } 35%, 58% { opacity: .72; } 75% { opacity: .26; } }
+@keyframes preview-link { from { stroke-dashoffset: 18; opacity: .4; } to { stroke-dashoffset: 0; opacity: 1; } }
+@keyframes preview-agent { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+@keyframes preview-inspect { from { transform: rotate(-32deg); opacity: .4; } to { transform: rotate(34deg); opacity: 1; } }
 .skill-preview-canvas,
 .skill-preview-canvas canvas {
   display: block;
@@ -1473,12 +1509,12 @@ nav > button.active {
   align-items: center;
   gap: 6px;
   pointer-events: none;
-  font-size: 7px;
+  font-size: 8px;
   font-weight: 600;
   letter-spacing: .11em;
 }
 .skill-preview-top { top: 12px; color: #e1f2e5; }
-.skill-preview-top span:last-child { color: #98b5a7; font-size: 6px; text-align: right; }
+.skill-preview-top span:last-child { color: #98b5a7; font-size: 7px; text-align: right; }
 .skill-preview-top i {
   display: inline-block;
   width: 5px;
@@ -1490,16 +1526,6 @@ nav > button.active {
 }
 .skill-preview-bottom { bottom: 11px; color: #b3d1bd; }
 .skill-preview-bottom span:last-child { color: #bcf0c8; font-size: 14px; font-weight: 400; line-height: .7; }
-.skill-preview-unavailable {
-  position: absolute;
-  z-index: 3;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  color: #cce9d2;
-  font-size: 9px;
-  white-space: nowrap;
-}
 .market-card-bottom {
   display: flex;
   align-items: center;
@@ -2385,8 +2411,8 @@ nav > button.active {
     font-size: 23px;
     min-height: 52px;
   }
-  .skill-preview { height: 136px; margin-top: 14px; }
-  .skill-preview-top { font-size: 6px; }
+  .skill-preview { height: 162px; margin-top: 14px; }
+  .skill-preview-top { font-size: 8px; }
   .skill-preview-top span:last-child { display: none; }
   .market-card-bottom {
     flex-wrap: wrap;
@@ -2406,6 +2432,13 @@ nav > button.active {
   .error-banner {
     margin-inline: 20px;
   }
+}
+@media (max-width: 620px) {
+  .market-grid { grid-template-columns: 1fr; }
+  .market-card h2 { min-height: 0; }
+  .skill-preview { height: 180px; }
+  .skill-preview-top { font-size: 8px; }
+  .skill-preview-top span:last-child { display: inline; }
 }
 @media (max-width: 390px) {
   .market-grid {
