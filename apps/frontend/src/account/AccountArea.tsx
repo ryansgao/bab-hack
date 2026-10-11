@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
 import {
   ArrowDownLeft, ArrowUpRight, Check, Copy, Download, ExternalLink, Fingerprint, LoaderCircle, LogOut, Pause, Play,
   ShieldCheck, Trash2, Wallet, Zap,
@@ -9,6 +9,7 @@ import { SignIn } from "./SignIn";
 import { ausd, call, intent, session, short, useSession, type AccountWallet, type Activity, type Order, type Security, type Transfer, type User } from "./session";
 import "./account.css";
 
+const OwnWalletCard = lazy(() => import("./OwnWallet"));
 type Tab = "wallet" | "payments" | "limits" | "profile" | "security";
 const TABS: { key: Tab; title: string }[] = [
   { key: "wallet", title: "Wallet" },
@@ -52,7 +53,7 @@ export default function AccountArea({ data, tab: start = "wallet" }: { data: Rob
       <div className="page-heading">
         <div>
           <h1>{TABS.find((item) => item.key === tab)?.title}</h1>
-          <p>{user.name} · {user.email}</p>
+          <p>{[user.name, user.email || `signed in with ${user.sign_in_methods.join(", ")}`].join(" · ")}</p>
         </div>
         <button className="secondary" onClick={() => void session.signOut()}><LogOut size={14} /> Sign out</button>
       </div>
@@ -67,7 +68,7 @@ export default function AccountArea({ data, tab: start = "wallet" }: { data: Rob
       {tab === "payments" && <PaymentsTab planStatus={data.plan?.status} />}
       {tab === "limits" && <LimitsTab user={user} />}
       {tab === "profile" && <ProfileTab user={user} />}
-      {tab === "security" && <SecurityTab />}
+      {tab === "security" && <SecurityTab user={user} />}
     </div>
   );
 }
@@ -103,12 +104,12 @@ function Receipt({ url, label = "Receipt" }: { url?: string | null; label?: stri
   return url ? <a href={url} target="_blank" rel="noreferrer">{label} <ExternalLink size={10} /></a> : null;
 }
 function TransferRow({ transfer }: { transfer: Transfer }) {
-  const incoming = ["grant", "robot_to_owner"].includes(transfer.kind);
-  const label = { grant: "Starter funds received", withdraw: "Withdrawal", owner_to_robot: "Wallet → Scout (mission reserve)", robot_to_owner: "Scout → wallet (unspent returned)" }[transfer.kind] || humanize(transfer.kind);
+  const incoming = ["grant", "deposit", "robot_to_owner"].includes(transfer.kind);
+  const label = { grant: "Starter funds received", deposit: "Added from your own wallet", withdraw: "Withdrawal", owner_to_robot: "Wallet → Scout (mission reserve)", robot_to_owner: "Scout → wallet (unspent returned)" }[transfer.kind] || humanize(transfer.kind);
   return (
     <li>
       <span className={"transfer-icon " + (incoming ? "in" : "out")}>{incoming ? <ArrowDownLeft size={13} /> : <ArrowUpRight size={13} />}</span>
-      <div><strong>{label}</strong><small>{transfer.timestamp} UTC{transfer.counterparty && transfer.kind === "withdraw" ? ` · to ${short(transfer.counterparty)}` : ""}</small></div>
+      <div><strong>{label}</strong><small>{transfer.timestamp} UTC{transfer.counterparty && transfer.kind !== "grant" ? ` · ${transfer.kind === "deposit" ? "from" : "to"} ${short(transfer.counterparty)}` : ""}</small></div>
       <div className="payment-step-amount"><strong>{incoming ? "+" : "−"}{ausd(transfer.amount_ausd)} <small>AUSD</small></strong><Receipt url={transfer.explorer_url} label="Transaction" /></div>
     </li>
   );
@@ -183,6 +184,12 @@ function WalletTab({ data }: { data: RoboMarket }) {
         <Feedback action={action} />
         <p className="fine-print">A live test payment buys one sensor summary from a marketplace provider for about 0.001 AUSD, through the same path a mission uses.</p>
       </Card>
+
+      {wallet.own_wallet && (
+        <Suspense fallback={<section className="glass account-card"><p className="preview-loading">Loading wallet connection…</p></section>}>
+          <OwnWalletCard wallet={wallet} onDeposited={() => void load()} onUseAddress={setTo} />
+        </Suspense>
+      )}
 
       <Card title="Scout, your paying agent" icon={<ShieldCheck size={15} />}>
         <dl className="spec-list">
@@ -393,7 +400,9 @@ function ProfileTab({ user }: { user: User }) {
       <Card title="Delete account" icon={<Trash2 size={15} />}>
         <p className="account-note">Removes your profile, sessions and missions. Payments already made stay on the blockchain and in the ledger, no longer linked to you. Withdraw your AUSD first: a deleted account's wallet cannot be opened again.</p>
         <form className="account-form" onSubmit={(event) => { event.preventDefault(); void action.run("delete", async () => { await call("/account/delete", { password }); session.forget(); }); }}>
-          <label className="account-field">Confirm with your password<input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" /></label>
+          <label className="account-field">{user.has_password ? "Confirm with your password" : "Type DELETE to confirm"}
+            <input type={user.has_password ? "password" : "text"} required value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={user.has_password ? "current-password" : "off"} />
+          </label>
           <button className="secondary danger" disabled={!!action.busy}>Delete my account</button>
         </form>
       </Card>
@@ -401,7 +410,7 @@ function ProfileTab({ user }: { user: User }) {
   );
 }
 
-function SecurityTab() {
+function SecurityTab({ user }: { user: User }) {
   const [security, setSecurity] = useState<Security | null>(null);
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
@@ -410,9 +419,9 @@ function SecurityTab() {
   useEffect(() => { void load(); }, [load]);
   return (
     <div className="account-grid">
-      <Card title="Password">
-        <form className="account-form" onSubmit={(event) => { event.preventDefault(); void action.run("password", async () => { await call("/account/password", { current, new: next }); setCurrent(""); setNext(""); await load(); return "Password changed. Other devices were signed out."; }); }}>
-          <label className="account-field">Current password<input type="password" required value={current} onChange={(e) => setCurrent(e.target.value)} autoComplete="current-password" /></label>
+      <Card title={user.has_password ? "Password" : "Set a password"} tag={`Sign-in: ${user.sign_in_methods.join(", ")}`}>
+        <form className="account-form" onSubmit={(event) => { event.preventDefault(); void action.run("password", async () => { await call("/account/password", { current, new: next }); setCurrent(""); setNext(""); await load(); session.adopt({ ...user, has_password: true, sign_in_methods: [...new Set(["password", ...user.sign_in_methods])] }); return "Password saved. Other devices were signed out."; }); }}>
+          {user.has_password && <label className="account-field">Current password<input type="password" required value={current} onChange={(e) => setCurrent(e.target.value)} autoComplete="current-password" /></label>}
           <label className="account-field">New password<input type="password" required minLength={10} value={next} onChange={(e) => setNext(e.target.value)} autoComplete="new-password" placeholder="At least 10 characters" /></label>
           <button className="secondary" disabled={!!action.busy}>Change password</button>
         </form>

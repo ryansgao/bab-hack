@@ -82,6 +82,13 @@
 .payment-badge.warn { background: #c9916326; color: #946442; }
 .payment-summary { margin: 4px 0 10px; }
 .payment-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.sign-in-other { display: grid; gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+.sign-in-other > span { font-size: 10px; color: var(--faint); text-align: center; }
+.sign-in-other a.secondary { text-decoration: none; }
+.own-wallet-balance { margin-top: 12px !important; }
+.own-wallet-form { display: flex; gap: 8px; align-items: flex-end; }
+.own-wallet-form .account-field { flex: 1; margin-bottom: 0; }
+.account-card > .text-button { font-size: 10px; margin-top: 10px; display: inline-block; }
 @media (max-width: 760px) {
   .sign-in-layout { grid-template-columns: 1fr; }
   .account-grid { grid-template-columns: 1fr; }

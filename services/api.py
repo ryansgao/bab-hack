@@ -26,6 +26,7 @@ from apps.simulation.world import world
 from services.agent.runtime import runtime
 from services.accounts import store as accounts
 from services.accounts.routes import router as accounts_router
+from services.accounts.oauth import router as oauth_router
 
 @asynccontextmanager
 async def lifespan(app):
@@ -70,6 +71,7 @@ def register(model: ModelOffer, x_service_key: str = Header(default='')):
 app.include_router(marketplace_router)
 app.include_router(bounty_router)
 app.include_router(accounts_router)
+app.include_router(oauth_router)
 
 @app.post('/api/agent/select', response_model=SelectionDecision)
 def selection(request: SelectionRequest): return select(request, registry.list_models())

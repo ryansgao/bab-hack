@@ -21,6 +21,7 @@ COOKIE = 'rb_session'
 SESSION_SECONDS = 14 * 86400
 EMAIL = re.compile(r'^[^@\s]{1,64}@[^@\s]{1,190}\.[^@\s]{2,24}$')
 MONEY = re.compile(r'^(0|[1-9]\d{0,8})(\.\d{1,6})?$')
+NO_EMAIL = '@no-email.rbazaar.invalid'  # placeholder for accounts whose sign-in method gave no email
 DEFAULTS = {'max_per_mission_ausd': '0.10', 'max_per_day_ausd': '1.00', 'payments_paused': False,
             'save_simulation_history': True}
 _ready = None
@@ -45,6 +46,9 @@ def ensure():
           CREATE TABLE IF NOT EXISTS plan_owners (plan_id TEXT PRIMARY KEY, user_id TEXT NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP);
           CREATE TABLE IF NOT EXISTS account_events (id INTEGER PRIMARY KEY, user_id TEXT NOT NULL,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP, kind TEXT NOT NULL, detail TEXT NOT NULL);
+          CREATE TABLE IF NOT EXISTS identities (provider TEXT NOT NULL, subject TEXT NOT NULL, user_id TEXT NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (provider, subject));
+          CREATE TABLE IF NOT EXISTS auth_challenges (token TEXT PRIMARY KEY, detail TEXT NOT NULL, expires_at REAL NOT NULL);
         ''')
     _ready = target
 
@@ -89,8 +93,11 @@ def throttle(key, limit, seconds):
 
 
 def public(row):
-    return {'id': row['id'], 'email': row['email'], 'name': row['name'], 'created_at': row['created_at'],
-            'settings': {**DEFAULTS, **json.loads(row['settings'])}}
+    with db() as conn:
+        linked = [r['provider'] for r in conn.execute('SELECT provider FROM identities WHERE user_id=? ORDER BY provider', (row['id'],))]
+    return {'id': row['id'], 'email': '' if row['email'].endswith(NO_EMAIL) else row['email'], 'name': row['name'],
+            'created_at': row['created_at'], 'settings': {**DEFAULTS, **json.loads(row['settings'])},
+            'has_password': bool(row['password']), 'sign_in_methods': (['password'] if row['password'] else []) + linked}
 
 
 def log(user_id, kind, detail=''):
@@ -112,6 +119,44 @@ def create_user(email, password, name):
                      (user_id, email, (name.strip() or email.split('@')[0])[:60], hash_password(password), json.dumps(DEFAULTS)))
     log(user_id, 'account_created')
     return get_user(user_id)
+
+
+def user_for_identity(provider, subject, name, email=None):
+    """Sign-in without a password (a wallet signature, Google, GitHub): the account that owns this
+    identity, created on first use. An identity never attaches itself to an existing account by
+    email, because the email of a password account here was never verified."""
+    ensure()
+    with db() as conn:
+        row = conn.execute('SELECT u.* FROM identities i JOIN users u ON u.id=i.user_id WHERE i.provider=? AND i.subject=?', (provider, subject)).fetchone()
+        if row: return dict(row)
+        email = (email or f'{provider}-{subject}{NO_EMAIL}').strip().lower()
+        if conn.execute('SELECT 1 FROM users WHERE email=?', (email,)).fetchone():
+            raise HTTPException(409, 'An account with this email already exists. Sign in with its password instead.')
+        user_id = 'u' + uuid4().hex[:15]
+        conn.execute('INSERT INTO users(id, email, name, password, settings) VALUES (?, ?, ?, ?, ?)',
+                     (user_id, email, (name.strip() or 'rBazaar user')[:60], '', json.dumps(DEFAULTS)))
+        conn.execute('INSERT INTO identities(provider, subject, user_id) VALUES (?, ?, ?)', (provider, subject, user_id))
+    log(user_id, 'account_created', provider)
+    return get_user(user_id)
+
+
+def challenge(detail, seconds=300):
+    """A single-use random token that expires: the nonce of a wallet sign-in, the state of an OAuth round trip."""
+    ensure()
+    token = secrets.token_urlsafe(24)
+    with db() as conn:
+        conn.execute('DELETE FROM auth_challenges WHERE expires_at < ?', (time.time(),))
+        conn.execute('INSERT INTO auth_challenges VALUES (?, ?, ?)', (token, detail, time.time() + seconds))
+    return token
+
+
+def redeem(token):
+    """The detail stored with a challenge, exactly once; None when unknown, used or expired."""
+    ensure()
+    with db() as conn:
+        row = conn.execute('SELECT detail FROM auth_challenges WHERE token=? AND expires_at>?', (token, time.time())).fetchone()
+        conn.execute('DELETE FROM auth_challenges WHERE token=?', (token,))
+    return row['detail'] if row else None
 
 
 def get_user(user_id):
@@ -250,6 +295,6 @@ def delete_user(user_id):
     chain (they are financial records) but no longer point at anyone."""
     with db() as conn:
         conn.execute("DELETE FROM plans WHERE id IN (SELECT plan_id FROM plan_owners WHERE user_id=?)", (user_id,))
-        for table in ('plan_owners', 'sessions', 'account_events'):
+        for table in ('plan_owners', 'sessions', 'account_events', 'identities'):
             conn.execute(f'DELETE FROM {table} WHERE user_id=?', (user_id,))
         conn.execute('DELETE FROM users WHERE id=?', (user_id,))

@@ -174,5 +174,36 @@ the Wallet page buys one sensor summary (about 0.001 AUSD) through the same path
 planning call. Live-checked on Base Sepolia 2026-10-11: sign-up, starter grant, a paid purchase
 with float out and back, a withdrawal, pause, and sign-out.
 
-Not built: email verification, password reset, two-factor sign-in, and user-held keys (connect
-your own wallet). A user's allowance is checked when a mission starts, not per purchase.
+### Bring your own wallet (RainbowKit)
+
+The Wallet page connects a wallet the user holds themselves through RainbowKit 2 (wagmi 2, Base
+Sepolia): Rainbow, Coinbase Wallet, MetaMask, Binance Wallet, Ledger, Trust, OKX, Safe, any
+injected browser wallet and anything that speaks WalletConnect. The user's key never reaches
+rBazaar. To add funds they sign one ERC-3009 `TransferWithAuthorization` for an exact amount to
+their rBazaar wallet (`POST /api/account/wallet/deposit`); the facilitator submits it, so the
+user pays no gas. The server fixes the recipient to the account's own wallet. The connected
+address can be used as the withdrawal address. Scout still spends from the rBazaar wallet: an
+agent that pays per call needs a key it can sign with on its own, which a cold wallet is not.
+
+Wallets in the browser work with no setup. Phone wallets that pair by QR code need
+`WALLETCONNECT_PROJECT_ID` (free, cloud.reown.com); without it they are not listed, so nothing in
+the list is a dead end. The wallet libraries load only on the sign-in and Wallet pages.
+
+### Sign-in without a password
+
+- **A wallet:** the user signs a Sign-In with Ethereum message; the payment service checks the
+  signature (smart-contract wallets included). The address becomes the account.
+- **Google and GitHub** (`services/accounts/oauth.py`): standard authorization-code flow with a
+  single-use state bound to the browser. Shown only when `GOOGLE_CLIENT_*` / `GITHUB_CLIENT_*` are
+  set. Only a provider-verified email is stored. Tested against a stand-in provider only; **not yet
+  run against Google or GitHub**, because no OAuth app keys exist yet.
+- An outside identity never attaches itself to an existing password account by email, because
+  password accounts' emails are not verified here.
+
+Live-checked on Base Sepolia 2026-10-11 with a signing test wallet announced to the page the way
+an installed wallet is: connect in the RainbowKit dialog, sign in, withdraw 0.40 AUSD to it, then
+add 0.25 back by signature (settled in 9 s).
+
+Not built: email verification, password reset, two-factor sign-in, and paying a mission straight
+from the user's own wallet (today it funds the rBazaar wallet first). A user's allowance is
+checked when a mission starts, not per purchase.

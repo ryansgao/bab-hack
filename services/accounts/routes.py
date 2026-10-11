@@ -1,5 +1,8 @@
 """Sign-in, account settings, the user's wallet view, and their full payment history."""
+import json
 import os
+import secrets
+from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import uuid4
 import httpx
@@ -7,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import Field
 from shared.schemas.contracts import Contract, MissionPlan, MissionRequest, Point, RobotCard, Subtask
 from services.accounts import store
+from services.accounts.oauth import enabled_providers
 from services.storage import db
 
 router = APIRouter(tags=['accounts'])
@@ -36,6 +40,21 @@ class PasswordChange(Contract):
 class Confirm(Contract):
     password: str = Field(max_length=400)
 
+class Deposit(Contract):
+    sender: str = Field(pattern=r'^0x[0-9a-fA-F]{40}$')
+    amount_ausd: str = Field(pattern=r'^(0|[1-9]\d{0,8})(\.\d{1,6})?$')
+    valid_after: str = Field(pattern=r'^\d{1,12}$')
+    valid_before: str = Field(pattern=r'^\d{1,12}$')
+    nonce: str = Field(pattern=r'^0x[0-9a-fA-F]{64}$')
+    signature: str = Field(pattern=r'^0x[0-9a-fA-F]{130,4000}$')
+
+class WalletChallenge(Contract):
+    address: str = Field(pattern=r'^0x[0-9a-fA-F]{40}$')
+
+class WalletProof(Contract):
+    token: str = Field(max_length=80)
+    signature: str = Field(pattern=r'^0x[0-9a-fA-F]{130,4000}$')
+
 class Withdrawal(Contract):
     to: str = Field(pattern=r'^0x[0-9a-fA-F]{40}$')
     amount_ausd: str = Field(pattern=r'^(0|[1-9]\d{0,8})(\.\d{1,6})?$')
@@ -61,7 +80,31 @@ async def payments(method, path, account=None, json=None, timeout=20):
 @router.get('/api/auth/me')
 def me(request: Request):
     user = store.current_user(request)
-    return {'user': store.public(user) if user else None, 'accounts_required': store.enforced()}
+    return {'user': store.public(user) if user else None, 'accounts_required': store.enforced(), 'providers': enabled_providers(),
+            # Public by design: the id only names this app to WalletConnect so phone wallets can pair by QR code.
+            'walletconnect_project_id': os.getenv('WALLETCONNECT_PROJECT_ID', '')}
+
+@router.post('/api/auth/wallet/challenge', dependencies=[Depends(store.same_origin)])
+def wallet_challenge(body: WalletChallenge, request: Request):
+    """The text a wallet must sign to prove it holds an address (Sign-In with Ethereum wording)."""
+    store.throttle('wallet|' + store.visitor(request), 30, 900)
+    host = (request.headers.get('x-forwarded-host') or request.headers.get('host', 'rbazaar')).split(',')[0].strip()
+    scheme = request.headers.get('x-forwarded-proto') or request.url.scheme
+    message = (f'{host} wants you to sign in with your Ethereum account:\n{body.address}\n\n'
+               f'Sign in to rBazaar. This signature moves no funds.\n\nURI: {scheme}://{host}\nVersion: 1\nChain ID: 84532\n'
+               f"Nonce: {secrets.token_hex(8)}\nIssued At: {datetime.now(timezone.utc).isoformat(timespec='seconds')}")
+    return {'token': store.challenge(json.dumps({'address': body.address, 'message': message})), 'message': message}
+
+@router.post('/api/auth/wallet/verify', dependencies=[Depends(store.same_origin)])
+async def wallet_verify(body: WalletProof, request: Request, response: Response):
+    signed = json.loads(store.redeem(body.token) or 'null')
+    if not signed: raise HTTPException(401, 'This sign-in request expired. Try again.')
+    proof = await payments('POST', '/verify-signature', json={**signed, 'signature': body.signature})
+    if not proof.get('valid'): raise HTTPException(401, 'The wallet signature did not match.')
+    address = signed['address']
+    user = store.user_for_identity('wallet', address.lower(), f'{address[:6]}…{address[-4:]}')
+    store.start_session(user['id'], request, response)
+    return {'user': store.public(user)}
 
 @router.post('/api/auth/register', dependencies=[Depends(store.same_origin)])
 def register(body: Register, request: Request, response: Response):
@@ -92,7 +135,8 @@ def change_settings(body: SettingsChange, user=Depends(store.require_user)):
 
 @router.post('/api/account/password', dependencies=[Depends(store.same_origin)])
 def change_password(body: PasswordChange, request: Request, response: Response, user=Depends(store.require_user)):
-    if not store.verify_password(body.current, user['password']): raise HTTPException(403, 'Current password is incorrect.')
+    # An account created with a wallet, Google or GitHub has no password yet and may set its first one.
+    if user['password'] and not store.verify_password(body.current, user['password']): raise HTTPException(403, 'Current password is incorrect.')
     if len(body.new) < 10: raise HTTPException(422, 'Choose a password of at least 10 characters.')
     with db() as conn:
         conn.execute('UPDATE users SET password=? WHERE id=?', (store.hash_password(body.new), user['id']))
@@ -121,7 +165,8 @@ async def export(request: Request, user=Depends(store.require_user)):
 
 @router.post('/api/account/delete', dependencies=[Depends(store.same_origin)])
 def delete_account(body: Confirm, request: Request, response: Response, user=Depends(store.require_user)):
-    if not store.verify_password(body.password, user['password']): raise HTTPException(403, 'Password is incorrect.')
+    confirmed = store.verify_password(body.password, user['password']) if user['password'] else body.password == 'DELETE'
+    if not confirmed: raise HTTPException(403, 'Password is incorrect.' if user['password'] else 'Type DELETE to confirm.')
     if any(plan['status'] in ACTIVE for plan, _ in store.plans_of(user['id'])):
         raise HTTPException(409, 'A mission is still running. Wait for it to finish or cancel it first.')
     store.end_session(request, response)
@@ -141,6 +186,14 @@ async def account_wallet(user=Depends(store.require_user)):
 async def starter_grant(user=Depends(store.require_user)):
     result = await payments('POST', '/accounts/grant', account=user['id'], timeout=120)
     store.log(user['id'], 'starter_funds_received', f"{result.get('amount_ausd')} AUSD")
+    return result
+
+@router.post('/api/account/wallet/deposit', dependencies=[Depends(store.same_origin)])
+async def deposit(body: Deposit, user=Depends(store.require_user)):
+    """Top up from a wallet the user holds themselves: they signed one transfer authorization."""
+    result = await payments('POST', '/accounts/deposit', account=user['id'], timeout=120,
+                            json={'from': body.sender, **body.model_dump(exclude={'sender'})})
+    store.log(user['id'], 'deposit', f'{body.amount_ausd} AUSD from {body.sender}')
     return result
 
 @router.post('/api/account/wallet/withdraw', dependencies=[Depends(store.same_origin)])
