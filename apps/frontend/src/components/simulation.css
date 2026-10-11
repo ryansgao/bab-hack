@@ -1,0 +1,62 @@
+/* Shared simulation surface: mission preview and studio. */
+.task-preview-body{background:#f8faf6;border-radius:18px;overflow:hidden}
+.workcell-view{background:#edf0e9;isolation:isolate}
+.workcell-canvas{position:relative;height:480px;overflow:hidden}
+.workcell-canvas canvas{outline:none}
+.workcell-object-label{position:absolute;left:0;top:0;z-index:1;pointer-events:none;white-space:nowrap;background:rgba(250,252,246,.91);border:1px solid #cad5c3;border-radius:7px;padding:5px 9px;font:500 10px/1.4 Inter,sans-serif;color:#435c45;box-shadow:0 2px 10px #293b2410;opacity:0;transition:opacity .2s;will-change:transform}
+.workcell-camera-tools{top:16px;left:18px;right:18px;gap:6px}
+.workcell-camera-tools>span{display:flex;align-items:center;gap:8px;background:rgba(251,253,248,.85);backdrop-filter:blur(14px);border:1px solid #ffffffb0;font-size:10px;letter-spacing:.01em;text-transform:none;font-weight:500;border-radius:9px;padding:10px 12px;box-shadow:0 2px 9px #263a2510}
+.workcell-camera-tools>span>i{width:5px;height:5px;border-radius:50%;background:#8c9a84}
+.workcell-camera-tools>span>i.is-live{background:#618958;box-shadow:0 0 0 3px #78a56a1a}
+.workcell-camera-tools select,.workcell-camera-tools .icon-button{height:34px;background:#fbfdf6dc;border:1px solid #ffffffaa;backdrop-filter:blur(12px);color:#52624a;border-radius:9px;box-shadow:0 2px 9px #263a250a}
+.workcell-camera-tools .icon-button.active{background:#e0ecd4;border-color:#b7cd9e;color:#3f6540}
+.workcell-camera-tools select{padding:0 10px;font-size:10px}
+.workcell-camera-hint{bottom:15px;left:18px;font-size:9px;background:#fbfdf5b8;backdrop-filter:blur(12px);border:1px solid #ffffff80;border-radius:8px;padding:8px 11px;color:#718068}
+.workcell-camera-hint span{margin-inline:5px;color:#a4af9d}
+.simulation-transport{padding:18px 20px 14px;border-top:1px solid #dbe3d4;background:#f7faf3}
+.simulation-timeline{display:flex;align-items:center;gap:13px;margin-bottom:14px}
+.simulation-timeline>span{font-size:9px;letter-spacing:.045em;font-variant-numeric:tabular-nums;color:#86917e;min-width:36px}
+.simulation-timeline>span:last-child{text-align:right;min-width:30px}
+.simulation-timeline input{appearance:none;-webkit-appearance:none;flex:1;height:3px;min-width:0;outline:none;border-radius:8px;background:linear-gradient(to right,#73965d var(--playhead),#dce4d5 var(--playhead));cursor:pointer}
+.simulation-timeline input::-webkit-slider-thumb{appearance:none;width:10px;height:10px;background:#73965d;border:2px solid #f7faf3;box-shadow:0 0 0 1px #73965d;border-radius:50%;transition:transform .2s}
+.simulation-timeline input:hover::-webkit-slider-thumb{transform:scale(1.25)}
+.simulation-timeline input:disabled{cursor:default;opacity:.8}
+.task-preview-body .preview-playback{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;padding:0;border:0;background:none}
+.task-preview-body .preview-playback .icon-button{width:28px;height:32px;flex:none;color:#7e8d73;border-radius:8px}
+.task-preview-body .preview-playback button:disabled{opacity:.35}
+.simulation-play,.simulation-follow{font:500 10px Inter,sans-serif;display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:33px;border:1px solid #d8e2cf;border-radius:9px;padding:0 11px;background:#fbfdf8;color:#526b43;white-space:nowrap;cursor:pointer;transition:background .2s,box-shadow .2s}
+.simulation-play{background:#e8f0df;border-color:#cfdcbe;min-width:95px}
+.simulation-play:hover:not(:disabled){background:#deeacd;box-shadow:0 2px 8px #334e2310}
+.simulation-follow.live-follow{background:#eaf2e3!important;border-color:#cbdcb9!important;color:#577848!important}
+.task-preview-body .preview-playback select{font:400 10px Inter,sans-serif;flex:1;min-width:110px;height:33px;padding:0 9px;border:1px solid #dce4d4;border-radius:9px;background:#fcfdf8;color:#53634b;text-overflow:ellipsis}
+.task-preview-body .preview-playback .rehearsal-speed{flex:none;width:58px;min-width:0}
+.task-preview-body .preview-step{padding:20px 23px 18px;border-top:1px solid #e2e8dc;background:#fcfdf8}
+.task-preview-body .preview-step>span{font-size:8px;letter-spacing:.12em;color:#94a087;margin-bottom:9px}
+.task-preview-body .preview-step>strong{font-size:13px;font-weight:500;color:#4a6240}
+.task-preview-body .preview-step>p{font-size:10px;line-height:1.75;color:#829076;margin-top:8px;margin-bottom:11px}
+.task-preview-body .preview-targets{gap:6px}.task-preview-body .preview-targets span{border-radius:5px;padding:4px 7px;font-size:8px;background:#eef3e7;color:#7d906c}
+.task-preview-body .workcell-checks{padding:17px 23px;gap:17px;background:#f3f7ed;border-color:#e0e8d7}
+.task-preview-body .workcell-checks span{font-size:8px;color:#98a38c;margin-bottom:6px}
+.task-preview-body .workcell-checks strong{font-size:10px;color:#657857;font-weight:500}
+.task-preview-body .preview-assumptions{padding:16px 23px;font-size:9px;color:#8d9b7e;border-bottom:1px solid #e7edde;background:#f9fcf3}
+.task-preview-body .preview-assumptions summary{cursor:pointer}.task-preview-body .preview-assumptions p,.task-preview-body .preview-assumptions li{font-size:10px;line-height:1.75}
+.task-preview-body .preview-footnote{margin:0!important;padding:13px 23px;font-size:8px;line-height:1.7;color:#a0aa94;background:#f9fcf3}
+.robot-station-page{max-width:1300px;margin:auto}
+.robot-station-page .station-mission-bar{border:1px solid #e5eadf;padding:17px 20px;gap:14px;margin:18px 0;border-radius:15px;background:#fafcf5a6}
+.robot-station-page .studio-status{display:flex;align-items:center;gap:8px;color:#798e6a;font-size:10px;font-weight:500;white-space:nowrap}
+.robot-station-page .studio-status i{width:5px;height:5px;background:#8dac77;border-radius:50%}
+.robot-station-page .studio-action{font-size:11px;color:#6f825f;flex:1;min-width:100px}
+.robot-station-page .studio-step-count{font-size:9px;color:#96a38a;font-variant-numeric:tabular-nums}
+.simulation-studio{border:1px solid #dae4d0;border-radius:20px;padding:7px;background:#f9fcf3cc;box-shadow:0 12px 50px #3d562209}
+.simulation-studio .workcell-canvas{height:clamp(390px,56vh,560px)}
+.simulation-studio .workcell-view{border-radius:14px 14px 0 0}
+.studio-context{margin-top:18px;border:1px solid #e4ebdc;background:#f7faf3a0;border-radius:14px;padding:16px 20px;font-size:10px;color:#95a587}
+.studio-context summary{cursor:pointer;color:#7d946b;list-style:none;display:flex;align-items:center;gap:9px}
+.studio-context summary::after{content:'+';margin-left:auto;font-size:14px}.studio-context[open] summary::after{content:'−'}
+.studio-context-grid{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:28px;margin-top:21px;border-top:1px solid #e0e8d8;padding-top:16px}
+.studio-context h3{font-size:9px;font-weight:500;letter-spacing:.045em;color:#7c916b;margin:0 0 9px}
+.studio-context p,.studio-context li{font-size:10px;line-height:1.8;color:#9aaa8c;margin:0 0 12px}.studio-context ul{padding-left:13px}
+.studio-model-facts{display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:9px;line-height:1.8}.studio-model-facts span{color:#a1af95}.studio-model-facts strong{font-weight:500;color:#839973}
+@media(max-width:760px){.workcell-camera-tools{left:12px;right:12px}.task-preview-body .preview-playback{flex-wrap:wrap;gap:6px}.task-preview-body .preview-playback select[aria-label="Preview step"]{order:9;flex-basis:100%}.simulation-follow{margin-left:auto}.simulation-transport{padding:16px}.studio-context-grid{grid-template-columns:1fr;gap:15px}.task-preview-body .workcell-checks{grid-template-columns:repeat(2,1fr)}.simulation-studio .workcell-canvas{height:410px}.robot-station-page .station-mission-bar{align-items:center;flex-direction:row}.robot-station-page .studio-action{flex-basis:60%}}
+@media(max-width:430px){.workcell-camera-tools>span{font-size:8px;padding:9px;gap:5px}.workcell-camera-tools .icon-button{width:28px}.workcell-camera-tools select{max-width:90px}.workcell-canvas,.simulation-studio .workcell-canvas{height:360px}}
+@media(prefers-reduced-motion:reduce){.workcell-object-label,.simulation-play,.simulation-follow{transition:none}}

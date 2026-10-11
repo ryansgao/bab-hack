@@ -1,17 +1,18 @@
 import { useEffect,useRef,useState } from 'react';
-import { RotateCcw } from 'lucide-react';
+import { Focus,RotateCcw,Tags } from 'lucide-react';
 import { DEFAULT_ROBOT,type Arm,type Plan,type RobotConfig,type SimulationScene } from '../lib/types';
 import { TABLE_Y,point,position,subject,destination } from '../lib/workcell';
+import { MotionClock,ease as smooth,phase,damping } from '../lib/motion';
 // @ts-expect-error Offline renderer shared by mission preview and Robot Station.
 import * as THREE from '../vendor/three.module.min.js';
 
-type Props={scene:SimulationScene;plan?:Plan;selected?:number;robot?:RobotConfig;arm?:Arm;mode?:'preview'|'live';compact?:boolean};
-const smooth=(value:number)=>{const t=Math.max(0,Math.min(1,value));return t*t*(3-2*t);};
+type Props={scene:SimulationScene;plan?:Plan;selected?:number;robot?:RobotConfig;arm?:Arm;mode?:'preview'|'live';compact?:boolean;playhead?:{current:number};playing?:boolean};
 
-export default function WorkbenchScene({scene:fixture,plan,selected=0,robot=DEFAULT_ROBOT,arm,mode='preview',compact=false}:Props) {
-  const host=useRef<HTMLDivElement>(null),live=useRef({plan,selected,arm,mode});
-  live.current={plan,selected,arm,mode};
-  const view=useRef({yaw:.68,pitch:.42,radius:2.4}),reset=useRef(()=>{});
+export default function WorkbenchScene({scene:fixture,plan,selected=0,robot=DEFAULT_ROBOT,arm,mode='preview',compact=false,playhead,playing=false}:Props) {
+  const [showLabels,setShowLabels]=useState(false),[focusAction,setFocusAction]=useState(false);
+  const host=useRef<HTMLDivElement>(null),live=useRef({plan,selected,arm,mode,playhead,playing,showLabels,focusAction});
+  live.current={plan,selected,arm,mode,playhead,playing,showLabels,focusAction};
+  const view=useRef({yaw:2.55,pitch:.43,radius:2.65}),reset=useRef(()=>{});
   const [unavailable,setUnavailable]=useState(false);
   const [cameraMode,setCameraMode]=useState('orbit');
   useEffect(()=>{
@@ -19,42 +20,47 @@ export default function WorkbenchScene({scene:fixture,plan,selected=0,robot=DEFA
     let renderer:any;
     try{renderer=new THREE.WebGLRenderer({antialias:true,alpha:false,powerPreference:'high-performance'});}catch{setUnavailable(true);return;}
     setUnavailable(false);renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.7));
-    renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;
+    renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.02;
     renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;mount.appendChild(renderer.domElement);
-    const scene=new THREE.Scene();scene.background=new THREE.Color('#dbe3e3');scene.fog=new THREE.Fog('#dbe3e3',4,9);
-    const camera=new THREE.PerspectiveCamera(38,1,.01,20),aim=new THREE.Vector3(0,.96,0);
+    const scene=new THREE.Scene();scene.background=new THREE.Color('#edf0e9');scene.fog=new THREE.Fog('#edf0e9',4,9);
+    const camera=new THREE.PerspectiveCamera(36,1,.01,20),aim=new THREE.Vector3(0,.94,.02);
     const textures:any[]=[];
+    // Local studio light panels provide reflections without loading an HDR asset.
+    const environmentCanvas=document.createElement('canvas');environmentCanvas.width=1024;environmentCanvas.height=512;
+    const environmentContext=environmentCanvas.getContext('2d')!,gradient=environmentContext.createLinearGradient(0,0,0,512);
+    gradient.addColorStop(0,'#f8faf6');gradient.addColorStop(.5,'#b5c0b8');gradient.addColorStop(1,'#747f78');environmentContext.fillStyle=gradient;environmentContext.fillRect(0,0,1024,512);
+    environmentContext.filter='blur(18px)';environmentContext.fillStyle='#ffffff';environmentContext.fillRect(120,90,170,180);environmentContext.fillRect(650,110,270,130);
+    const environmentTexture=new THREE.CanvasTexture(environmentCanvas);environmentTexture.mapping=THREE.EquirectangularReflectionMapping;environmentTexture.colorSpace=THREE.SRGBColorSpace;
+    const pmrem=new THREE.PMREMGenerator(renderer),environment=pmrem.fromEquirectangular(environmentTexture);scene.environment=environment.texture;scene.environmentIntensity=.75;pmrem.dispose();environmentTexture.dispose();
     const mat=(color:string|number,options={})=>new THREE.MeshStandardMaterial({color,roughness:.46,metalness:.1,...options});
-    const steel=mat('#778c90',{metalness:.8,roughness:.29}),black=mat('#263436',{metalness:.4}),white=mat('#e5e9e5',{metalness:.35,roughness:.28}),robotShell=mat(plan?.robot_visual?.body_color||'#e5e9e5',{metalness:.35,roughness:.28}),accent=mat(plan?.robot_visual?.accent_color||'#d89252',{metalness:.5});
+    const steel=mat('#9aa7a1',{metalness:.85,roughness:.30}),black=mat('#2b3431',{metalness:.25,roughness:.52}),white=mat('#eeeede',{metalness:.05,roughness:.36}),robotShell=new THREE.MeshPhysicalMaterial({color:plan?.robot_visual?.body_color||'#e5e9e5',metalness:.20,roughness:.30,clearcoat:.65,clearcoatRoughness:.27}),accent=mat(plan?.robot_visual?.accent_color||'#d89252',{metalness:.3,roughness:.37});
     const green=mat('#4b9168',{emissive:'#234735',emissiveIntensity:.35});
     const mesh=(geometry:any,material:any,parent:any=scene)=>{const object=new THREE.Mesh(geometry,material);object.castShadow=true;object.receiveShadow=true;parent.add(object);return object;};
     const box=(w:number,h:number,d:number,m:any,x:number,y:number,z:number,parent:any=scene)=>{const o=mesh(new THREE.BoxGeometry(w,h,d),m,parent);o.position.set(x,y,z);return o;};
     const cyl=(r:number,h:number,m:any,x:number,y:number,z:number,parent:any=scene)=>{const o=mesh(new THREE.CylinderGeometry(r,r,h,32),m,parent);o.position.set(x,y,z);return o;};
     const ring=(r:number,t:number,m:any,x:number,y:number,z:number,parent:any=scene)=>{const o=mesh(new THREE.TorusGeometry(r,t,12,48),m,parent);o.rotation.x=Math.PI/2;o.position.set(x,y,z);return o;};
-    const label=(text:string,parent:any,y:number)=>{
-      const canvas=document.createElement('canvas');canvas.width=512;canvas.height=96;const ctx=canvas.getContext('2d')!;
-      ctx.fillStyle='rgba(245,249,246,.9)';ctx.beginPath();ctx.roundRect(3,12,506,70,20);ctx.fill();ctx.fillStyle='#284039';ctx.font='500 32px Inter, sans-serif';ctx.textAlign='center';ctx.fillText(text,256,58);
-      const texture=new THREE.CanvasTexture(canvas);textures.push(texture);const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,depthTest:false}));sprite.scale.set(.25,.047,1);sprite.position.y=y;parent.add(sprite);return sprite;
-    };
+    const labels=new Map<string,HTMLDivElement>();
+    const label=(identity:string,text:string)=>{const node=document.createElement('div');node.className='workcell-object-label';node.textContent=text;node.setAttribute('aria-hidden','true');mount.appendChild(node);labels.set(identity,node);};
     const pattern=(fabric=false)=>{
       const canvas=document.createElement('canvas');canvas.width=canvas.height=128;const ctx=canvas.getContext('2d')!;ctx.fillStyle=fabric?'#e9e6df':'#b9c4c4';ctx.fillRect(0,0,128,128);
       ctx.strokeStyle=fabric?'#ddd9d2':'#a9b8b7';ctx.lineWidth=fabric ? .6 : 1;
       for(let i=0;i<128;i+=fabric?3:16){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i,128);ctx.moveTo(0,i);ctx.lineTo(128,i);ctx.stroke();}
       const texture=new THREE.CanvasTexture(canvas);texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.repeat.set(fabric?3:8,fabric?3:5);textures.push(texture);return texture;
     };
-    scene.add(new THREE.HemisphereLight('#fcfffb','#778993',2.1));
-    const key=new THREE.DirectionalLight('#fff4df',3.2);key.position.set(-1.5,3,2);key.castShadow=true;key.shadow.mapSize.set(1024,1024);key.shadow.camera.left=-1.8;key.shadow.camera.right=1.8;key.shadow.camera.top=1.8;key.shadow.camera.bottom=-1.8;key.shadow.bias=-.0002;scene.add(key);
-    const rim=new THREE.DirectionalLight('#c4e5f2',1.7);rim.position.set(2,2,-1);scene.add(rim);
-    const floor=mesh(new THREE.PlaneGeometry(20,20),mat('#bdc9c9',{roughness:.87}));floor.rotation.x=-Math.PI/2;floor.castShadow=false;
-    const grid=new THREE.GridHelper(12,60,'#a2b4b6','#b1c0c1');grid.position.y=.002;scene.add(grid);
+    scene.add(new THREE.HemisphereLight('#fffff4','#99a89b',1.35));
+    const key=new THREE.DirectionalLight('#fff5df',2.5);key.position.set(-2,4,-2);key.castShadow=true;key.shadow.mapSize.set(1024,1024);key.shadow.camera.left=-1.8;key.shadow.camera.right=1.8;key.shadow.camera.top=1.8;key.shadow.camera.bottom=-1.8;key.shadow.bias=-.00015;key.shadow.normalBias=.012;key.shadow.radius=3;scene.add(key);
+    const rim=new THREE.DirectionalLight('#e7f3ef',1.4);rim.position.set(2,2,1);scene.add(rim);
+    const floor=mesh(new THREE.PlaneGeometry(20,20),mat('#d9ded3',{roughness:.95,metalness:0}));floor.rotation.x=-Math.PI/2;floor.castShadow=false;
+    const grid=new THREE.GridHelper(8,32,'#b2bdaf','#bdc6ba');grid.position.y=.002;grid.material.transparent=true;grid.material.opacity=.22;scene.add(grid);
     // Workbench, steel frame, guard glazing and an overhead RGB camera.
     box(1.42,.065,1.06,black,0,TABLE_Y-.04,.05);
-    box(1.38,.014,1.02,mat('#c9d2ce',{metalness:.55,roughness:.35,map:pattern()}),0,TABLE_Y-.003,.05);
+    box(1.38,.014,1.02,mat('#cbd1c3',{metalness:.25,roughness:.55}),0,TABLE_Y-.003,.05);
     for(const x of [-.60,.60])for(const z of [-.36,.47]){box(.045,.68,.045,steel,x,.35,z);cyl(.04,.025,black,x,.02,z);}
     box(1.25,.04,.045,steel,0,.23,.47);box(1.25,.04,.045,steel,0,.23,-.36);
-    for(const x of [-.62,.62]){box(.025,.78,.025,steel,x,1.1,.53);box(.014,.39,.67,mat('#afd6d8',{transparent:true,opacity:.10,roughness:.07,metalness:0,depthWrite:false}),x,1.0,.15);}
-    box(1.27,.035,.045,steel,0,1.49,.53);box(.12,.065,.08,black,0,1.43,.46);cyl(.023,.02,green,0,1.38,.46);
-    box(.30,.015,.012,white,0,1.5,.53);box(.20,.07,.02,black,.50,.65,.58);for(let i=0;i<3;i++)cyl(.007,.005,i===0?green:accent,.45+i*.033,.68,.595);
+    for(const x of [-.67,.67]){box(.014,.63,.014,steel,x,1.06,.55);box(.006,.32,.70,mat('#c4e0dc',{transparent:true,opacity:.055,roughness:.1,metalness:0,depthWrite:false}),x,.95,.15);}
+    // A discreet camera mount at the side leaves the robot silhouette unobstructed.
+    box(.014,.75,.014,steel,-.66,1.10,.43);box(.17,.012,.014,steel,-.59,1.47,.43);box(.06,.034,.042,black,-.51,1.44,.43);cyl(.010,.01,green,-.51,1.416,.43);
+    box(.20,.07,.02,black,.50,.65,.58);for(let i=0;i<3;i++)cyl(.007,.005,i===0?green:accent,.45+i*.033,.68,.595);
     for(const [name,xy] of Object.entries(fixture.zones)){
       if(!plan?.subtasks.some(s=>s.destination===name))continue;
       const [x,,z]=point(fixture,...xy);const target=new THREE.Group();scene.add(target);target.position.set(x,TABLE_Y+.003,z);
@@ -66,10 +72,12 @@ export default function WorkbenchScene({scene:fixture,plan,selected=0,robot=DEFA
       const [w,d,h]=item.size_mm.map(v=>Math.max(.004,Math.min(.65,v/1000)));const color=mat(item.color);const name=item.name.toLowerCase();
       if(/matcha bowl|latte glass/.test(name)){
         const r=Math.min(w,d)*.47,isGlass=/glass/.test(name);
-        const vessel=mat(isGlass?'#cee8e5':item.color,{transparent:isGlass,opacity:isGlass?.28:1,roughness:isGlass?.08:.35,metalness:0,side:THREE.DoubleSide,depthWrite:!isGlass});
-        const body=mesh(new THREE.CylinderGeometry(r,r*.85,h,48,1,true),vessel,group);body.position.y=h/2;
+        const vessel=new THREE.MeshPhysicalMaterial({color:isGlass?'#e6f1e9':item.color,transparent:isGlass,opacity:isGlass?.58:1,transmission:isGlass?.34:0,thickness:.003,ior:1.46,roughness:isGlass?.10:.32,metalness:0,clearcoat:isGlass?1:.45,clearcoatRoughness:.17,side:THREE.DoubleSide,depthWrite:!isGlass});
+        const body=mesh(isGlass?new THREE.CylinderGeometry(r,r*.90,h,48,1,true):new THREE.LatheGeometry([new THREE.Vector2(r*.60,0),new THREE.Vector2(r*.75,h*.12),new THREE.Vector2(r*.91,h*.60),new THREE.Vector2(r,h*.95),new THREE.Vector2(r,h)],48),vessel,group);if(isGlass)body.position.y=h/2;
         cyl(r*.83,.005,vessel,0,.004,0,group);ring(r,.0025,isGlass?vessel:white,0,h,0,group);
         const liquid=cyl(r*.81,1,mat('#72a45b',{roughness:.27,metalness:0}),0,.01,0,group);liquid.visible=false;liquids.set(item.id,liquid);
+        const surface=mesh(new THREE.CircleGeometry(r*.81,48),mat('#a3bf80',{roughness:.54,metalness:0}),group);surface.rotation.x=-Math.PI/2;surface.visible=false;liquid.userData.surface=surface;
+        const ripples=new THREE.Group();group.add(ripples);for(let i=0;i<3;i++){const ripple=ring(r*(.20+i*.20),.0007,mat('#d4e2b5',{transparent:true,opacity:.12,metalness:0}),0,0,0,ripples);ripple.castShadow=false;}ripples.visible=false;liquid.userData.ripples=ripples;
       }else if(/bamboo whisk/.test(name)){
         cyl(.010,h*.60,color,0,h*.70,0,group);ring(.022,.0018,color,0,h*.18,0,group);
         for(let i=0;i<18;i++){const angle=i*Math.PI/9;const tine=mesh(new THREE.CylinderGeometry(.0009,.0015,h*.48,8),color,group);tine.position.set(Math.cos(angle)*.019,h*.26,Math.sin(angle)*.019);tine.rotation.z=Math.cos(angle)*.20;tine.rotation.x=Math.sin(angle)*.20;}
@@ -99,7 +107,7 @@ export default function WorkbenchScene({scene:fixture,plan,selected=0,robot=DEFA
         box(w,h,d,color,0,h/2,0,group);if(item.category==='logistics'||/package|box/.test(name)){box(.016,.001,d,mat('#d5c3a2'),0,h+.001,0,group);box(w*.40,.001,d*.30,white,w*.18,h+.002,0,group);}
       }
       const focus=ring(Math.max(w,d)*.67,.0025,green,0,.002,0,group);focus.visible=false;focusRings.set(item.id,focus);
-      if(!compact)label(item.name,group,h+.055);
+      if(!compact)label(item.id,item.name);
     }
     // A two-link analytic IK solve positions a detailed six-axis arm silhouette.
     const rigStart=scene.children.length;
@@ -135,21 +143,23 @@ export default function WorkbenchScene({scene:fixture,plan,selected=0,robot=DEFA
     const move=(e:PointerEvent)=>{if(!pointer)return;view.current.yaw-=(e.clientX-pointer.x)*.006;view.current.pitch=Math.max(.15,Math.min(1.45,view.current.pitch+(e.clientY-pointer.y)*.005));pointer={x:e.clientX,y:e.clientY};};
     const up=()=>{pointer=null;};const wheel=(e:WheelEvent)=>{e.preventDefault();view.current.radius=Math.max(1.25,Math.min(4,view.current.radius+e.deltaY*.002));};
     mount.addEventListener('pointerdown',down);mount.addEventListener('pointermove',move);mount.addEventListener('pointerup',up);mount.addEventListener('pointercancel',up);mount.addEventListener('wheel',wheel,{passive:false});
-    const resize=()=>{const w=Math.max(1,mount.clientWidth),h=Math.max(1,mount.clientHeight);camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false);};
-    const observer=new ResizeObserver(resize);observer.observe(mount);resize();reset.current=()=>{view.current={yaw:.68,pitch:.42,radius:2.4};};
-    let raf=0,last=0,keyStep='',started=0,snapshotKey='',snapshotAt=0,snapshotProgress=0;
+    const viewport={width:1,height:1};
+    const resize=()=>{const w=Math.max(1,mount.clientWidth),h=Math.max(1,mount.clientHeight);viewport.width=w;viewport.height=h;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false);};
+    const observer=new ResizeObserver(resize);observer.observe(mount);resize();reset.current=()=>{view.current={yaw:2.55,pitch:.43,radius:2.65};};
+    let raf=0,last=0,keyStep='';
+    const clock=new MotionClock(),renderEnd=idle.clone(),stepStart=idle.clone();
+    const currentView={...view.current};let renderGrip=.04,focusMix=0;
     const reduced=window.matchMedia('(prefers-reduced-motion: reduce)');
     const render=(time:number)=>{
-      raf=requestAnimationFrame(render);if(document.hidden||time-last<1000/40)return;last=time;
+      raf=requestAnimationFrame(render);if(document.hidden){last=time;return;}
+      const dt=Math.min(.05,Math.max(0,(time-last)/1000));last=time;
       const state=live.current,current=state.plan?.subtasks[state.selected],key=`${state.plan?.id}:${state.selected}:${state.mode}`;
-      if(key!==keyStep){keyStep=key;started=time;route.geometry.dispose();route.geometry=new THREE.BufferGeometry();}
+      if(key!==keyStep){keyStep=key;stepStart.copy(renderEnd);route.geometry.dispose();route.geometry=new THREE.BufferGeometry();}
       const relevant=state.arm?.plan_id===state.plan?.id && state.arm?.step_id===current?.id;
-      const observedKey=`${state.arm?.step_id}:${state.arm?.progress}:${state.arm?.running}`;
-      if(observedKey!==snapshotKey){snapshotKey=observedKey;snapshotAt=time;snapshotProgress=state.arm?.progress||0;}
-      let progress=state.mode==='live' ? current?.status==='completed'?1:relevant && state.arm?.output && (current?.result?.output.trajectory || ['control','object_placement'].includes(current?.task_type||''))?Math.min(1,snapshotProgress+(state.arm.running?(time-snapshotAt)/1000/(state.arm.motion_duration_s||4):0)):Math.min(1,(time-started)/1300):Math.min(1,(time-started)/4200);
+      let progress=clock.tick(time,key,current,relevant?state.arm:undefined,state.mode==='live',state.mode==='live'||state.playing,state.playhead?.current||0);
       if(reduced.matches)progress=1;
       const selectedObject=subject(fixture,current),target=selectedObject?position(fixture,selectedObject,state.plan?.subtasks,state.selected).xyz:null;
-      let grip=.04;end.copy(idle);sweep.visible=false;route.visible=false;stream.visible=false;
+      let grip=.04,wristTilt=0;end.copy(idle);sweep.visible=false;route.visible=false;stream.visible=false;
       robotRoot.position.set(0,0,0);
       if(current&&/nav|locomotion|move_robot/.test(current.task_type)){const targetZone=destination(fixture,current,state.plan?.subtasks||[]);if(targetZone)robotRoot.position.set(targetZone[0]*smooth(progress),0,(targetZone[2]-.52)*smooth(progress));}
       for(const item of fixture.objects){const group=objects.get(item.id),pose=position(fixture,item,state.plan?.subtasks,state.selected);group.position.set(...pose.xyz);group.rotation.set(0,0,0);group.visible=!pose.hidden;group.scale.set(1,1,1);focusRings.get(item.id).visible=item.id===selectedObject?.id;
@@ -157,7 +167,11 @@ export default function WorkbenchScene({scene:fixture,plan,selected=0,robot=DEFA
           const updates=current?.result?.output.trait_updates as Record<string,Record<string,string>>|undefined;
           const interpolated=(key:string)=>Number(traits[key]||0)+(Number(updates?.[item.id]?.[key]??traits[key]??0)-Number(traits[key]||0))*smooth(Math.max(0,(progress-.35)/.35));
           const water=interpolated('water_ml'),milk=interpolated('milk_ml'),matcha=interpolated('matcha_ml');const ml=water+milk+matcha;
-          const level=Math.min(item.size_mm[2]/1000*.8,ml/250*(item.size_mm[2]/1000*.85));liquid.visible=ml>0;liquid.scale.y=Math.max(.001,level);liquid.position.y=level/2+.006;liquid.material.color.set(milk>0?(matcha>0?'#8aac6b':'#f3e9cc'):'#6d974e');
+          const level=Math.min(item.size_mm[2]/1000*.8,ml/250*(item.size_mm[2]/1000*.85));liquid.visible=ml>0;liquid.scale.y=Math.max(.001,level);liquid.position.y=level/2+.006;
+          const liquidColor=new THREE.Color(milk>0?'#f3e9cc':'#6d974e');if(milk>0)liquidColor.lerp(new THREE.Color('#8aac6b'),Math.min(1,matcha/60));liquid.material.color.copy(liquidColor);
+          const surface=liquid.userData.surface,ripples=liquid.userData.ripples;surface.visible=liquid.visible;surface.position.y=level+.007;surface.material.color.copy(liquidColor).lerp(new THREE.Color('#f8f0d4'),.10);
+          ripples.visible=liquid.visible&&item.id===selectedObject?.id&&progress>.38&&progress<.77;ripples.position.y=level+.008;ripples.rotation.y=progress*3;
+          const rippleScale=1+Math.sin(progress*Math.PI*24)*.08;ripples.scale.set(rippleScale,1,rippleScale);
         }
       }
       if(current&&target&&selectedObject){
@@ -168,22 +182,41 @@ export default function WorkbenchScene({scene:fixture,plan,selected=0,robot=DEFA
         const toolItem=fixture.objects.find(o=>o.id===current.result?.output.tool_object_id || o.name===program?.tool_name);
         if(toolItem&&['pour','whisk','scoop'].includes(motion)&&!virtual){
           const tool=objects.get(toolItem.id),origin=new THREE.Vector3(...position(fixture,toolItem,state.plan?.subtasks,state.selected).xyz),toolH=toolItem.size_mm[2]/1000;
-          const above=center.clone().add(new THREE.Vector3(0,height/2+.12,0)),lift=origin.clone().add(new THREE.Vector3(0,.25,0));
-          if(progress<.15)end.copy(idle).lerp(origin.clone().add(new THREE.Vector3(0,toolH,0)),smooth(progress/.15));
-          else if(progress<.35)end.copy(lift).lerp(above,smooth((progress-.15)/.20));
-          else if(progress<.75){end.copy(above);if(motion==='whisk'){end.y=center.y+height*.55;end.x+=Math.sin(progress*Math.PI*24)*.016;end.z+=Math.cos(progress*Math.PI*24)*.016;tool.rotation.y=progress*Math.PI*24;}else{tool.rotation.z=-.85;stream.visible=true;const bottom=center.clone().add(new THREE.Vector3(0,height*.2,0));link(stream,end,bottom);stream.material.color.set(current.task_type==='matcha_milk_pouring'?'#f3e9cc':current.task_type==='matcha_water_pouring'?'#a9dce5':'#6d974e');}}
-          else end.copy(above).lerp(origin.clone().add(new THREE.Vector3(0,toolH,0)),smooth((progress-.75)/.25));
-          grip=.014;if(progress>.15&&progress<.99)tool.position.copy(end).add(new THREE.Vector3(0,-toolH*.6,0));
-          if(progress>=.99){tool.position.copy(origin);tool.rotation.set(0,0,0);end.copy(idle);}
+          const grasp=origin.clone().add(new THREE.Vector3(0,toolH*.65,0)),lift=grasp.clone().add(new THREE.Vector3(0,.20,0));
+          const above=center.clone().add(new THREE.Vector3(0,height/2+.11,0));
+          const action=above.clone();if(motion==='whisk')action.y=target[1]+height+toolH*.30;
+          if(progress<.14)end.copy(stepStart).lerp(grasp,phase(progress,0,.14));
+          else if(progress<.23)end.copy(grasp).lerp(lift,phase(progress,.14,.23));
+          else if(progress<.36){const path=new THREE.QuadraticBezierCurve3(lift,lift.clone().lerp(above,.5).add(new THREE.Vector3(0,.06,0)),above);end.copy(path.getPoint(phase(progress,.23,.36)));}
+          else if(progress<.43)end.copy(above).lerp(action,phase(progress,.36,.43));
+          else if(progress<.69){end.copy(action);if(motion==='whisk'){const amplitude=.011*phase(progress,.43,.48)*(1-phase(progress,.64,.69));end.x+=Math.sin(progress*Math.PI*36)*amplitude;end.z+=Math.cos(progress*Math.PI*36)*amplitude;tool.rotation.y=progress*Math.PI*36;} }
+          else if(progress<.76)end.copy(action).lerp(above,phase(progress,.69,.76));
+          else if(progress<.89){const path=new THREE.QuadraticBezierCurve3(above,above.clone().lerp(lift,.5).add(new THREE.Vector3(0,.06,0)),lift);end.copy(path.getPoint(phase(progress,.76,.89)));}
+          else if(progress<.96)end.copy(lift).lerp(grasp,phase(progress,.89,.96));
+          else end.copy(grasp).lerp(idle,phase(progress,.96,1));
+          const attached=progress>=.14&&progress<.96;
+          grip=.04-.026*phase(progress,.10,.14)+.026*phase(progress,.94,.96);
+          if(attached){const tilt=motion==='whisk'?0:phase(progress,.38,.45)*(1-phase(progress,.67,.75))*.68;tool.rotation.z=-tilt;wristTilt=-tilt;tool.position.copy(end).sub(new THREE.Vector3(0,toolH*.65,0).applyEuler(tool.rotation));}
+          if(motion!=='whisk'&&progress>.44&&progress<.68){const tip=tool.localToWorld(new THREE.Vector3(-toolItem.size_mm[0]/2000,toolH*.85,0)),bottom=center.clone().add(new THREE.Vector3(0,height*.15,0));stream.visible=true;link(stream,tip,bottom);stream.material.opacity=.65*phase(progress,.44,.48)*(1-phase(progress,.64,.68));stream.material.color.set(current.task_type==='matcha_milk_pouring'?'#f3e9cc':current.task_type==='matcha_water_pouring'?'#b8dfe4':'#6d974e');}
         }else if(current.task_type==='control'&&!virtual){
-          if(progress<.34)end.copy(idle).lerp(center.clone().add(new THREE.Vector3(0,.12,0)),smooth(progress/.34));
-          else if(progress<.53){end.copy(center).add(new THREE.Vector3(0,.12*(1-smooth((progress-.34)/.19)),0));grip=.04*(1-smooth((progress-.34)/.19))+.014;}
-          else{end.copy(center).add(new THREE.Vector3(0,.18*smooth((progress-.53)/.27),0));grip=Math.min(.06,selectedObject.size_mm[0]/2000);object.position.y=end.y-height/2;}
+          const graspWidth=Math.min(.06,selectedObject.size_mm[0]/2000),hover=center.clone().add(new THREE.Vector3(0,.14,0));
+          if(progress<.30)end.copy(stepStart).lerp(hover,phase(progress,0,.30));
+          else if(progress<.47)end.copy(hover).lerp(center,phase(progress,.30,.47));
+          else if(progress<.57)end.copy(center);
+          else end.copy(center).add(new THREE.Vector3(0,.18*phase(progress,.57,.88),0));
+          grip=.045+(graspWidth-.045)*phase(progress,.47,.57);
+          if(progress>=.57)object.position.copy(end).add(new THREE.Vector3(0,-height/2,0));
         }else if(['placement_planning','object_placement'].includes(current.task_type)&&!virtual){
           const dest=destination(fixture,current,state.plan?.subtasks||[]);
           if(dest){const finish=new THREE.Vector3(...dest).add(new THREE.Vector3(0,height/2,0));const curve=new THREE.QuadraticBezierCurve3(center.clone().add(new THREE.Vector3(0,.18,0)),center.clone().lerp(finish,.5).add(new THREE.Vector3(0,.32,0)),finish.clone().add(new THREE.Vector3(0,.18,0)));
             if(route.geometry.getAttribute('position')?.count!==33){route.geometry.dispose();route.geometry=new THREE.BufferGeometry().setFromPoints(curve.getPoints(32));route.computeLineDistances();}route.visible=true;
-            if(current.task_type==='object_placement'){end.copy(curve.getPoint(smooth(Math.min(1,progress/.60))));if(progress>.60)end.copy(finish).add(new THREE.Vector3(0,.18*(1-smooth((progress-.60)/.20)),0));grip=progress<.83?Math.min(.06,selectedObject.size_mm[0]/2000):.045;object.position.copy(end).add(new THREE.Vector3(0,-height/2,0));if(progress>.83){object.position.set(...dest);end.copy(finish).add(new THREE.Vector3(0,.14*smooth((progress-.83)/.17),0));}}
+            if(current.task_type==='object_placement'){
+              if(progress<.58)end.copy(curve.getPoint(phase(progress,0,.58)));
+              else if(progress<.78)end.copy(finish).add(new THREE.Vector3(0,.18*(1-phase(progress,.58,.78)),0));
+              else end.copy(finish).add(new THREE.Vector3(0,.16*phase(progress,.86,1),0));
+              const graspWidth=Math.min(.06,selectedObject.size_mm[0]/2000);grip=graspWidth+(.045-graspWidth)*phase(progress,.78,.86);
+              if(progress<.86)object.position.copy(end).add(new THREE.Vector3(0,-height/2,0));else object.position.set(...dest);
+            }
           }
         }else if(virtual){
           // Fictional transformations have a separate visual treatment; no grasp is invented.
@@ -198,16 +231,22 @@ export default function WorkbenchScene({scene:fixture,plan,selected=0,robot=DEFA
         const held=[...state.plan.subtasks.slice(0,state.selected)].reverse().find(s=>s.task_type==='control'||s.task_type==='object_placement');
         if(held?.task_type==='control'&&!held.decision?.candidates.find(c=>c.model.id===held.decision?.selected_model_id)?.model.simulation_placeholder){const item=subject(fixture,held);if(item){const pose=position(fixture,item,state.plan.subtasks,state.selected);const group=objects.get(item.id);group.position.y=TABLE_Y+.18;end.set(pose.xyz[0],group.position.y+item.size_mm[2]/2000,pose.xyz[2]);grip=Math.min(.06,item.size_mm[0]/2000);}}
       }
-      left.position.x=-grip;right.position.x=grip;solve(end);
-      const v=view.current;camera.position.set(Math.sin(v.yaw)*Math.cos(v.pitch)*v.radius,aim.y+Math.sin(v.pitch)*v.radius,Math.cos(v.yaw)*Math.cos(v.pitch)*v.radius);camera.lookAt(aim);renderer.render(scene,camera);
+      renderEnd.lerp(end,reduced.matches?1:damping(dt,22));renderGrip+=(grip-renderGrip)*damping(dt,22);
+      left.position.x=-renderGrip;right.position.x=renderGrip;claw.rotation.z+=(wristTilt-claw.rotation.z)*damping(dt,18);solve(renderEnd);
+      const v=view.current;for(const key of ['yaw','pitch','radius'] as const)currentView[key]+=(v[key]-currentView[key])*damping(dt,8);
+      const desiredAim=state.focusAction&&target?new THREE.Vector3(...target).add(new THREE.Vector3(0,.17,0)):new THREE.Vector3(0,.94,.02);aim.lerp(desiredAim,damping(dt,4));
+      focusMix+=((state.focusAction?1:0)-focusMix)*damping(dt,5);
+      const radius=currentView.radius+(Math.min(currentView.radius,1.7)-currentView.radius)*focusMix;
+      camera.position.set(aim.x+Math.sin(currentView.yaw)*Math.cos(currentView.pitch)*radius,aim.y+Math.sin(currentView.pitch)*radius,aim.z+Math.cos(currentView.yaw)*Math.cos(currentView.pitch)*radius);camera.lookAt(aim);renderer.render(scene,camera);
+      for(const item of fixture.objects){const node=labels.get(item.id);if(!node)continue;const group=objects.get(item.id);if(!group.visible||(!state.showLabels&&item.id!==selectedObject?.id)){node.style.opacity='0';continue;}const projected=group.localToWorld(new THREE.Vector3(0,item.size_mm[2]/1000+.024,0)).project(camera);const visible=Math.abs(projected.x)<.95&&Math.abs(projected.y)<.90&&projected.z<1;node.style.opacity=visible?'1':'0';node.style.transform=`translate3d(${(projected.x*.5+.5)*viewport.width}px,${(-projected.y*.5+.5)*viewport.height}px,0) translate(-50%,-100%)`;}
     };
     raf=requestAnimationFrame(render);
-    return()=>{cancelAnimationFrame(raf);observer.disconnect();mount.removeEventListener('pointerdown',down);mount.removeEventListener('pointermove',move);mount.removeEventListener('pointerup',up);mount.removeEventListener('pointercancel',up);mount.removeEventListener('wheel',wheel);scene.traverse((o:any)=>{o.geometry?.dispose();if(o.material)(Array.isArray(o.material)?o.material:[o.material]).forEach((m:any)=>m.dispose());});textures.forEach(t=>t.dispose());renderer.dispose();renderer.forceContextLoss();renderer.domElement.remove();};
+    return()=>{cancelAnimationFrame(raf);observer.disconnect();mount.removeEventListener('pointerdown',down);mount.removeEventListener('pointermove',move);mount.removeEventListener('pointerup',up);mount.removeEventListener('pointercancel',up);mount.removeEventListener('wheel',wheel);scene.traverse((o:any)=>{o.geometry?.dispose();if(o.material)(Array.isArray(o.material)?o.material:[o.material]).forEach((m:any)=>m.dispose());});textures.forEach(t=>t.dispose());labels.forEach(node=>node.remove());environment.dispose();renderer.dispose();renderer.forceContextLoss();renderer.domElement.remove();};
   },[fixture.id,robot.reach_mm,robot.gripper,compact]);
   return <div className={'workcell-view '+(compact?'compact':'')}>
-    <div className="workcell-camera-tools"><span>{mode==='live'?'LIVE SIMULATOR':'MISSION REHEARSAL'}</span><select aria-label="Workcell camera" value={cameraMode} onChange={e=>{setCameraMode(e.target.value);view.current=e.target.value==='overhead'?{yaw:0,pitch:1.45,radius:2.3}:e.target.value==='front'?{yaw:0,pitch:.25,radius:2.4}:{yaw:.68,pitch:.42,radius:2.4};}}><option value="orbit">Perspective</option><option value="front">Front</option><option value="overhead">Overhead</option></select><button className="icon-button" aria-label="Reset workcell camera" onClick={()=>{reset.current();setCameraMode('orbit');}}><RotateCcw size={13}/></button></div>
+    <div className="workcell-camera-tools"><span><i className={mode==='live'?'is-live':''}/>{mode==='live'?'Live simulation':'Task rehearsal'}</span><button className={'icon-button '+(focusAction?'active':'')} aria-label="Focus current action" aria-pressed={focusAction} title="Focus current action" onClick={()=>setFocusAction(!focusAction)}><Focus size={15}/></button><button className={'icon-button '+(showLabels?'active':'')} aria-label="Show object labels" aria-pressed={showLabels} title="Show object labels" onClick={()=>setShowLabels(!showLabels)}><Tags size={15}/></button><select aria-label="Workcell camera" value={cameraMode} onChange={e=>{setCameraMode(e.target.value);view.current=e.target.value==='overhead'?{yaw:Math.PI,pitch:1.45,radius:2.3}:e.target.value==='front'?{yaw:Math.PI,pitch:.30,radius:2.65}:{yaw:2.55,pitch:.43,radius:2.65};}}><option value="orbit">Perspective</option><option value="front">Front</option><option value="overhead">Overhead</option></select><button className="icon-button" aria-label="Reset workcell camera" onClick={()=>{reset.current();setCameraMode('orbit');setFocusAction(false);}}><RotateCcw size={14}/></button></div>
     <div ref={host} className="workcell-canvas" role="img" aria-label={`3D robot workcell with ${fixture.objects.map(o=>o.name).join(', ')}. ${mode==='live'?'Following execution':'Rehearsing'} ${plan?.subtasks[selected]?.title||'the configured robot'}.`}/>
     {unavailable&&<p className="preview-fallback">This browser could not create a 3D view. Mission state and outputs remain available.</p>}
-    <div className="workcell-camera-hint">Drag to orbit · Scroll to zoom · Geometry in metres</div>
+    <div className="workcell-camera-hint">Drag to explore <span>·</span> Scroll to zoom</div>
   </div>;
 }
