@@ -421,7 +421,6 @@ function Composer({
       <div className="suggestions">
         {data.planner?.matcha_demo?.enabled&&<button onClick={()=>{data.setTask(data.planner!.matcha_demo!.prompt);data.setExecutionMode('simulation');data.setBudget('0.25');data.setAutoBounties(true);data.setBountyReward('5.00');input.current?.focus();}}>Make a matcha latte <ArrowUp size={12}/></button>}
       </div>
-      <div className="media-context-note"><label className="secondary upload-context"><ImagePlus size={14}/>{data.mediaBusy?'Preparing reference files…':'Upload documents, images or video'}<input type="file" aria-label="Upload task reference files" multiple accept="image/png,image/jpeg,image/webp,image/gif,application/pdf,.txt,.md,.csv,.json,video/mp4,video/webm,video/quicktime" disabled={data.mediaBusy||data.busy} onChange={async e=>{const files=Array.from(e.target.files||[]);e.target.value='';for(const file of files)await data.uploadMedia(file);}}/></label><p>Optional references go to Anthropic with your prompt. PDF/text and images are supported; videos use six frames without audio.</p><div className="attachment-list">{data.media.map((file,i)=><div key={i}><span>{file.name}</span><small>{file.kind==='video'?`${file.frames?.length||0} frames`:file.kind.toUpperCase()}</small><button className="icon-button" aria-label={`Remove ${file.name}`} onClick={()=>data.removeMedia(i)}><X size={12}/></button></div>)}</div></div>
       <ol className="how-it-works">
         <li>
           <strong>Describe a task</strong>
