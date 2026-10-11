@@ -1,0 +1,89 @@
+/* Account, wallet and payment screens. Uses the tokens and shared classes from style.css. */
+.account-page { max-width: 980px; }
+.account-tabs, .account-filter { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 18px; }
+.account-tabs button, .account-filter button {
+  border-radius: 20px; padding: 7px 13px; font-size: 11px; color: var(--muted);
+  background: #ffffff55; border: 1px solid #ffffff90;
+}
+.account-tabs button:hover, .account-filter button:hover { color: var(--ink); background: #ffffffa0; }
+.account-tabs button.active, .account-filter button.active { background: var(--ink); color: white; border-color: var(--ink); }
+.account-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 16px; align-items: start; }
+.account-card { border-radius: 18px; padding: 20px; border: 1px solid rgba(255, 255, 255, 0.65); }
+.account-card h2 { font-family: var(--serif); font-weight: 400; font-size: 26px; margin: 12px 0 6px; }
+.account-card h2 small { font-family: inherit; font-size: 12px; color: var(--muted); }
+.account-card-heading { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 14px; font-size: 12px; font-weight: 500; }
+.account-card .wallet-amount { margin-bottom: 12px; }
+.account-card .spec-list { margin: 0 0 14px; }
+.account-card .spec-list dt { display: inline-flex; align-items: center; gap: 5px; }
+.account-note { font-size: 11px; line-height: 1.6; color: var(--muted); margin: 0 0 12px; }
+.account-error { font-size: 11px; line-height: 1.5; color: #9a4b2a; margin: 8px 0; display: block; }
+.account-done { font-size: 11px; color: var(--sage-dark); margin: 8px 0; display: flex; align-items: center; gap: 5px; }
+.account-field { display: grid; gap: 5px; font-size: 10px; color: var(--faint); margin-bottom: 10px; }
+.account-field input {
+  border: 1px solid #1c1d1818; background: #ffffffb0; border-radius: 10px; padding: 9px 11px; font-size: 12px; color: var(--ink); width: 100%;
+}
+.account-field input:focus { outline: 2px solid #3f7d5c55; outline-offset: 0; border-color: var(--sage); }
+.account-field input:disabled { color: var(--faint); background: #ffffff60; }
+.account-form { margin: 0; }
+.account-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 12px 0 6px; }
+.account-actions .account-note { margin: 0; }
+.secondary.danger { color: #9a4b2a; border-color: #9a4b2a40; }
+.address-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 10px; }
+.address-row code { font-size: 10.5px; background: #1c1d180a; border-radius: 8px; padding: 6px 8px; overflow-wrap: anywhere; }
+.address-row a, .account-card a, .order a, .payment-dialog a { color: var(--sage-dark); font-size: 10px; display: inline-flex; align-items: center; gap: 3px; }
+.flow-steps { margin: 0 0 12px; padding-left: 16px; font-size: 11px; line-height: 1.6; color: var(--muted); }
+.flow-steps strong { color: var(--ink); font-weight: 500; }
+.transfer-list, .payment-steps, .privacy-list { list-style: none; margin: 0 0 12px; padding: 0; }
+.transfer-list li, .payment-steps li { display: flex; gap: 10px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); font-size: 11px; }
+.transfer-list li:first-child, .payment-steps li:first-child { border-top: 0; }
+.transfer-list li > div:first-of-type, .payment-steps li > div:first-child { min-width: 0; flex: 1; }
+.transfer-list strong, .payment-steps strong, .order summary strong { font-weight: 500; display: block; overflow-wrap: anywhere; }
+.transfer-list small, .payment-steps small, .order summary small { display: block; font-size: 9px; color: var(--faint); margin-top: 3px; }
+.transfer-icon { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: #1c1d180a; color: var(--muted); flex: none; }
+.transfer-icon.in { background: #3f7d5c1c; color: var(--sage-dark); }
+.payment-step-amount { text-align: right; flex: none; display: grid; justify-items: end; gap: 3px; }
+.payment-step-amount strong small { display: inline; font-size: 8px; }
+.payment-step-amount .status { font-size: 9px; }
+.privacy-list li { font-size: 11px; line-height: 1.6; color: var(--muted); margin-top: 8px; }
+.privacy-list strong { color: var(--ink); font-weight: 500; }
+.account-toggle { display: flex; gap: 10px; align-items: flex-start; font-size: 11px; cursor: pointer; }
+.account-toggle input { margin-top: 2px; accent-color: var(--sage); }
+.account-toggle strong { font-weight: 500; display: block; }
+.account-toggle small { display: block; color: var(--faint); font-size: 10px; line-height: 1.5; margin-top: 3px; }
+.account-totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.account-totals > div { border-radius: 16px; padding: 14px 16px; border: 1px solid rgba(255, 255, 255, 0.65); }
+.account-totals strong { font-family: var(--serif); font-weight: 400; font-size: 26px; display: block; margin-top: 4px; }
+.order { border-radius: 18px; padding: 4px 20px 8px; border: 1px solid rgba(255, 255, 255, 0.65); margin-bottom: 12px; }
+.order summary { display: flex; gap: 12px; align-items: center; cursor: pointer; list-style: none; padding: 14px 0; font-size: 12px; }
+.order summary::-webkit-details-marker { display: none; }
+.order summary > div:first-child { flex: 1; min-width: 0; }
+.order .eyebrow { margin-top: 6px; }
+.order .status { display: inline-flex; font-size: 9px; }
+.sign-in-layout { display: grid; grid-template-columns: minmax(280px, 380px) minmax(240px, 1fr); gap: 28px; align-items: start; }
+.sign-in { max-width: 380px; }
+.sign-in .text-button { display: block; margin: 12px auto 0; font-size: 11px; }
+.sign-in .fine-print { text-align: center; margin-top: 12px; }
+.account-explainer h3 { font-family: var(--serif); font-weight: 400; font-size: 22px; margin: 6px 0 12px; }
+.account-explainer ul { list-style: none; padding: 0; margin: 0 0 14px; }
+.account-explainer li { display: flex; gap: 9px; align-items: flex-start; font-size: 12px; line-height: 1.6; color: var(--muted); margin-bottom: 10px; }
+.account-explainer li svg { margin-top: 3px; flex: none; color: var(--sage-dark); }
+.account-button { display: inline-flex; align-items: center; gap: 7px; border-radius: 20px; padding: 6px 12px 6px 8px; font-size: 11px; color: var(--muted); background: #ffffff70; border: 1px solid #ffffffb3; }
+.account-button:hover { color: var(--ink); background: #ffffffb3; }
+.account-initial { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: var(--sage); color: white; font-size: 10px; font-weight: 600; }
+.account-button > span:last-child { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.payment-scrim { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 18px; background: rgba(28, 29, 24, 0.32); backdrop-filter: blur(6px); overflow-y: auto; }
+.payment-dialog { position: relative; width: min(480px, 100%); border-radius: 22px; padding: 26px; background: #fbfaf6; max-height: calc(100vh - 36px); overflow-y: auto; }
+.payment-dialog > h2 { font-family: var(--serif); font-weight: 400; font-size: 30px; margin: 8px 0 6px; }
+.payment-dialog > h2 small { font-family: inherit; font-size: 12px; color: var(--muted); }
+.payment-dialog .sign-in { box-shadow: none; border: 0; background: none; padding: 0; max-width: none; }
+.payment-close { position: absolute; top: 14px; right: 14px; }
+.payment-badge { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: #1c1d180a; color: var(--muted); }
+.payment-badge.ok { background: #3f7d5c1f; color: var(--sage-dark); }
+.payment-badge.warn { background: #c9916326; color: #946442; }
+.payment-summary { margin: 4px 0 10px; }
+.payment-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+@media (max-width: 760px) {
+  .sign-in-layout { grid-template-columns: 1fr; }
+  .account-grid { grid-template-columns: 1fr; }
+  .order summary { flex-wrap: wrap; }
+}

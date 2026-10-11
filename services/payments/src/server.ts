@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { parseAbi, type Address, type Hex } from 'viem';
 import { decodePaymentSignatureHeader, encodePaymentRequiredHeader, encodePaymentResponseHeader } from '@x402/core/http';
 import { Ledger, units, money, fingerprint, type Policy, type Row } from './ledger.js';
-import { chain, missing, requirements, challenge, payoutAddress, transfer, AUSD, abi, type Chain } from './chain.js';
+import { chain, missing, requirements, challenge, payoutAddress, transfer, userWallet, AUSD, abi, type Chain } from './chain.js';
 import { checkOnChain, recordOnChain, policyStatus, policyChainEnabled } from './policy-chain.js';
 
 const app = express();
@@ -50,12 +50,21 @@ function withMission<T>(task: string, work: () => Promise<T>): Promise<T> {
   floatLocks.set(task, next.catch(() => undefined));
   return next;
 }
+/** Who funds a mission and gets its unspent float back: the wallet of the user who started it, or
+ *  the shared owner treasury when the mission has no account. */
+function treasuryOf(c: Chain, task: string) {
+  const account = ledger.accountOf(task), wallet = account ? userWallet(account) : null;
+  return wallet ? { address: wallet.address, signer: c.signerFor(wallet, String(policy.maxTask)), own: true }
+    : { address: c.owner!.address, signer: c.ownerSigner!, own: false };
+}
 const ensureFloat = (c: Chain, task: string, amount: number) => withMission(task, async () => {
   if (ledger.floatRemaining(task) >= amount) return;
   const topUp = policy.maxTask - ledger.floatNet(task);
   if (topUp <= 0) return;
-  if (await balanceOf(c, c.owner!.address) < topUp) throw new Error('Owner treasury cannot fund the mission float');
-  const tx = await settleSerially(() => transfer(c, c.ownerSigner!, c.robot.address, topUp, 'mission-float'));
+  const treasury = treasuryOf(c, task);
+  if (await balanceOf(c, treasury.address) < topUp) throw new Error(treasury.own
+    ? `Your wallet holds less than the ${money(topUp)} AUSD this mission reserves. Add test AUSD first.` : 'Owner treasury cannot fund the mission float');
+  const tx = await settleSerially(() => transfer(c, treasury.signer, c.robot.address, topUp, 'mission-float'));
   ledger.floatAdd(task, 'fund', topUp, tx);
   // The float is confirmed onchain, but a lagging RPC node can still show the robot's old
   // balance and make the purchase that follows look unfunded. Wait until the read catches up.
@@ -65,7 +74,7 @@ const returnFloat = (c: Chain, task: string) => withMission(task, async () => {
   if ((purchasing.get(task) || 0) > 0 || ledger.inFlight(task)) return null;
   const remaining = ledger.floatRemaining(task);
   if (remaining <= 0) return null;
-  const tx = await settleSerially(() => transfer(c, c.returnSigner!, c.owner!.address, remaining, 'float-return'));
+  const tx = await settleSerially(() => transfer(c, c.returnSigner!, treasuryOf(c, task).address, remaining, 'float-return'));
   ledger.floatAdd(task, 'sweep', remaining, tx);
   return tx;
 });
@@ -179,12 +188,52 @@ async function policyChain() {
   if (!policyCache || Date.now() - policyCache.at > 20_000) policyCache = { at: Date.now(), value: await policyStatus() };
   return policyCache.value;
 }
-app.get('/wallet',requireKey,async (_req,res)=>{
-  let address=null, balance=null, setupError=null, ownerAddress=null, treasury=null;
+// ---- user accounts: the gateway names the signed-in user in X-Account ----
+const accountOf = (req: express.Request) => { const id = req.get('X-Account'); return id && /^[a-z0-9]{4,40}$/.test(id) ? id : null; };
+const starterGrant = units(process.env.STARTER_GRANT_AUSD || '1');
+const granting = new Set<string>();
+function ownWallet(c: Chain, req: express.Request) {
+  const account = accountOf(req), wallet = account && c.owner ? userWallet(account) : null;
+  if (!account || !wallet) throw new Error('Your wallet is not enabled on this server: set OWNER_PRIVATE_KEY and USER_WALLET_SEED');
+  return { account, wallet };
+}
+const transferView = (t: ReturnType<Ledger['walletTransfers']>[number]) => ({ kind: t.kind, amount_ausd: money(t.amount), counterparty: t.counterparty,
+  transaction_hash: t.tx, explorer_url: `https://sepolia.basescan.org/tx/${t.tx}`, timestamp: t.created_at });
+app.get('/accounts/transfers',requireKey,(req,res)=>{ const account=accountOf(req); res.json({transfers:account?ledger.walletTransfers(account).map(transferView):[]}); });
+// A new account receives a little test AUSD from the owner treasury, once, so it can pay for missions.
+app.post('/accounts/grant',requireKey,async(req,res)=>{
+  const c=await chain(), {account,wallet}=ownWallet(c,req);
+  if(granting.has(account) || ledger.walletTransfers(account).some(t=>t.kind==='grant'))throw new Error('Your wallet already received its starter funds');
+  // Sign-up is open, so the number of grants per day bounds what new accounts can take from the treasury.
+  if(ledger.grantsToday() + granting.size >= Number(process.env.STARTER_GRANTS_PER_DAY || 200))throw new Error('Your wallet cannot be funded today: the daily starter grants are used up');
+  granting.add(account);
+  try {
+    if(await balanceOf(c,c.owner!.address) < starterGrant)throw new Error('The treasury cannot fund starter grants right now');
+    const tx=await settleSerially(()=>transfer(c,c.signerFor(c.owner!,String(starterGrant)),wallet.address,starterGrant,'starter-grant'));
+    ledger.walletAdd(account,'grant',starterGrant,c.owner!.address,tx);
+    res.json({amount_ausd:money(starterGrant),transaction_hash:tx,explorer_url:`https://sepolia.basescan.org/tx/${tx}`});
+  } finally { granting.delete(account); }
+});
+app.post('/accounts/withdraw',requireKey,async(req,res)=>{
+  const {to,amount_ausd}=z.object({to:z.string().regex(/^0x[0-9a-fA-F]{40}$/),amount_ausd:z.string()}).parse(req.body);
+  const c=await chain(), {account,wallet}=ownWallet(c,req), amount=units(amount_ausd);
+  if(amount<=0 || await balanceOf(c,wallet.address) < amount)throw new Error('Your wallet holds less than this withdrawal');
+  const tx=await settleSerially(()=>transfer(c,c.signerFor(wallet,String(amount)),to as Address,amount,'withdrawal'));
+  ledger.walletAdd(account,'withdraw',amount,to,tx);
+  res.json({amount_ausd:money(amount),to,transaction_hash:tx,explorer_url:`https://sepolia.basescan.org/tx/${tx}`});
+});
+app.get('/wallet',requireKey,async (req,res)=>{
+  let address=null, balance=null, setupError=null, ownerAddress=null, treasury=null, own=false;
   try { const c=await chain(); address=c.robot.address; balance=money(await balanceOf(c,address));
-    if(c.owner){ ownerAddress=c.owner.address; treasury=money(await balanceOf(c,c.owner.address)); } }
+    if(c.owner){
+      // A signed-in user sees their own wallet; everyone else sees the shared owner treasury.
+      const account=accountOf(req), wallet=account?userWallet(account):null;
+      own=!!wallet; ownerAddress=wallet?wallet.address:c.owner.address; treasury=money(await balanceOf(c,ownerAddress)); } }
   catch { setupError=missing().length ? `Missing ${missing().join(', ')}` : 'RPC or token validation failed'; }
+  const account=accountOf(req);
   res.json({robot_id:'robot_001',wallet_address:address,balance_ausd:balance,mode:'testnet',setup_error:setupError,
+    own_wallet:own,asset:AUSD,network:'Base Sepolia',owner_explorer_url:ownerAddress?`https://sepolia.basescan.org/address/${ownerAddress}`:null,
+    starter_grant:own?{amount_ausd:money(starterGrant),claimed:ledger.walletTransfers(account!).some(t=>t.kind==='grant')}:null,
     custody:ownerAddress?'mission_float':'robot_holds_balance',owner_address:ownerAddress,owner_treasury_ausd:treasury,policy_chain:await policyChain(),
     session_used_ausd:money(ledger.used()),remaining_allowance_ausd:money(Math.max(0,policy.maxSession-ledger.used())),
     allowance:{max_per_request_ausd:money(policy.maxCall),max_per_task_ausd:money(policy.maxTask),max_session_ausd:money(policy.maxSession),max_daily_ausd:money(policy.maxDaily),approved_vendors:policy.vendors}});
@@ -229,6 +278,9 @@ app.post('/purchase',requireKey,async(req,res)=>{
   const c=await chain(); // Fail before reservation if setup is incomplete.
   const payTo=payoutAddress(model.provider_id,model.payout_address);
   const amount=units(model.price_ausd), task=body.request_id.split('_')[0];
+  // A mission started by a signed-in user is funded from, and refunded to, that user's wallet.
+  const account=accountOf(req);
+  if(account)ledger.bindAccount(task,account);
   // The owner's policy also lives in a contract on BNB chain. A refusal from it blocks the purchase.
   // An unreachable chain does not: the Allowance below enforces the same limits locally.
   const verdict=await checkOnChain(body.robot_id,task,model.provider_id,amount);
@@ -328,6 +380,6 @@ app.post('/api/inference/:modelId',requireKey,async(req,res)=>{
 });
 app.use((error: Error,_req:express.Request,res:express.Response,_next:express.NextFunction)=>{
   console.error('payment request failed:', error.message);
-  res.status(error instanceof z.ZodError?422:503).json({error:{code:'SERVICE_UNAVAILABLE',message:error instanceof z.ZodError?'Invalid inference request':missing().length?`Testnet setup missing: ${missing().join(', ')}`:/Allowance|allowlist|threshold|Insufficient unreserved|treasury|Mission float|BNB policy/.test(error.message)?error.message:'Purchase unavailable: check Allowance, provider and RPC configuration'}});
+  res.status(error instanceof z.ZodError?422:503).json({error:{code:'SERVICE_UNAVAILABLE',message:error instanceof z.ZodError?'Invalid inference request':missing().length?`Testnet setup missing: ${missing().join(', ')}`:/Allowance|allowlist|threshold|Insufficient unreserved|treasury|Mission float|BNB policy|Your wallet/.test(error.message)?error.message:'Purchase unavailable: check Allowance, provider and RPC configuration'}});
 });
 app.listen(port,process.env.PAYMENT_HOST || '127.0.0.1',()=>console.log(`rBazaar x402 service on ${port}; mode=testnet; configured=${missing().length===0}`));
