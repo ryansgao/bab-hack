@@ -1,17 +1,19 @@
 # RoboMarket architecture
 
-The primary demo is a kitchen arm buying perception, grasp, and control shards.
-Scout is the buyer, Vendor proposes a quote, and Allowance limits wallet spend.
-A mission becomes a dependency graph of separately purchasable capabilities. The
-robot buys inference, uses the output, and only then advances to dependent work.
-The graph size follows object counts, destinations, and requested operations.
+The product starts with a general natural-language robot goal. Anthropic Claude
+creates a dependency graph of separately purchasable capabilities. Scout is the
+buyer, Vendor supplies marketplace quotes, and Allowance limits wallet spend.
+The graph size follows the requested work. The current local execution adapters
+cover detection, sensor summaries, grid navigation and simulated arm handling;
+missing capabilities remain explicit blockers in the generated plan.
 
 ```mermaid
 flowchart LR
   UI[React dashboard] --> API[FastAPI gateway]
   API --> SIM[Local robot and A*]
-  API --> PLAN[Mission decomposition]
-  PLAN --> SELECT[Constrained model selection]
+  API --> PLAN[Anthropic task decomposition]
+  PLAN --> VALIDATE[Validate dependency graph and capability gaps]
+  VALIDATE --> SELECT[Constrained model selection]
   SELECT --> REG[SQLite marketplace]
   SELECT --> PAY[TypeScript x402 buyer]
   PAY --> PROVIDER[x402 protected provider]
@@ -29,20 +31,28 @@ flowchart LR
   proxies `/api` to Python; the production gateway serves the built client.
 * SQLite holds provider metadata, plans, telemetry, and execution records. The
   payment process owns its own SQLite ledger with atomic budget reservations.
-* Mission decomposition uses a bounded arm/warehouse task grammar and typed goals,
-  rather than pretending unrestricted natural-language understanding. Arm tasks expand each object operation into perception, grasp, and force control.
-  Inspection can require only perception. The original navigation grammar remains
-  available for mobile-base experiments. An LLM requirements adapter is deferred. Unsupported goals fail explicitly. New capabilities can be
-  registered without changing model selection.
+* Claude receives the user goal, Robot Card, budget, waypoints, and live catalog.
+  The Messages API returns a `submit_plan` tool call validated against Pydantic
+  schemas. Unique IDs, dependency existence, acyclicity, manipulation prerequisites,
+  and navigation destinations are checked locally. Unknown capabilities retain
+  their own task types; missing providers block execution before any purchase.
+* No Anthropic key means planning is unavailable. There is no grammar fallback.
+  The key is server-only, the model is configurable, and planner failures are shown
+  without including credentials or raw provider responses. Camera images remain
+  in the local inference flow; Anthropic receives only the image-presence flag.
+* The API owns a background execution task and simulation clock. WebSocket
+  snapshots update the browser. Selected adapters are prepared before signing
+  payments, and the mission price ceiling is rechecked by the payment service.
+  Server restart blocks interrupted plans for reconciliation; it never re-buys them.
 * Every paid step has its own request ID, dependencies, requirements, selected
   provider, receipt, and result. A failed prerequisite blocks its descendants.
   Selection rechecks the remaining mission budget before each purchase.
 * Robot Card embodiment, gripper, sensors, and payload are hard constraints.
   Object size, fragility, required grasp precision, and safe force limits come from
-  documented task priors. General and precision policies advertise their physical
+  explicitly labeled LLM estimates for simulation. General and precision policies advertise their physical
   constraints, so selection changes without hard-coded scenario-specific model IDs.
 * Two pretrained torchvision object detectors share an image adapter. OWL-ViT
-  adds open-vocabulary grape detection because COCO has no grape class. Route
+  accepts arbitrary named-object queries outside the fixed COCO vocabulary. Route
   planning is a separately listed deterministic A* service. Computed sensor
   summaries are identified as algorithms, not learned models.
 * The simulators can render sensor images. Pretrained COCO detectors are not
@@ -75,4 +85,4 @@ rate limits, and a durable queue. Never expose the signer or raw model worker.
 Live settlement requires a funded robot AUSD wallet, a gas-funded facilitator
 wallet, a provider recipient, RPC access, and downloaded model weights. Missing
 configuration yields `blocked`, never a fabricated receipt. Local simulation and
-planning remain usable without blockchain credentials.
+the marketplace remain usable without blockchain credentials. Planning separately requires an Anthropic API key.

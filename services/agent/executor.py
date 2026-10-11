@@ -33,14 +33,28 @@ def execute(plan_id, purchase=None):
         with db() as conn:
             for row in conn.execute('SELECT body FROM plans WHERE id != ?', (plan_id,)):
                 other = MissionPlan.model_validate_json(row['body'])
-                if other.status in ('running', 'waiting_for_motion'):
+                if other.status in ('queued', 'preparing', 'running', 'waiting_for_motion'):
                     raise RuntimeError('The robot already has an active mission')
         is_arm = bool(plan.request.robot_card and plan.request.robot_card.embodiment == '6dof_arm')
-        if plan.status == 'planned':
+        if plan.status in ('planned', 'queued', 'preparing'):
             quote(plan)
-            if any(s.decision.safe_fallback for s in plan.subtasks):
+            if plan.blockers or any(s.decision.safe_fallback for s in plan.subtasks):
                 plan.status = 'blocked'
                 plan.explanation += ' Preflight blocked: all required shards must fit the mission budget and compatibility constraints.'
+                return save(plan)
+        if plan.status in ('planned', 'queued', 'preparing') and purchase is None:
+            plan.status = 'preparing'
+            save(plan)
+            try:
+                with httpx.Client(timeout=600) as client:
+                    # Prepare the selected adapters before any authorization is signed.
+                    for model_id in dict.fromkeys(s.decision.selected_model_id for s in plan.subtasks):
+                        response=client.post(os.getenv('MODEL_URL','http://127.0.0.1:8001')+'/internal/prepare',
+                            json={'model_id':model_id},headers={'X-Service-Key':os.getenv('SERVICE_KEY','')})
+                        if response.status_code>=400: raise ValueError('A required shard could not be prepared. Check model readiness before executing.')
+            except Exception as exc:
+                plan.status='blocked'
+                plan.explanation += ' Model preparation failed before any purchase. '+(str(exc) if isinstance(exc,ValueError) else type(exc).__name__)
                 return save(plan)
         plan.status = 'running'
         save(plan)
@@ -68,7 +82,7 @@ def execute(plan_id, purchase=None):
                     if feasible: future_min += min(feasible)
             remaining = max(Decimal(0), remaining-future_min)
             request = SelectionRequest(observation=arm.observation() if is_arm else world.observe(), task_type=step.task_type,
-                robot_card=plan.request.robot_card, requirements=step.requirements,
+                robot_card=plan.request.robot_card, requirements=step.requirements, object_name=step.object_name,
                 remaining_budget_ausd=str(max(Decimal(0), remaining)), inference_deadline_ms=plan.request.inference_deadline_ms,
                 minimum_quality=plan.request.minimum_quality)
             step.decision = select(request, list_models())
@@ -81,11 +95,13 @@ def execute(plan_id, purchase=None):
             step.status = 'running'
             save(plan)  # Durable intent before any external payment.
             try:
-                predictions = next((s.result.predictions for s in reversed(plan.subtasks[:plan.subtasks.index(step)]) if s.result and s.task_type == 'object_detection'), [])
+                dependencies = [s for s in plan.subtasks if s.id in step.depends_on and s.result]
+                predictions = [p for s in dependencies if s.task_type == 'object_detection' for p in s.result.predictions]
                 body = InferenceRequest(request_id=f'{plan.id}_{step.id}', model_id=step.decision.selected_model_id,
                     input=InferenceInput(observation=request.observation, target=step.target,
-                        robot_card=plan.request.robot_card, requirements=step.requirements,
-                        prior=next((s.result.output for s in reversed(plan.subtasks[:plan.subtasks.index(step)]) if s.result and s.result.output), {}),
+                        robot_card=plan.request.robot_card, requirements=step.requirements, object_name=step.object_name,
+                        instruction=step.description, dependency_outputs={s.id:s.result.model_dump() for s in dependencies},
+                        prior=next((s.result.output for s in dependencies if s.task_type=='grasp'), {}),
                         image_base64=plan.request.image_base64 or (arm.sensor_image() if is_arm else world.sensor_image()),
                         obstacles=[Point(x=x,y=y) for x,y in world.blocked()], predictions=predictions))
                 if purchase:
@@ -93,7 +109,7 @@ def execute(plan_id, purchase=None):
                 else:
                     with httpx.Client(timeout=180) as client:
                         resp = client.post(os.getenv('PAYMENT_URL', 'http://127.0.0.1:4021') + '/purchase',
-                            json=body.model_dump(), headers={'X-Service-Key': os.getenv('SERVICE_KEY','')})
+                            json={**body.model_dump(), 'max_price_ausd':str(remaining)}, headers={'X-Service-Key': os.getenv('SERVICE_KEY','')})
                         response = resp.json()
                         if resp.status_code >= 400:
                             # Preserve receipt even if inference failed after payment.
@@ -112,7 +128,7 @@ def execute(plan_id, purchase=None):
                 if result.inference_latency_ms > plan.request.inference_deadline_ms:
                     raise ValueError('Inference exceeded deadline; receipt retained, robot stopped')
                 if is_arm:
-                    if step.task_type == 'object_detection' and not any(step.requirements.object_name in p.label.lower() for p in result.predictions):
+                    if step.task_type == 'object_detection' and step.object_name and not any(step.object_name.lower() in p.label.lower() for p in result.predictions):
                         raise ValueError('Real perception did not detect the requested object. Supply a suitable camera image; grasp/control remain blocked.')
                     arm.apply(result,step.requirements)
                     if step.task_type == 'control':

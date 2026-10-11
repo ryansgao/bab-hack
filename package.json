@@ -1,10 +1,17 @@
 {
   "name": "robomarket",
   "private": true,
-  "workspaces": ["apps/frontend", "services/payments"],
+  "type": "module",
+  "workspaces": [
+    "apps/frontend",
+    "services/payments"
+  ],
   "scripts": {
     "dev": "npm run dev -w apps/frontend",
     "build": "npm run build -w apps/frontend && npm run build -w services/payments",
-    "test:payments": "npm test -w services/payments"
+    "test:payments": "npm test -w services/payments",
+    "wallets:init": "node --import tsx scripts/init-testnet-wallets.ts",
+    "wallets:status": "node --env-file=.env --import tsx scripts/wallet-status.ts",
+    "wallets:fund": "node --env-file=.env --import tsx scripts/fund-testnet.ts"
   }
 }

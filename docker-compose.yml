@@ -5,6 +5,7 @@ services:
     environment:
       SERVICE_KEY: ${SERVICE_KEY:?Set SERVICE_KEY in .env before Docker startup}
       PAYMENT_URL: http://payments:4021
+      MODEL_URL: http://models:8001
       ROBOMARKET_DB: /app/data/robomarket.sqlite
     ports: ["127.0.0.1:8000:8000"]
     volumes: ["market-data:/app/data"]

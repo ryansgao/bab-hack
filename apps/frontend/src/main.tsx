@@ -146,7 +146,7 @@ function RobotCard({
   return (
     <section className={"glass robot-card " + (compact ? "compact" : "")}>
       <div className="panel-heading">
-        <span className="eyebrow">Kitchen station</span>
+        <span className="eyebrow">Robot workcell</span>
         <Status
           value={
             arm.running
@@ -167,7 +167,7 @@ function RobotCard({
           </span>
           <div>
             <h3>Scout’s pair of hands</h3>
-            <p>6-axis arm · kitchen workspace</p>
+            <p>6-axis arm · robot workspace</p>
           </div>
         </div>
         <dl className="spec-list">
@@ -335,9 +335,9 @@ function Composer({
         <textarea
           ref={input}
           rows={2}
-          maxLength={500}
+          maxLength={6000}
           aria-label="Mission task"
-          placeholder="Try “peel an orange”…"
+          placeholder="Describe the outcome you want your robot to achieve…"
           value={data.task}
           onChange={(event) => data.setTask(event.target.value)}
           onKeyDown={(event) => {
@@ -463,9 +463,9 @@ function Composer({
       <div className="suggestions">
         <span>A place to start</span>
         {[
-          "Peel an orange",
-          "Inspect a grape",
-          "Peel 2 oranges and a grape",
+          "Organize my workbench",
+          "Find and inspect a coffee mug",
+          "Sort packages by destination",
         ].map((task) => (
           <button
             key={task}
@@ -479,6 +479,7 @@ function Composer({
           </button>
         ))}
       </div>
+      <div className="planner-status glass-quiet" role="status"><Sparkles size={15} /><div><strong>{data.planner?.configured ? "Planner connected" : "Planner setup needed"}</strong><p>{data.planner?.configured ? `${data.planner.model} · Your goal becomes a dependency graph of purchasable skills.` : "Configure the planning service on the server to build a mission. Your API key stays on the backend."}</p></div></div>
       <div className="composer-note">
         <ShieldCheck size={13} />
         <span>Review the plan and its cost before any purchase.</span>
@@ -507,12 +508,13 @@ function StepDetail({ step }: { step: Step }) {
         </span>
         <div>
           <span className="eyebrow">
-            {step.requirements?.object_name || "Mission capability"}
+            {step.object_name || step.requirements?.object_name || "Mission capability"}
           </span>
           <h2>{layerName(step.task_type)}</h2>
         </div>
         <Status value={step.status} />
       </div>
+      <div className="subtask-context"><h3>{step.title}</h3><p>{step.description}</p>{step.success_criteria && <p><strong>Complete when:</strong> {step.success_criteria}</p>}<p><strong>Requires:</strong> {step.depends_on.join(", ") || "No prerequisites"}</p></div>
       <div className="detail-tabs" role="tablist" aria-label="Shard details">
         <button
           role="tab"
@@ -719,7 +721,7 @@ function Mission({ data, onNew }: { data: RoboMarket; onNew: () => void }) {
           <CircleHelp size={19} />
           <div>
             <strong>This mission needs your attention.</strong>
-            <p>{readableMessage(blocked || plan.explanation)}</p>
+            <p>{readableMessage(blocked || plan.blockers?.join(" ") || plan.explanation)}</p>
           </div>
         </div>
       )}
@@ -765,10 +767,11 @@ function Mission({ data, onNew }: { data: RoboMarket; onNew: () => void }) {
                   </span>
                   <span className="step-copy">
                     <span>
-                      {item.requirements?.object_name || "Robot"} ·{" "}
+                      {item.object_name || item.requirements?.object_name || "Robot"} ·{" "}
                       {layerName(item.task_type)}
                     </span>
-                    <strong>
+                    <strong>{item.title}</strong>
+                    <small>
                       {item.decision?.selected_model_id
                         ? item.decision.candidates.find(
                             (candidate) =>
@@ -776,7 +779,7 @@ function Mission({ data, onNew }: { data: RoboMarket; onNew: () => void }) {
                               item.decision?.selected_model_id,
                           )?.model.name
                         : "No compatible provider"}
-                    </strong>
+                    </small>
                     <small>{humanize(item.status)}</small>
                   </span>
                   <ChevronRight size={15} />
@@ -784,7 +787,7 @@ function Mission({ data, onNew }: { data: RoboMarket; onNew: () => void }) {
                 {index < plan.subtasks.length - 1 && (
                   <span className="step-connector">
                     <ArrowDown size={11} />
-                    output → input
+                    {plan.subtasks[index + 1].depends_on.length ? `Needs ${plan.subtasks[index + 1].depends_on.join(", ")}` : "Independent subtask"}
                   </span>
                 )}
               </div>
@@ -833,10 +836,9 @@ function Mission({ data, onNew }: { data: RoboMarket; onNew: () => void }) {
           <ChevronDown size={14} />
         </summary>
         <p>{plan.explanation}</p>
+        {!!plan.assumptions?.length && <ul>{plan.assumptions.map((assumption, index) => <li key={index}>{assumption}</li>)}</ul>}
         <p>
-          Task parsing uses a documented grammar. Grasp and control use analytic
-          heuristics. Perception must locate the object before handling can
-          proceed.
+          Planner: {plan.planner_model || plan.planner}. Scout checks the resulting graph against robot compatibility, available capabilities, and budget.
         </p>
       </details>
     </div>
@@ -1216,7 +1218,7 @@ function App() {
             </span>
             <span>
               <strong>Scout</strong>
-              <small>Kitchen workspace</small>
+              <small>Robot workspace</small>
             </span>
             <ChevronRight size={14} />
           </button>
@@ -1397,7 +1399,7 @@ function App() {
                     </span>
                     <h2>Start with what it sees.</h2>
                     <p>
-                      Attach a clear photo of an orange or grape when composing
+                      Attach a clear photo of the objects in your workspace when composing
                       a mission. Scout needs a successful detection before it
                       can plan a grasp.
                     </p>
@@ -1419,7 +1421,7 @@ function App() {
                     </p>
                     <p className="fine-print">
                       Image coordinates are not calibrated to a physical robot.
-                      Keep this dashboard open to advance the simulation.
+                      The server advances the simulation independently of this dashboard.
                     </p>
                   </section>
                 </div>

@@ -3,6 +3,7 @@ import type {
   Arm,
   Offer,
   Plan,
+  PlannerConfig,
   RecentMission,
   Receipt,
   WalletState,
@@ -45,13 +46,14 @@ const initialArm: Arm = {
   phase: "idle",
   progress: 0,
   running: false,
-  object_name: "orange",
+  object_name: "",
   grasp_point_px: [390, 220],
   output: null,
   reason: "Awaiting purchased shard outputs",
 };
 
 export function useRoboMarket() {
+  const [planner, setPlanner] = useState<PlannerConfig | null>(null);
   const [models, setModels] = useState<Offer[]>([]);
   const [plan, setPlan] = useState<Plan | null>(null);
   const [arm, setArm] = useState(initialArm);
@@ -65,7 +67,8 @@ export function useRoboMarket() {
   const [recent, setRecent] = useState<RecentMission[]>(() =>
     stored("robomarket-recent", []),
   );
-  const [task, setTask] = useState("");
+  const [task, setTask] = useState(() => { try { return localStorage.getItem("robomarket-task-draft") || ""; } catch { return ""; } });
+  useEffect(() => { try { localStorage.setItem("robomarket-task-draft", task); } catch { /* Optional. */ } }, [task]);
   const [budget, setBudget] = useState("0.05");
   const [deadline, setDeadline] = useState(3000);
   const [gripper, setGripper] = useState("parallel_jaw");
@@ -105,6 +108,7 @@ export function useRoboMarket() {
   }, []);
   const refresh = useCallback(async () => {
     await Promise.allSettled([
+      api<PlannerConfig>("/agent/config").then(setPlanner).catch(() => setPlanner(null)),
       api<Offer[]>("/marketplace/models")
         .then((result) => {
           setModels(result);
@@ -138,7 +142,7 @@ export function useRoboMarket() {
     if (saved)
       void api<Plan>("/agent/plans/" + encodeURIComponent(saved))
         .then((next) => {
-          if (!cancelled) {
+          if (!cancelled && next.planner === "anthropic") {
             remember(next);
             restoreFields(next);
           }
@@ -155,46 +159,32 @@ export function useRoboMarket() {
     };
   }, [refresh, remember, restoreFields]);
 
-  // The existing simulator is advanced by its operator's dashboard, including across navigation.
+  // The server owns motion and execution. Clients only observe runtime snapshots.
   useEffect(() => {
-    let pending = false;
-    const interval = setInterval(async () => {
-      if (pending || mutation.current) return;
-      const current = activePlan.current;
-      if (
-        !current ||
-        !["running", "waiting_for_motion"].includes(current.status)
-      )
-        return;
-      pending = true;
-      try {
-        if (current.status === "running") {
-          remember(await api<Plan>("/agent/plans/" + current.id));
-        } else {
-          const state = await api<Arm>("/arm/control", { action: "tick" });
-          setArm(state);
-          if (state.phase === "complete") {
-            mutation.current = true;
-            setBusy(true);
-            try {
-              remember(
-                await api<Plan>("/agent/execute", { plan_id: current.id }),
-              );
-              await refresh();
-            } finally {
-              mutation.current = false;
-              setBusy(false);
+    let socket: WebSocket | null = null;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let closed = false;
+    const connect = () => {
+      const id = activePlan.current?.id;
+      socket = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/events${id ? '?plan_id=' + encodeURIComponent(id) : ''}`);
+      socket.onmessage = (message) => {
+        try {
+          const event = JSON.parse(message.data);
+          if (event.type === 'snapshot') {
+            if (event.payload.arm) setArm(event.payload.arm);
+            const snapshot = event.payload.plan;
+            if (snapshot?.id === activePlan.current?.id) {
+              setPlan(current => current?.id === snapshot.id ? { ...current, ...snapshot } : current);
             }
           }
-        }
-      } catch (reason) {
-        setError((reason as Error).message);
-      } finally {
-        pending = false;
-      }
-    }, 500);
-    return () => clearInterval(interval);
-  }, [remember, refresh]);
+          if (event.type === 'mission_state' || event.type === 'inference') void refresh();
+        } catch { /* A malformed event must not interrupt the operator UI. */ }
+      };
+      socket.onclose = () => { if (!closed) timer = setTimeout(connect, 1500); };
+    };
+    connect();
+    return () => { closed = true; if (timer) clearTimeout(timer); socket?.close(); };
+  }, [plan?.id, refresh]);
 
   async function change<T>(action: () => Promise<T>): Promise<T | undefined> {
     if (mutation.current) return;
@@ -215,6 +205,7 @@ export function useRoboMarket() {
       if (!/^(0|[1-9]\d{0,8})(\.\d{1,6})?$/.test(budget) || Number(budget) <= 0) {
         throw new Error("Enter a positive mission budget with up to six decimal places.");
       }
+      if (["queued", "preparing", "running", "waiting_for_motion"].includes(activePlan.current?.status || "")) throw new Error("Finish or cancel the active mission first.");
       const next = await api<Plan>("/agent/plan", {
         task: task.trim(),
         budget_ausd: budget,
@@ -267,7 +258,7 @@ export function useRoboMarket() {
       if (
         current &&
         current.id !== id &&
-        ["running", "waiting_for_motion"].includes(current.status)
+        ["queued", "preparing", "running", "waiting_for_motion"].includes(current.status)
       )
         throw new Error(
           "Finish or cancel the active mission before opening another.",
@@ -300,6 +291,7 @@ export function useRoboMarket() {
   }
   return {
     models,
+    planner,
     plan,
     arm,
     wallet,

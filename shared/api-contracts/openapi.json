@@ -2,9 +2,25 @@
   "openapi": "3.1.0",
   "info": {
     "title": "RoboMarket",
-    "version": "0.1.0"
+    "version": "0.2.0"
   },
   "paths": {
+    "/api/agent/config": {
+      "get": {
+        "summary": "Agent Config",
+        "operationId": "agent_config_api_agent_config_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/health": {
       "get": {
         "summary": "Health",
@@ -452,6 +468,59 @@
         }
       }
     },
+    "/api/models/readiness": {
+      "get": {
+        "summary": "Model Readiness",
+        "operationId": "model_readiness_api_models_readiness_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/models/{model_id}/prepare": {
+      "post": {
+        "summary": "Prepare Model",
+        "operationId": "prepare_model_api_models__model_id__prepare_post",
+        "parameters": [
+          {
+            "name": "model_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Model Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/wallet/{robot_id}": {
       "get": {
         "summary": "Wallet",
@@ -653,6 +722,36 @@
       },
       "MissionPlan": {
         "properties": {
+          "planner": {
+            "type": "string",
+            "title": "Planner",
+            "default": "legacy"
+          },
+          "planner_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Planner Model"
+          },
+          "assumptions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Assumptions"
+          },
+          "blockers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Blockers"
+          },
           "id": {
             "type": "string",
             "title": "Id"
@@ -671,6 +770,8 @@
             "type": "string",
             "enum": [
               "planned",
+              "queued",
+              "preparing",
               "running",
               "waiting_for_motion",
               "blocked",
@@ -727,7 +828,7 @@
           },
           "task": {
             "type": "string",
-            "maxLength": 500,
+            "maxLength": 6000,
             "minLength": 3,
             "title": "Task"
           },
@@ -799,13 +900,7 @@
           },
           "task_type": {
             "type": "string",
-            "enum": [
-              "object_detection",
-              "path_planning",
-              "scene_inspection",
-              "grasp",
-              "control"
-            ],
+            "pattern": "^[a-z][a-z0-9_]{1,63}$",
             "title": "Task Type"
           },
           "price_ausd": {
@@ -1090,13 +1185,7 @@
           "layers": {
             "items": {
               "type": "string",
-              "enum": [
-                "object_detection",
-                "path_planning",
-                "scene_inspection",
-                "grasp",
-                "control"
-              ]
+              "pattern": "^[a-z][a-z0-9_]{1,63}$"
             },
             "type": "array",
             "title": "Layers"
@@ -1105,7 +1194,8 @@
             "type": "string",
             "enum": [
               "documented_task_prior",
-              "operator"
+              "operator",
+              "llm_estimate"
             ],
             "title": "Source",
             "default": "documented_task_prior"
@@ -1234,6 +1324,17 @@
       },
       "SelectionRequest": {
         "properties": {
+          "object_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Object Name"
+          },
           "robot_card": {
             "anyOf": [
               {
@@ -1259,13 +1360,7 @@
           },
           "task_type": {
             "type": "string",
-            "enum": [
-              "object_detection",
-              "path_planning",
-              "scene_inspection",
-              "grasp",
-              "control"
-            ],
+            "pattern": "^[a-z][a-z0-9_]{1,63}$",
             "title": "Task Type",
             "default": "object_detection"
           },
@@ -1331,6 +1426,27 @@
       },
       "Subtask": {
         "properties": {
+          "object_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Object Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          },
+          "success_criteria": {
+            "type": "string",
+            "title": "Success Criteria",
+            "default": ""
+          },
           "requirements": {
             "anyOf": [
               {
@@ -1351,13 +1467,7 @@
           },
           "task_type": {
             "type": "string",
-            "enum": [
-              "object_detection",
-              "path_planning",
-              "scene_inspection",
-              "grasp",
-              "control"
-            ],
+            "pattern": "^[a-z][a-z0-9_]{1,63}$",
             "title": "Task Type"
           },
           "depends_on": {

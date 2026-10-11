@@ -4,7 +4,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 Money = Annotated[str, Field(pattern=r"^(0|[1-9]\d{0,8})(\.\d{1,6})?$")]
-TaskType = Literal['object_detection', 'path_planning', 'scene_inspection', 'grasp', 'control']
+TaskType = Annotated[str, Field(pattern=r'^[a-z][a-z0-9_]{1,63}$')]
 
 class Contract(BaseModel):
     model_config = ConfigDict(extra='forbid', allow_inf_nan=False)
@@ -43,7 +43,7 @@ class Requirements(Contract):
     max_pose_error_mm: float = Field(gt=0)
     max_force_n: float = Field(gt=0)
     layers: list[TaskType]
-    source: Literal['documented_task_prior', 'operator'] = 'documented_task_prior'
+    source: Literal['documented_task_prior', 'operator', 'llm_estimate'] = 'documented_task_prior'
 
 class ModelOffer(Contract):
     id: str = Field(pattern=r'^[a-z0-9_-]{1,64}$')
@@ -67,6 +67,7 @@ class ModelOffer(Contract):
     kind: Literal['pretrained_model', 'algorithm'] = 'pretrained_model'
 
 class SelectionRequest(Contract):
+    object_name: str | None = None
     robot_card: RobotCard | None = None
     requirements: Requirements | None = None
     observation: Observation
@@ -92,7 +93,7 @@ class SelectionDecision(Contract):
 class MissionRequest(Contract):
     robot_card: RobotCard | None = None
     robot_id: Literal['robot_001'] = 'robot_001'
-    task: str = Field(min_length=3, max_length=500)
+    task: str = Field(min_length=3, max_length=6000)
     waypoints: list[Point] = Field(default_factory=list, max_length=20)
     budget_ausd: Money = '0.10'
     inference_deadline_ms: int = Field(default=2000, ge=1, le=120000)
@@ -105,6 +106,9 @@ class Prediction(Contract):
     bbox: list[float] = Field(min_length=4, max_length=4)
 
 class InferenceInput(Contract):
+    object_name: str | None = None
+    instruction: str = ''
+    dependency_outputs: dict = Field(default_factory=dict)
     robot_card: RobotCard | None = None
     requirements: Requirements | None = None
     prior: dict = Field(default_factory=dict)
@@ -133,6 +137,9 @@ class InferenceResult(Contract):
     observation_revision: int
 
 class Subtask(Contract):
+    object_name: str | None = None
+    description: str = ''
+    success_criteria: str = ''
     requirements: Requirements | None = None
     id: str
     title: str
@@ -146,10 +153,14 @@ class Subtask(Contract):
     error: str | None = None
 
 class MissionPlan(Contract):
+    planner: str = 'legacy'
+    planner_model: str | None = None
+    assumptions: list[str] = Field(default_factory=list)
+    blockers: list[str] = Field(default_factory=list)
     id: str
     request: MissionRequest
     subtasks: list[Subtask]
-    status: Literal['planned', 'running', 'waiting_for_motion', 'blocked', 'completed', 'cancelled'] = 'planned'
+    status: Literal['planned', 'queued', 'preparing', 'running', 'waiting_for_motion', 'blocked', 'completed', 'cancelled'] = 'planned'
     spent_ausd: Money = '0'
     estimated_cost_ausd: Money = '0'
     explanation: str

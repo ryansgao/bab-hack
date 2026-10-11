@@ -38,7 +38,9 @@ export type Receipt = {
   explorer_url: string | null;
   timestamp: string;
 };
+export type PlannerConfig = { provider: string; model: string; configured: boolean; message: string };
 export type Step = {
+  object_name: string | null; description: string; success_criteria: string;
   id: string;
   title: string;
   task_type: string;
@@ -56,11 +58,12 @@ export type Step = {
   } | null;
 };
 export type Plan = {
+  planner: string; planner_model: string | null; assumptions: string[]; blockers: string[];
   request: {
     task: string;
     budget_ausd: string;
     inference_deadline_ms: number;
-    robot_card?: { gripper: string };
+    robot_card?: { gripper: string; embodiment: string };
     image_base64?: string;
   };
   id: string;

@@ -53,7 +53,8 @@ app.get('/wallet',requireKey,async (_req,res)=>{
 app.get('/transactions',requireKey,(_req,res)=>res.json(ledger.rows().map(row=>ledger.receipt(row))));
 
 app.post('/purchase',requireKey,async(req,res)=>{
-  const body=requestSchema.parse(req.body);
+  const {max_price_ausd,...input}=z.object({max_price_ausd:z.string().regex(/^(0|[1-9]\d{0,8})(\.\d{1,6})?$/)}).passthrough().parse(req.body);
+  const body=requestSchema.parse(input);
   const previous=ledger.get(body.request_id);
   if (previous) {
     if(previous.digest!==fingerprint(body)) {res.status(409).json({error:{code:'IDEMPOTENCY_CONFLICT',message:'Request ID reused with different input'}});return;}
@@ -61,6 +62,9 @@ app.post('/purchase',requireKey,async(req,res)=>{
     res.status(409).json({error:{code:'IN_PROGRESS',message:'Purchase already reserved; inspect ledger'}});return;
   }
   const model=await offer(body.model_id);
+  if(units(model.price_ausd)>units(max_price_ausd))throw new Error('Mission Allowance exceeded: shard price changed after selection');
+  const validation=await fetch(`${process.env.MODEL_URL || 'http://127.0.0.1:8001'}/internal/validate`,{method:'POST',headers:serviceHeaders(),body:JSON.stringify(body),signal:AbortSignal.timeout(15_000)});
+  if(!validation.ok)throw new Error('Model input or readiness invalid; no payment authorized');
   const c=await chain(); // Fail before reservation if setup is incomplete.
   const payTo=process.env.PROVIDER_ADDRESS!;
   if(!isAddress(payTo))throw new Error('Invalid provider recipient');

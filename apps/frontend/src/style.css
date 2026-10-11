@@ -2209,3 +2209,12 @@ nav > button.active {
     scroll-behavior: auto !important;
   }
 }
+
+.planner-status { display:flex; gap:10px; align-items:flex-start; padding:14px 17px; border-radius:14px; margin-top:20px; color:var(--muted); }
+.planner-status strong { font-size:11px; font-weight:500; }
+.planner-status p { margin-top:5px; font-size:10px; line-height:1.7; }
+.subtask-context { padding:0 22px 18px; color:var(--muted); }
+.subtask-context h3 { font-size:12px; font-weight:500; color:var(--ink); }
+.subtask-context p { font-size:11px; line-height:1.7; margin-top:8px; }
+.subtask-context strong { font-weight:500; }
+.method-note li { margin-top:8px; line-height:1.7; }
