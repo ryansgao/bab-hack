@@ -1,6 +1,7 @@
 import json
 import os
 import threading
+import time
 from copy import deepcopy
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -96,6 +97,10 @@ def execute(plan_id, purchase=None):
                 if is_arm: arm.running=False; arm.reason=step.error
                 return save(plan)
             step.status = 'running'
+            if simulated and is_arm:
+                from apps.simulation.scene import find_objects
+                objects=find_objects(plan.simulation_scene,step.object_name) if step.object_name else []
+                arm.bind(plan.id,step.id,step.task_type,objects[0] if len(objects)==1 else None)
             save(plan)  # Durable intent before any external payment.
             try:
                 dependencies = [s for s in plan.subtasks if s.id in step.depends_on and s.result]
@@ -142,6 +147,10 @@ def execute(plan_id, purchase=None):
                             from apps.simulation.mission import infer_virtual
                             body.model_id=offer.id
                             result=infer_virtual(body,offer)
+                    if not result.output.get('trajectory'):
+                        # Allow the live workcell to show sensing and virtual effects.
+                        # This is presentation pacing, never measured inference latency.
+                        time.sleep(1.3 if result.output.get('virtual_effect') else .65)
                     response={'inference':result.model_dump(),'payment':{'request_id':body.request_id,'model_id':body.model_id,
                         'amount_ausd':offer.price_ausd,'status':'virtual_effect' if offer.simulation_placeholder else 'simulated','transaction_hash':None,'explorer_url':None,
                         'timestamp':datetime.now(timezone.utc).isoformat(),'mode':'simulation'}}
@@ -178,7 +187,7 @@ def execute(plan_id, purchase=None):
                     if not simulated and step.task_type == 'object_detection' and step.object_name and not any(step.object_name.lower() in p.label.lower() for p in result.predictions):
                         raise ValueError('The selected provider did not detect the requested object. Supply a suitable camera image; grasp/control remain blocked.')
                     arm.apply(result,step.requirements)
-                    if step.task_type == 'control':
+                    if result.output.get('trajectory'):
                         step.status,plan.status='waiting_for_motion','waiting_for_motion'
                         return save(plan)
                 else:

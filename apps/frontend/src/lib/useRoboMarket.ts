@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { DEFAULT_ROBOT, type RobotConfig } from './types';
+import {prepareMedia,type ContextMedia} from './media';
 import type {
   Arm,
   Bounty,
@@ -60,11 +62,13 @@ export function useRoboMarket() {
   const [bountyReward, setBountyReward] = useState("0.05");
   const [bounties, setBounties] = useState<Bounty[]>([]);
   const [previewEnabled, setPreviewEnabled] = useState(false);
-  const [scene, setScene] = useState<SimulationScene | null>(null);
-  useEffect(()=>{void api<SimulationScene>("/simulation/scene").then(setScene).catch(()=>{});},[]);
+  const [previewStep,setPreviewStep]=useState(0);
+  const [followLive,setFollowLive]=useState(false);
+  const [media,setMedia]=useState<ContextMedia[]>([]),[mediaBusy,setMediaBusy]=useState(false);
   const [planner, setPlanner] = useState<PlannerConfig | null>(null);
   const [models, setModels] = useState<Offer[]>([]);
   const [plan, setPlan] = useState<Plan | null>(null);
+  const robotConfig:RobotConfig={...DEFAULT_ROBOT,...plan?.request.robot_card};
   const [arm, setArm] = useState(initialArm);
   const [wallet, setWallet] = useState<WalletState | null>(null);
   const [receipts, setReceipts] = useState<Receipt[]>([]);
@@ -80,7 +84,7 @@ export function useRoboMarket() {
   useEffect(() => { try { localStorage.setItem("robomarket-task-draft", task); } catch { /* Optional. */ } }, [task]);
   const [budget, setBudget] = useState("1.00");
   const [deadline, setDeadline] = useState(3000);
-  const [gripper, setGripper] = useState("parallel_jaw");
+  const gripper=robotConfig.gripper;
   const [image, setImage] = useState<string>();
   const [imageName, setImageName] = useState("Simulator RGB view");
   const activePlan = useRef(plan);
@@ -110,7 +114,7 @@ export function useRoboMarket() {
     setTask(next.request.task);
     setBudget(next.request.budget_ausd);
     setDeadline(next.request.inference_deadline_ms);
-    setGripper(next.request.robot_card?.gripper || "parallel_jaw");
+    setMedia(next.request.media||[]);
     setImage(next.request.image_base64);
     setImageName(
       next.request.image_base64
@@ -225,15 +229,7 @@ export function useRoboMarket() {
         task: task.trim(),
         budget_ausd: budget,
         inference_deadline_ms: deadline,
-        robot_card: {
-          robot_id: "robot_001",
-          embodiment: "6dof_arm",
-          dof: 6,
-          gripper,
-          max_payload_kg: 1.5,
-          sensors: ["rgb", "depth", "wrist_force"],
-          onboard_compute: "jetson_orin",
-        },
+        media,
         ...(image && executionMode === "testnet" ? { image_base64: image } : {}),
       });
       remember(next);
@@ -248,7 +244,8 @@ export function useRoboMarket() {
   });
   const replan = () => change(async () => {
     if (!plan) return;
-    const next = await api<Plan>("/agent/plan", plan.request);
+    const {robot_card:_inferred,...request}=plan.request;
+    const next = await api<Plan>("/agent/plan", request);
     remember(next); await refresh(); return next;
   });
   const postBounty = (request: Record<string, unknown>) => change(async () => {
@@ -263,6 +260,7 @@ export function useRoboMarket() {
   const execute = () =>
     change(async () => {
       if (!plan) return;
+      setPreviewEnabled(true);setFollowLive(true);setPreviewStep(0);
       remember(await api<Plan>("/agent/execute", { plan_id: plan.id }));
       setArm(await api<Arm>("/arm"));
       await refresh();
@@ -280,7 +278,9 @@ export function useRoboMarket() {
       setArm(await api<Arm>("/arm/control", { action: "reset" }));
       activePlan.current = null;
       setPlan(null);
+      setPreviewStep(0);setFollowLive(false);
       setTask("");
+      setMedia([]);
       try {
         localStorage.removeItem("robomarket-plan");
       } catch {
@@ -300,6 +300,7 @@ export function useRoboMarket() {
           "Finish or cancel the active mission before opening another.",
         );
       const next = await api<Plan>("/agent/plans/" + encodeURIComponent(id));
+      setPreviewStep(0);setFollowLive(['queued','running','waiting_for_motion'].includes(next.status));
       remember(next);
       restoreFields(next);
       return next;
@@ -319,15 +320,20 @@ export function useRoboMarket() {
     reader.onerror = () =>
       setError("This image could not be read. Try another file.");
     reader.onload = () => {
-      setExecutionMode("testnet");
       setImage((reader.result as string).split(",")[1]);
       setImageName(file.name);
       setError("");
     };
     reader.readAsDataURL(file);
   }
+  async function uploadMedia(file:File) {
+    if(media.length>=8){setError('Attach up to eight files.');return;}
+    setMediaBusy(true);setError('');
+    try{const prepared=await prepareMedia(file);setMedia(previous=>previous.length<8?[...previous,prepared]:previous);}catch(reason){setError((reason as Error).message);}finally{setMediaBusy(false);}
+  }
   return {
-    executionMode, setExecutionMode, previewEnabled, setPreviewEnabled, scene, rebuildInSimulation,
+    robotConfig,previewStep,setPreviewStep,followLive,setFollowLive,media,mediaBusy,uploadMedia,removeMedia:(index:number)=>setMedia(previous=>previous.filter((_,i)=>i!==index)),
+    executionMode, setExecutionMode, previewEnabled, setPreviewEnabled, rebuildInSimulation,
     autoBounties, setAutoBounties, bountyReward, setBountyReward, bounties, postBounty, submitBounty, acceptBounty, replan,
     models,
     planner,
@@ -349,7 +355,6 @@ export function useRoboMarket() {
     deadline,
     setDeadline,
     gripper,
-    setGripper,
     image,
     imageName,
     upload,

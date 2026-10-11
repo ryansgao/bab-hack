@@ -15,6 +15,8 @@ class FixtureDraft(Contract):
     shape: str = Field(default='box', pattern=r'^(box|sphere|cylinder)$')
     color: str = Field(default='#d5bb83', pattern=r'^#[0-9a-fA-F]{6}$')
     traits: dict[str, str] = Field(default_factory=dict, max_length=20)
+    size_mm: list[float] | None = Field(default=None,min_length=3,max_length=3)
+    mass_kg: float | None = Field(default=None,gt=0,le=100)
 
 def fixture_object(name, draft=None):
     name=name.strip().lower()
@@ -31,6 +33,13 @@ def fixture_object(name, draft=None):
     if draft:
         obj.update(category=draft.category,shape=draft.shape,color=draft.color)
         obj['traits'].update(draft.traits)
+        if draft.size_mm: obj['size_mm']=[max(3,min(1000,size)) for size in draft.size_mm]
+        if draft.mass_kg: obj['mass_kg']=draft.mass_kg
+    if not draft or not draft.size_mm:
+        if name=='phone': obj['size_mm']=[75,155,8]
+        elif 'shirt' in name: obj['size_mm']=[300,240,6]
+        elif 'basket' in name: obj['size_mm']=[320,240,180]
+        elif name=='cheese': obj['size_mm']=[90,65,40]
     return obj
 
 def build_scene(reference, drafts, steps, identity):

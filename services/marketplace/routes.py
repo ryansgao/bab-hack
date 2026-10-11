@@ -113,3 +113,33 @@ def stats(execution_mode: Literal['testnet', 'simulation'] | None = None):
                                          priciest_ausd=str(max(Decimal(m.price_ausd) for m in offers)),
                                          best_quality=max((m.quality for m in offers if m.quality is not None), default=None))
                               for task, offers in sorted(layers.items())})
+
+
+class MatchRequest(Contract):
+    text: str = Field(min_length=2, max_length=2000)
+    task_type: TaskType | None = None
+    object_name: str | None = Field(default=None, max_length=100)
+    execution_mode: Literal['testnet', 'simulation'] | None = None
+    top_k: int = Field(default=10, ge=1, le=50)
+
+
+@router.post('/match')
+def match(request: MatchRequest):
+    """Rank listings by relevance to a mission step described in plain language.
+
+    Returns the inferred capability and object plus each listing's relevance and
+    its parts (capability probability, object fit, text similarity).
+    """
+    from services.marketplace.matcher import matcher
+    ranked = matcher().rank(request.text, request.object_name, request.execution_mode, request.task_type, request.top_k)
+    ranked['results'] = [dict(r, model=r['model'].model_dump()) for r in ranked['results']]
+    return ranked
+
+
+@router.get('/matcher/evaluation')
+def matcher_evaluation():
+    """Accuracy of the matching model on held-out phrasings."""
+    from services.marketplace.matcher import evaluate
+    result = evaluate()
+    result['misses'] = [dict(text=t, expected=e, predicted=p) for t, e, p in result['misses']]
+    return result

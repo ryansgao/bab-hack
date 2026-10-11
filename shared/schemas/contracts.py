@@ -99,7 +99,20 @@ class SelectionDecision(Contract):
     explanation: str
     safe_fallback: bool
 
+class MediaFrame(Contract):
+    timestamp_s: float = Field(ge=0)
+    data_base64: str = Field(max_length=3_000_000)
+
+class ContextMedia(Contract):
+    name: str = Field(min_length=1,max_length=200)
+    kind: Literal['image','pdf','text','video']
+    media_type: str = Field(max_length=100)
+    data_base64: str | None = Field(default=None,max_length=16_000_000)
+    text: str | None = Field(default=None,max_length=300_000)
+    frames: list[MediaFrame] = Field(default_factory=list,max_length=8)
+
 class MissionRequest(Contract):
+    media: list[ContextMedia] = Field(default_factory=list,max_length=8)
     auto_bounties: bool = True
     bounty_reward_ausd: Money = '0.05'
     execution_mode: Literal['testnet', 'simulation'] = 'testnet'
@@ -176,6 +189,7 @@ class Subtask(Contract):
     error: str | None = None
 
 class MissionPlan(Contract):
+    robot_visual: dict = Field(default_factory=dict)
     planning_usage: dict = Field(default_factory=dict)
     simulation_fallbacks: list[ModelOffer] = Field(default_factory=list, max_length=64)
     bounty_ids: list[str] = Field(default_factory=list)

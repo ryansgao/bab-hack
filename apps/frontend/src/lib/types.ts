@@ -58,6 +58,7 @@ export type SimulationScene = {
     color: string; destination: string; surface_dirt: number; defects: string[];
     contents: string | null; handle: boolean;
     shape?: string; visible?: boolean; traits?: Record<string,string>;
+    mass_kg?: number; fragility?: number;
   }[];
 };
 export type Step = {
@@ -70,7 +71,7 @@ export type Step = {
   status: string;
   depends_on: string[];
   decision: Decision | null;
-  requirements: { object_name: string; fragility: number } | null;
+  requirements: { object_name: string; fragility: number; mass_kg?: number; max_force_n?: number } | null;
   error: string | null;
   payment: Receipt | null;
   result: {
@@ -82,6 +83,7 @@ export type Step = {
   } | null;
 };
 export type Plan = {
+  robot_visual?: {name:string;form:'arm'|'mobile'|'humanoid';body_color:string;accent_color:string;context_summary:string};
   planning_usage?: { input_tokens: number; output_tokens: number; cache_creation_input_tokens: number; cache_read_input_tokens: number; estimated_cost_usd: string | null; pricing_source: string; rates_checked_at: string };
   simulation_fallbacks?: Offer[];
   bounty_ids: string[];
@@ -89,13 +91,14 @@ export type Plan = {
   planner: string; planner_model: string | null; assumptions: string[]; blockers: string[];
   simulation_cost_ausd: string;
   request: {
+    media?: import('./media').ContextMedia[];
     execution_mode: "simulation" | "testnet";
     auto_bounties: boolean;
     bounty_reward_ausd: string;
     task: string;
     budget_ausd: string;
     inference_deadline_ms: number;
-    robot_card?: { gripper: string; embodiment: string };
+    robot_card?: RobotConfig;
     image_base64?: string;
   };
   id: string;
@@ -117,14 +120,19 @@ export type Bounty = {
   award: {amount: string; currency: string; producer_id: string; status: string} | null;
 };
 export type Arm = {
+  plan_id?: string | null; step_id?: string | null; capability?: string; object_id?: string | null;
+  held_object_id?: string | null; paused?: boolean; motion_duration_s?: number;
   phase: string;
   progress: number;
   running: boolean;
   object_name: string;
   grasp_point_px: number[];
-  output: { force_n: number; speed_mm_s: number } | null;
+  output: { force_n: number; speed_mm_s: number; start_point_px?: number[]; motion_duration_s?: number; holding_on_complete?: boolean } | null;
   reason: string;
 };
+export type RobotConfig = {robot_id: 'robot_001'; embodiment:'6dof_arm'; dof:number; gripper:'parallel_jaw'|'suction'|'none'; max_payload_kg:number; reach_mm:number; sensors:string[]; onboard_compute:string};
+export const DEFAULT_ROBOT:RobotConfig={robot_id:'robot_001',embodiment:'6dof_arm',dof:6,gripper:'parallel_jaw',max_payload_kg:1.5,reach_mm:1100,sensors:['rgb','depth','wrist_force'],onboard_compute:'jetson_orin'};
+export function liveStep(plan:Plan|null) {if(!plan)return 0;const index=plan.subtasks.findIndex(s=>['running','waiting_for_motion'].includes(s.status));return index>=0?index:plan.status==='completed'?Math.max(0,plan.subtasks.length-1):Math.max(0,plan.subtasks.findIndex(s=>s.status==='pending'));}
 export type WalletState = {
   wallet_address: string | null;
   balance_ausd: string | null;

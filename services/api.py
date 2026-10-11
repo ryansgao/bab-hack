@@ -86,8 +86,8 @@ def arm_state(): return arm.snapshot()
 @app.post('/api/arm/control')
 def arm_control(request: SimulationControl):
     if request.action=='reset': arm.reset()
-    elif request.action=='pause': arm.running=False
-    elif request.action=='start' and arm.output: arm.running=True
+    elif request.action=='pause': arm.running=False; arm.paused=True
+    elif request.action=='start' and arm.output: arm.running=True; arm.paused=False
     # Ticks are owned by the server clock, not by connected clients.
     elif request.action=='tick': return arm.snapshot()
     return arm.snapshot()

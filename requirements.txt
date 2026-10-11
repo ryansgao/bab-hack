@@ -6,3 +6,4 @@ pillow>=11,<13
 pytest>=8,<10
 python-dotenv>=1,<2
 websockets>=14,<17
+scikit-learn>=1.5,<2
