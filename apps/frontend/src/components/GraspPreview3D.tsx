@@ -15,7 +15,7 @@ export default function GraspPreview3D({ precision }: { precision: boolean }) {
     if (!host) return;
     let renderer: any;
     try {
-      renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "low-power" });
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "low-power" });
     } catch {
       host.dataset.unavailable = "true";
       return;
@@ -23,29 +23,29 @@ export default function GraspPreview3D({ precision }: { precision: boolean }) {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.4));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.3;
+    renderer.toneMappingExposure = 0.95;
+    renderer.setClearColor(0xf8faf6, 0);
     renderer.setSize(Math.max(host.clientWidth, 1), Math.max(host.clientHeight, 1));
     renderer.domElement.setAttribute("aria-hidden", "true");
     host.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x101d1e);
     const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 25);
-    scene.add(new THREE.HemisphereLight(0xe8f5e6, 0x1c3330, 2.7));
-    const key = new THREE.DirectionalLight(0xf6f5de, 4.1);
+    scene.add(new THREE.HemisphereLight(0xffffff, 0xb8cdb8, 2.5));
+    const key = new THREE.DirectionalLight(0xffffff, 2.9);
     key.position.set(-2, 4, 5);
     scene.add(key);
-    const rim = new THREE.PointLight(0x8af9bf, 18, 7);
+    const rim = new THREE.PointLight(0xddebd9, 6, 7);
     rim.position.set(2, 2, -2);
     scene.add(rim);
 
-    const graphite = new THREE.MeshStandardMaterial({ color: 0x263b3a, metalness: 0.55, roughness: 0.5 });
-    const nearBlack = new THREE.MeshStandardMaterial({ color: 0x102021, metalness: 0.65, roughness: 0.38 });
-    const ceramic = new THREE.MeshStandardMaterial({ color: 0xdae7d8, metalness: 0.3, roughness: 0.31 });
-    const accent = new THREE.MeshStandardMaterial({ color: precision ? 0xe9b97d : 0x9ecbb0, metalness: 0.4, roughness: 0.42 });
-    const objectMaterial = new THREE.MeshStandardMaterial({ color: precision ? 0xe9b97d : 0xd19b66, metalness: 0.15, roughness: 0.58 });
-    const padMaterial = new THREE.MeshStandardMaterial({ color: 0xa3bfaa, metalness: 0.12, roughness: 0.77 });
-    const glow = new THREE.MeshBasicMaterial({ color: 0x9cf4b7, transparent: true, opacity: 0.78 });
+    const graphite = new THREE.MeshStandardMaterial({ color: 0x5d8069, metalness: 0.3, roughness: 0.6 });
+    const nearBlack = new THREE.MeshStandardMaterial({ color: 0x2e503b, metalness: 0.32, roughness: 0.62 });
+    const ceramic = new THREE.MeshStandardMaterial({ color: 0x396c49, metalness: 0.16, roughness: 0.62 });
+    const accent = new THREE.MeshStandardMaterial({ color: precision ? 0xc59060 : 0x60916e, metalness: 0.13, roughness: 0.68 });
+    const objectMaterial = new THREE.MeshStandardMaterial({ color: precision ? 0xc8945d : 0xba8051, metalness: 0.04, roughness: 0.78 });
+    const padMaterial = new THREE.MeshStandardMaterial({ color: 0x7c9b83, metalness: 0.06, roughness: 0.83 });
+    const glow = new THREE.MeshBasicMaterial({ color: 0x80ad8c, transparent: true, opacity: 0.5 });
     const add = (geometry: any, material: any, parent = scene) => {
       const mesh = new THREE.Mesh(geometry, material);
       parent.add(mesh);
@@ -62,29 +62,28 @@ export default function GraspPreview3D({ precision }: { precision: boolean }) {
       return mesh;
     };
 
-    const ground = add(new THREE.PlaneGeometry(20, 20), new THREE.MeshStandardMaterial({ color: 0x0d191a, roughness: 0.86 }));
+    const ground = add(new THREE.PlaneGeometry(20, 20), new THREE.MeshStandardMaterial({ color: 0xf4f7f1, roughness: 0.95 }));
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -0.18;
-    box(3.1, 0.18, 1.9, nearBlack, 0, -0.1, 0);
-    box(2.9, 0.035, 1.72, graphite, 0, 0.01, 0);
+    box(3.1, 0.18, 1.9, new THREE.MeshStandardMaterial({ color: 0xe4ebe1, roughness: 0.94 }), 0, -0.1, 0);
+    box(2.9, 0.035, 1.72, new THREE.MeshStandardMaterial({ color: 0xf5f8f1, roughness: 0.94 }), 0, 0.01, 0);
     for (let i = -6; i <= 6; i++) {
-      const line = box(0.006, 0.003, 1.7, glow, i * 0.2, 0.032, 0);
-      line.material = new THREE.MeshBasicMaterial({ color: 0x6ca587, transparent: true, opacity: 0.17 });
+      box(0.006, 0.003, 1.7, new THREE.MeshBasicMaterial({ color: 0x9ebda3, transparent: true, opacity: 0.26 }), i * 0.2, 0.032, 0);
     }
     for (const z of [-0.88, 0.88]) box(2.98, 0.025, 0.035, accent, 0, -0.005, z);
-    box(0.92, 0.065, 0.84, nearBlack, 0, 0.075, 0);
-    box(0.73, 0.012, 0.65, graphite, 0, 0.115, 0);
+    box(0.92, 0.065, 0.84, new THREE.MeshStandardMaterial({ color: 0xdce7da, roughness: 0.9 }), 0, 0.075, 0);
+    box(0.73, 0.012, 0.65, ceramic, 0, 0.115, 0);
     const objectBase = precision ? 0.31 : 0.34;
     const workpiece = new THREE.Group();
     scene.add(workpiece);
     if (precision) add(new THREE.SphereGeometry(0.17, 24, 18), objectMaterial, workpiece);
     else {
       box(0.46, 0.43, 0.45, objectMaterial, 0, 0, 0, workpiece);
-      box(0.48, 0.025, 0.47, ceramic, 0, 0.215, 0, workpiece);
-      box(0.05, 0.42, 0.47, ceramic, -0.16, 0, 0, workpiece);
+      box(0.48, 0.025, 0.47, accent, 0, 0.215, 0, workpiece);
+      box(0.05, 0.42, 0.47, accent, -0.16, 0, 0, workpiece);
     }
     workpiece.position.y = objectBase;
-    const targetRing = add(new THREE.TorusGeometry(0.52, 0.012, 6, 52), glow);
+    const targetRing = add(new THREE.TorusGeometry(0.52, 0.009, 6, 52), glow);
     targetRing.rotation.x = Math.PI / 2;
     targetRing.position.y = 0.123;
     const grip = new THREE.Group();
@@ -100,8 +99,8 @@ export default function GraspPreview3D({ precision }: { precision: boolean }) {
     const rightFinger = new THREE.Group();
     grip.add(leftFinger, rightFinger);
     for (const [group, side] of [[leftFinger, -1], [rightFinger, 1]] as const) {
-      box(precision ? 0.06 : 0.095, 0.51, 0.18, ceramic, 0, -0.48, 0, group);
-      box(precision ? 0.065 : 0.085, 0.18, precision ? 0.1 : 0.15, padMaterial, -side * (precision ? 0.008 : 0.015), -0.67, 0, group);
+      box(precision ? 0.105 : 0.14, 0.51, 0.2, ceramic, 0, -0.48, 0, group);
+      box(precision ? 0.105 : 0.13, 0.18, precision ? 0.13 : 0.18, padMaterial, -side * (precision ? 0.008 : 0.015), -0.67, 0, group);
       box(0.08, 0.06, 0.2, accent, 0, -0.25, 0, group);
     }
     let active = false;
@@ -127,15 +126,15 @@ export default function GraspPreview3D({ precision }: { precision: boolean }) {
       leftFinger.position.x = -spread;
       rightFinger.position.x = spread;
       workpiece.position.y = objectBase + lift * 0.37;
-      if (!reduced.matches) targetRing.material.opacity = 0.5 + Math.sin(time * 2.2) * 0.15;
+      if (!reduced.matches) targetRing.material.opacity = 0.4 + Math.sin(time * 2.2) * 0.08;
       renderer.render(scene, camera);
     };
     const resize = () => {
       const width = Math.max(host.clientWidth, 1);
       const height = Math.max(host.clientHeight, 1);
       camera.aspect = width / height;
-      camera.position.set(2.25, 1.94, width < 200 ? 4.25 : 3.5);
-      camera.lookAt(0, 0.72, 0);
+      camera.position.set(1.6, 1.55, width < 200 ? 3.15 : 2.65);
+      camera.lookAt(0, 0.82, 0);
       camera.updateProjectionMatrix();
       renderer.setSize(width, height, false);
     };

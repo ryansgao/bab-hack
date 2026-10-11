@@ -1444,88 +1444,34 @@ nav > button.active {
   isolation: isolate;
   margin-top: 19px;
   border-radius: 12px;
-  color: #dcefe3;
-  background: #101d1e;
-  box-shadow: inset 0 0 0 1px #bffbd126, 0 9px 18px #223c3211;
-}
-.skill-preview::after {
-  position: absolute;
-  content: "";
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-  background: linear-gradient(0deg, #0c171b8a, transparent 24%, transparent 80%, #0c171b84);
+  background: radial-gradient(ellipse at 48% 42%, #fffefa 0%, #f2f7ef 76%, #edf3e9 100%);
+  box-shadow: inset 0 0 0 1px #d8e3d633;
 }
 .skill-diagram {
   display: block;
   width: 100%;
   height: 100%;
 }
-.skill-preview-grasp-loading {
+.skill-preview-loading {
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at 52% 48%, #244039, #101d1e 75%);
+  background: radial-gradient(ellipse at 50% 58%, #e6eee3, #fafbf6 72%);
 }
-.skill-preview-grasp[data-unavailable="true"]::after {
-  content: "3D preview unavailable on this device";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: max-content;
-  max-width: 90%;
-  color: #dcefe3;
-  font-size: 9px;
+.skill-preview-canvas[data-unavailable="true"] {
+  background: radial-gradient(circle at 50% 57%, #c2d8c3 0 12%, transparent 13%),
+    linear-gradient(145deg, #fafbf6, #e9f1e6);
 }
-.preview-scan-line { animation: preview-sweep 3.2s ease-in-out infinite alternate; }
-.preview-detection-lock { animation: preview-lock 2.6s ease-in-out infinite; }
-.preview-delay { animation-delay: -.8s; }
-.preview-detection-label { animation: preview-lock 2.6s ease-in-out infinite; }
+.preview-focus { animation: preview-breathe 3.6s ease-in-out infinite; }
 .preview-proposals { animation: preview-propose 3.4s ease-in-out infinite; }
-.preview-vocab-link { animation: preview-link 3s linear infinite; }
-.preview-agent-dot { animation: preview-agent 2.8s ease-in-out infinite; }
-.preview-inspection-sweep { transform-origin: 82px 105px; animation: preview-inspect 3.5s ease-in-out infinite alternate; }
-.preview-force-point { animation: preview-agent 3.7s ease-in-out infinite; }
-@keyframes preview-sweep { from { transform: translateX(0); opacity: .2; } to { transform: translateX(226px); opacity: .75; } }
-@keyframes preview-lock { 0%, 100% { opacity: .68; } 50% { opacity: 1; } }
-@keyframes preview-propose { 0%, 100% { opacity: .12; } 35%, 58% { opacity: .72; } 75% { opacity: .26; } }
-@keyframes preview-link { from { stroke-dashoffset: 18; opacity: .4; } to { stroke-dashoffset: 0; opacity: 1; } }
-@keyframes preview-agent { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
-@keyframes preview-inspect { from { transform: rotate(-32deg); opacity: .4; } to { transform: rotate(34deg); opacity: 1; } }
+.preview-vocab-pulse, .preview-force-point { animation: preview-breathe 3.2s ease-in-out infinite; }
+@keyframes preview-breathe { 0%, 100% { opacity: .68; } 50% { opacity: 1; } }
+@keyframes preview-propose { 0%, 100% { opacity: .16; } 50% { opacity: .72; } }
 .skill-preview-canvas,
 .skill-preview-canvas canvas {
   display: block;
   width: 100%;
   height: 100%;
 }
-.skill-preview-top,
-.skill-preview-bottom {
-  position: absolute;
-  left: 13px;
-  right: 13px;
-  z-index: 2;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 6px;
-  pointer-events: none;
-  font-size: 8px;
-  font-weight: 600;
-  letter-spacing: .11em;
-}
-.skill-preview-top { top: 12px; color: #e1f2e5; }
-.skill-preview-top span:last-child { color: #98b5a7; font-size: 7px; text-align: right; }
-.skill-preview-top i {
-  display: inline-block;
-  width: 5px;
-  height: 5px;
-  margin-right: 5px;
-  border-radius: 50%;
-  background: #97f2af;
-  box-shadow: 0 0 8px #78fda5;
-}
-.skill-preview-bottom { bottom: 11px; color: #b3d1bd; }
-.skill-preview-bottom span:last-child { color: #bcf0c8; font-size: 14px; font-weight: 400; line-height: .7; }
 .market-card-bottom {
   display: flex;
   align-items: center;
@@ -2412,8 +2358,6 @@ nav > button.active {
     min-height: 52px;
   }
   .skill-preview { height: 162px; margin-top: 14px; }
-  .skill-preview-top { font-size: 8px; }
-  .skill-preview-top span:last-child { display: none; }
   .market-card-bottom {
     flex-wrap: wrap;
     margin-top: 20px;
@@ -2437,8 +2381,6 @@ nav > button.active {
   .market-grid { grid-template-columns: 1fr; }
   .market-card h2 { min-height: 0; }
   .skill-preview { height: 180px; }
-  .skill-preview-top { font-size: 8px; }
-  .skill-preview-top span:last-child { display: inline; }
 }
 @media (max-width: 390px) {
   .market-grid {
