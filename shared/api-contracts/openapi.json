@@ -1,0 +1,1123 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "RoboMarket",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/health": {
+      "get": {
+        "summary": "Health",
+        "operationId": "health_api_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/marketplace/models": {
+      "get": {
+        "summary": "Models",
+        "operationId": "models_api_marketplace_models_get",
+        "parameters": [
+          {
+            "name": "task_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Task Type"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ModelOffer"
+                  },
+                  "title": "Response Models Api Marketplace Models Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Register",
+        "operationId": "register_api_marketplace_models_post",
+        "parameters": [
+          {
+            "name": "x-service-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "X-Service-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModelOffer"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelOffer"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent/select": {
+      "post": {
+        "summary": "Selection",
+        "operationId": "selection_api_agent_select_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SelectionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SelectionDecision"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent/plan": {
+      "post": {
+        "summary": "Plan",
+        "operationId": "plan_api_agent_plan_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MissionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MissionPlan"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent/plans/{plan_id}": {
+      "get": {
+        "summary": "Read Plan",
+        "operationId": "read_plan_api_agent_plans__plan_id__get",
+        "parameters": [
+          {
+            "name": "plan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Plan Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MissionPlan"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent/execute": {
+      "post": {
+        "summary": "Run",
+        "operationId": "run_api_agent_execute_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExecuteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MissionPlan"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/simulation": {
+      "get": {
+        "summary": "Simulation",
+        "operationId": "simulation_api_simulation_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/simulation/control": {
+      "post": {
+        "summary": "Control",
+        "operationId": "control_api_simulation_control_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimulationControl"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wallet/{robot_id}": {
+      "get": {
+        "summary": "Wallet",
+        "operationId": "wallet_api_wallet__robot_id__get",
+        "parameters": [
+          {
+            "name": "robot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Robot Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/transactions": {
+      "get": {
+        "summary": "Transactions",
+        "operationId": "transactions_api_transactions_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/telemetry": {
+      "get": {
+        "summary": "Telemetry",
+        "operationId": "telemetry_api_telemetry_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CandidateEvaluation": {
+        "properties": {
+          "model": {
+            "$ref": "#/components/schemas/ModelOffer"
+          },
+          "eligible": {
+            "type": "boolean",
+            "title": "Eligible"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reasons"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "model",
+          "eligible"
+        ],
+        "title": "CandidateEvaluation"
+      },
+      "ExecuteRequest": {
+        "properties": {
+          "plan_id": {
+            "type": "string",
+            "title": "Plan Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "plan_id"
+        ],
+        "title": "ExecuteRequest"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "InferenceResult": {
+        "properties": {
+          "model_id": {
+            "type": "string",
+            "title": "Model Id"
+          },
+          "predictions": {
+            "items": {
+              "$ref": "#/components/schemas/Prediction"
+            },
+            "type": "array",
+            "title": "Predictions"
+          },
+          "path": {
+            "items": {
+              "$ref": "#/components/schemas/Point"
+            },
+            "type": "array",
+            "title": "Path"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "inference_latency_ms": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Inference Latency Ms"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "pretrained_model",
+              "algorithm"
+            ],
+            "title": "Source"
+          },
+          "observation_revision": {
+            "type": "integer",
+            "title": "Observation Revision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "model_id",
+          "inference_latency_ms",
+          "source",
+          "observation_revision"
+        ],
+        "title": "InferenceResult"
+      },
+      "MissionPlan": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "request": {
+            "$ref": "#/components/schemas/MissionRequest"
+          },
+          "subtasks": {
+            "items": {
+              "$ref": "#/components/schemas/Subtask"
+            },
+            "type": "array",
+            "title": "Subtasks"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "planned",
+              "running",
+              "waiting_for_motion",
+              "blocked",
+              "completed"
+            ],
+            "title": "Status",
+            "default": "planned"
+          },
+          "spent_ausd": {
+            "type": "string",
+            "pattern": "^(0|[1-9]\\d{0,8})(\\.\\d{1,6})?$",
+            "title": "Spent Ausd",
+            "default": "0"
+          },
+          "explanation": {
+            "type": "string",
+            "title": "Explanation"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "request",
+          "subtasks",
+          "explanation"
+        ],
+        "title": "MissionPlan"
+      },
+      "MissionRequest": {
+        "properties": {
+          "robot_id": {
+            "type": "string",
+            "const": "robot_001",
+            "title": "Robot Id",
+            "default": "robot_001"
+          },
+          "task": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 3,
+            "title": "Task"
+          },
+          "waypoints": {
+            "items": {
+              "$ref": "#/components/schemas/Point"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Waypoints"
+          },
+          "budget_ausd": {
+            "type": "string",
+            "pattern": "^(0|[1-9]\\d{0,8})(\\.\\d{1,6})?$",
+            "title": "Budget Ausd",
+            "default": "0.10"
+          },
+          "inference_deadline_ms": {
+            "type": "integer",
+            "maximum": 120000.0,
+            "minimum": 1.0,
+            "title": "Inference Deadline Ms",
+            "default": 2000
+          },
+          "minimum_quality": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Minimum Quality",
+            "default": 0
+          },
+          "image_base64": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 8000000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Base64"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "task"
+        ],
+        "title": "MissionRequest"
+      },
+      "ModelOffer": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9_-]{1,64}$",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "provider_id": {
+            "type": "string",
+            "pattern": "^[a-z0-9_-]{1,64}$",
+            "title": "Provider Id"
+          },
+          "task_type": {
+            "type": "string",
+            "enum": [
+              "object_detection",
+              "path_planning",
+              "scene_inspection"
+            ],
+            "title": "Task Type"
+          },
+          "price_ausd": {
+            "type": "string",
+            "pattern": "^(0|[1-9]\\d{0,8})(\\.\\d{1,6})?$",
+            "title": "Price Ausd"
+          },
+          "latency_ms": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Latency Ms"
+          },
+          "latency_source": {
+            "type": "string",
+            "enum": [
+              "configured_estimate",
+              "measured_ema"
+            ],
+            "title": "Latency Source",
+            "default": "configured_estimate"
+          },
+          "quality": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quality"
+          },
+          "quality_source": {
+            "type": "string",
+            "enum": [
+              "unknown",
+              "configured_estimate",
+              "measured_benchmark"
+            ],
+            "title": "Quality Source",
+            "default": "unknown"
+          },
+          "benchmark_reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Benchmark Reference"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "available",
+              "unavailable"
+            ],
+            "title": "Status",
+            "default": "available"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "pretrained_model",
+              "algorithm"
+            ],
+            "title": "Kind",
+            "default": "pretrained_model"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "provider_id",
+          "task_type",
+          "price_ausd",
+          "latency_ms"
+        ],
+        "title": "ModelOffer"
+      },
+      "Observation": {
+        "properties": {
+          "robot_id": {
+            "type": "string",
+            "title": "Robot Id",
+            "default": "robot_001"
+          },
+          "position": {
+            "$ref": "#/components/schemas/Point"
+          },
+          "velocity": {
+            "$ref": "#/components/schemas/Vector"
+          },
+          "nearest_obstacle_distance": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Nearest Obstacle Distance"
+          },
+          "nearby_agent_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Nearby Agent Count"
+          },
+          "sensor_uncertainty": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Sensor Uncertainty",
+            "default": 0.3
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision",
+            "default": 0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "position",
+          "nearest_obstacle_distance",
+          "nearby_agent_count"
+        ],
+        "title": "Observation"
+      },
+      "Point": {
+        "properties": {
+          "x": {
+            "type": "integer",
+            "exclusiveMaximum": 24.0,
+            "minimum": 0.0,
+            "title": "X"
+          },
+          "y": {
+            "type": "integer",
+            "exclusiveMaximum": 16.0,
+            "minimum": 0.0,
+            "title": "Y"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "x",
+          "y"
+        ],
+        "title": "Point"
+      },
+      "Prediction": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "confidence": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence"
+          },
+          "bbox": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "maxItems": 4,
+            "minItems": 4,
+            "title": "Bbox"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "label",
+          "confidence",
+          "bbox"
+        ],
+        "title": "Prediction"
+      },
+      "SelectionDecision": {
+        "properties": {
+          "selected_model_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Model Id"
+          },
+          "risk_score": {
+            "type": "number",
+            "title": "Risk Score"
+          },
+          "remaining_budget_ausd": {
+            "type": "string",
+            "pattern": "^(0|[1-9]\\d{0,8})(\\.\\d{1,6})?$",
+            "title": "Remaining Budget Ausd"
+          },
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/CandidateEvaluation"
+            },
+            "type": "array",
+            "title": "Candidates"
+          },
+          "explanation": {
+            "type": "string",
+            "title": "Explanation"
+          },
+          "safe_fallback": {
+            "type": "boolean",
+            "title": "Safe Fallback"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "selected_model_id",
+          "risk_score",
+          "remaining_budget_ausd",
+          "candidates",
+          "explanation",
+          "safe_fallback"
+        ],
+        "title": "SelectionDecision"
+      },
+      "SelectionRequest": {
+        "properties": {
+          "observation": {
+            "$ref": "#/components/schemas/Observation"
+          },
+          "task_type": {
+            "type": "string",
+            "enum": [
+              "object_detection",
+              "path_planning",
+              "scene_inspection"
+            ],
+            "title": "Task Type",
+            "default": "object_detection"
+          },
+          "remaining_budget_ausd": {
+            "type": "string",
+            "pattern": "^(0|[1-9]\\d{0,8})(\\.\\d{1,6})?$",
+            "title": "Remaining Budget Ausd"
+          },
+          "inference_deadline_ms": {
+            "type": "integer",
+            "maximum": 120000.0,
+            "minimum": 1.0,
+            "title": "Inference Deadline Ms",
+            "default": 2000
+          },
+          "minimum_quality": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Minimum Quality",
+            "default": 0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "observation",
+          "remaining_budget_ausd"
+        ],
+        "title": "SelectionRequest"
+      },
+      "SimulationControl": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "start",
+              "pause",
+              "reset",
+              "tick",
+              "add_obstacle",
+              "add_pedestrian"
+            ],
+            "title": "Action"
+          },
+          "point": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Point"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "title": "SimulationControl"
+      },
+      "Subtask": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "task_type": {
+            "type": "string",
+            "enum": [
+              "object_detection",
+              "path_planning",
+              "scene_inspection"
+            ],
+            "title": "Task Type"
+          },
+          "depends_on": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Depends On"
+          },
+          "target": {
+            "$ref": "#/components/schemas/Point"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "running",
+              "waiting_for_motion",
+              "completed",
+              "blocked"
+            ],
+            "title": "Status",
+            "default": "pending"
+          },
+          "decision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SelectionDecision"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InferenceResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "payment": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "task_type",
+          "depends_on",
+          "target"
+        ],
+        "title": "Subtask"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "Vector": {
+        "properties": {
+          "x": {
+            "type": "number",
+            "title": "X",
+            "default": 0
+          },
+          "y": {
+            "type": "number",
+            "title": "Y",
+            "default": 0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "Vector"
+      }
+    }
+  }
+}
