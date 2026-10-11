@@ -13,6 +13,7 @@ from services.agent.mission_selection import select_step, virtual_decision
 from apps.simulation.world import world
 from apps.simulation.arm import arm
 from services.agent.quote import quote
+from services.accounts.store import owner_of
 
 execution_lock = threading.Lock()
 
@@ -159,7 +160,9 @@ def execute(plan_id, purchase=None):
                 else:
                     with httpx.Client(timeout=180) as client:
                         resp = client.post(os.getenv('PAYMENT_URL', 'http://127.0.0.1:4021') + '/purchase',
-                            json={**body.model_dump(), 'max_price_ausd':str(remaining)}, headers={'X-Service-Key': os.getenv('SERVICE_KEY','')})
+                            json={**body.model_dump(), 'max_price_ausd':str(remaining)},
+                            # The payment service funds the mission from its owner's wallet.
+                            headers={'X-Service-Key': os.getenv('SERVICE_KEY',''), **({'X-Account': owner} if (owner := owner_of(plan.id)) else {})})
                         response = resp.json()
                         if resp.status_code >= 400:
                             # Preserve receipt even if inference failed after payment.

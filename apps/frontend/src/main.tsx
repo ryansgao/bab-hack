@@ -56,6 +56,8 @@ const RobotStation = lazy(() => import('./components/RobotStation'));
 const SkillPreview = lazy(() => import("./components/SkillPreview").then((module) => ({ default: module.SkillPreview })));
 const TaskPreview3D = lazy(() => import("./components/TaskPreview3D"));
 const BountyBoard = lazy(() => import("./components/BountyBoard"));
+const AccountArea = lazy(() => import("./account/AccountArea"));
+import PaymentFlow, { AccountButton } from "./account/PaymentFlow";
 
 function TaskPreviewToggle({ data, plan, selected, onSelect }: {
   data: RoboMarket; plan?: Plan; selected?: number; onSelect?: (index: number) => void;
@@ -161,99 +163,6 @@ function Background() {
       <div className="ambient-light" />
       <div className="ambient-wash" />
     </div>
-  );
-}
-
-function WalletCard({
-  data,
-  compact = false,
-}: {
-  data: RoboMarket;
-  compact?: boolean;
-}) {
-  const { wallet, paymentError } = data;
-  return (
-    <section className={"glass wallet-card " + (compact ? "compact" : "")}>
-      <div className="panel-heading">
-        <span className="label-with-icon">
-          <Wallet size={16} /> Scout wallet
-        </span>
-        <span className="tag">Base Sepolia</span>
-      </div>
-      {wallet?.custody === "mission_float" ? (
-        <div className="wallet-amount">
-          <span className="eyebrow">Owner treasury</span>
-          <strong>
-            {wallet.owner_treasury_ausd ? money(wallet.owner_treasury_ausd) : "—"}{" "}
-            <small>AUSD</small>
-          </strong>
-          <span className="wallet-address">
-            Robot holds {wallet.balance_ausd ? money(wallet.balance_ausd) : "—"} AUSD
-            (mission float only, no gas)
-            {wallet.wallet_address
-              ? ` · ${wallet.wallet_address.slice(0, 8)}…${wallet.wallet_address.slice(-6)}`
-              : ""}
-          </span>
-          {wallet.policy_chain && (
-            <a
-              className="wallet-address"
-              href={wallet.policy_chain.explorer_url}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Policy on BNB chain · {wallet.policy_chain.receipt_count} receipts
-            </a>
-          )}
-        </div>
-      ) : (
-      <div className="wallet-amount">
-        <span className="eyebrow">Available balance</span>
-        <strong>
-          {wallet?.balance_ausd !== null && wallet?.balance_ausd !== undefined
-            ? money(wallet.balance_ausd)
-            : "—"}{" "}
-          <small>AUSD</small>
-        </strong>
-        <span className="wallet-address">
-          {wallet?.wallet_address
-            ? `${wallet.wallet_address.slice(0, 8)}…${wallet.wallet_address.slice(-6)}`
-            : "Connect a funded testnet wallet to execute."}
-        </span>
-      </div>
-      )}
-      <div className="allowance-heading">
-        <ShieldCheck size={16} />
-        <strong>Spending allowance</strong>
-        <span className="tiny-dot" />
-      </div>
-      <dl className="spec-list">
-        <div>
-          <dt>Per purchase</dt>
-          <dd>
-            {wallet ? money(wallet.allowance.max_per_request_ausd) : "—"} AUSD
-          </dd>
-        </div>
-        <div>
-          <dt>Per mission</dt>
-          <dd>
-            {wallet ? money(wallet.allowance.max_per_task_ausd) : "—"} AUSD
-          </dd>
-        </div>
-        <div>
-          <dt>Session remaining</dt>
-          <dd>{wallet ? money(wallet.remaining_allowance_ausd) : "—"} AUSD</dd>
-        </div>
-      </dl>
-      {(paymentError || wallet?.setup_error) && (
-        <div className="quiet-notice">
-          <CircleHelp size={15} />
-          <div>
-            <strong>Wallet setup needed</strong>
-            <p>{readableMessage(wallet?.setup_error || paymentError)}</p>
-          </div>
-        </div>
-      )}
-    </section>
   );
 }
 
@@ -744,7 +653,7 @@ function Mission({ data, onNew, onBounties, onRobot }: { data: RoboMarket; onNew
             <button
               className="primary full-width"
               disabled={busy || plan.status !== "planned"}
-              onClick={() => void data.execute()}
+              onClick={() => simulated ? void data.execute() : void window.dispatchEvent(new Event("rbazaar:checkout"))}
             >
               {busy ? (
                 <LoaderCircle size={15} className="spin" />
@@ -954,89 +863,6 @@ function Marketplace({ data, onBounties }: { data: RoboMarket; onBounties: () =>
   );
 }
 
-function WalletPage({ data }: { data: RoboMarket }) {
-  return (
-    <div className="page enter">
-      <div className="page-heading">
-        <div>
-          <h1>Wallet & Receipts</h1>
-        </div>
-        <button className="secondary" onClick={() => void data.refresh()}>
-          <Wallet size={14} />
-          Refresh wallet
-        </button>
-      </div>
-      <div className="wallet-layout">
-        <WalletCard data={data} />
-        <section className="glass ledger">
-          <div className="panel-heading">
-            <span className="label-with-icon">
-              <Fingerprint size={17} />
-              Purchase history
-            </span>
-            <span className="tag">{data.receipts.length} receipts</span>
-          </div>
-          {data.receipts.length ? (
-            <div className="receipt-list">
-              {data.receipts.map((receipt) => (
-                <article className="receipt" key={receipt.request_id}>
-                  <span className="soft-icon">
-                    <Box size={17} />
-                  </span>
-                  <div>
-                    <h3>
-                      {data.models.find(
-                        (model) => model.id === receipt.model_id,
-                      )?.name || receipt.model_id}
-                    </h3>
-                    <Status value={receipt.status} />
-                    <small>{receipt.timestamp} UTC</small>
-                  </div>
-                  <div className="receipt-price">
-                    <strong>
-                      {money(receipt.amount_ausd)} <small>AUSD</small>
-                    </strong>
-                    {receipt.explorer_url ? (
-                      <a
-                        href={receipt.explorer_url}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        View receipt <ExternalLink size={12} />
-                      </a>
-                    ) : (
-                      <span>No confirmed receipt</span>
-                    )}
-                    {receipt.pay_to && (
-                      <small title={receipt.pay_to}>
-                        Paid to {receipt.pay_to.slice(0, 8)}…{receipt.pay_to.slice(-4)}
-                      </small>
-                    )}
-                    {receipt.audit_explorer_url && (
-                      <a
-                        href={receipt.audit_explorer_url}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        BNB audit record <ExternalLink size={12} />
-                      </a>
-                    )}
-                  </div>
-                </article>
-              ))}
-            </div>
-          ) : (
-            <EmptyState icon={<Fingerprint size={30} />} title="A clean slate.">
-              Your purchases will appear here, each with its amount, status, and
-              verified onchain receipt when settled.
-            </EmptyState>
-          )}
-        </section>
-      </div>
-    </div>
-  );
-}
-
 function App() {
   const data = useRoboMarket();
   const [view, setView] = useState<View>("home");
@@ -1182,6 +1008,7 @@ function App() {
                     : view === "marketplace"
                       ? "Marketplace"
                       : view === "bounties" ? "Bounties"
+                      : view === "account" ? "Account"
                       : view === "wallet"
                         ? "Wallet & receipts"
                         : "Simulation studio"}
@@ -1190,7 +1017,7 @@ function App() {
             )}
           </div>
           <div className="topbar-right">
-
+            <AccountButton onOpen={() => navigate("account")} />
           </div>
         </header>
         <main ref={content} id="main-content" className="main-content">
@@ -1214,12 +1041,12 @@ function App() {
           )}
           {view === "marketplace" && <Marketplace data={data} onBounties={()=>navigate('bounties')} />}
           {view === "bounties" && <Suspense fallback={<p className="preview-loading">Loading bounty board…</p>}><BountyBoard data={data} /></Suspense>}
-          {view === "wallet" && <WalletPage data={data} />}
+          {(view === "wallet" || view === "account") && <Suspense fallback={<p className="preview-loading">Loading your account…</p>}><AccountArea data={data} tab={view === "wallet" ? "wallet" : "profile"} /></Suspense>}
           {view === "robot" && <Suspense fallback={<p className="preview-loading">Loading connected robot workcell…</p>}><RobotStation data={data} onMission={()=>navigate('mission')}/></Suspense>}
 
         </main>
       </div>
-
+      <PaymentFlow data={data} onHistory={() => navigate("wallet")} />
     </div>
   );
 }

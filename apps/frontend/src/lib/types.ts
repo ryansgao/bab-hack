@@ -1,4 +1,4 @@
-export type View = "home" | "mission" | "marketplace" | "bounties" | "wallet" | "robot";
+export type View = "home" | "mission" | "marketplace" | "bounties" | "wallet" | "robot" | "account";
 export type Offer = {
   simulation_program?: Record<string,unknown> | null;
   simulation_placeholder?: boolean;
