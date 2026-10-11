@@ -1,4 +1,4 @@
-import { createPublicClient, createWalletClient, http, publicActions, parseAbi, hashDomain, type Hex, type Address } from 'viem';
+import { createPublicClient, createWalletClient, http, publicActions, parseAbi, hashDomain, keccak256, toHex, isAddress, type Hex, type Address } from 'viem';
 import { baseSepolia } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
 import { x402Client, x402HTTPClient } from '@x402/core/client';
@@ -44,13 +44,43 @@ async function setup() {
   const actual = await publicClient.readContract({address:AUSD,abi,functionName:'DOMAIN_SEPARATOR'});
   if (expected.toLowerCase() !== actual.toLowerCase()) throw new Error('AUSD EIP-712 domain mismatch; set verified AUSD_DOMAIN_NAME/VERSION');
   // AUSD is not one of the SDK's default assets, so it must be allowed explicitly. The per-payment
-  // cap repeats the wallet's per-call Allowance inside the signer as a second line of defence.
-  const cap = String(Math.round(Number(process.env.MAX_PER_CALL_AUSD || '0.05') * 1_000_000));
-  const buyer = new x402HTTPClient(x402Client.fromConfig({
-    schemes: [{ network: NETWORK, client: new BuyerScheme(robot) }],
-    spendControls: { allowedAssets: [{ network: NETWORK, asset: AUSD, maxAmountPerPayment: cap }] },
+  // cap repeats the wallet's Allowance inside the signer as a second line of defence.
+  const atomic = (name: string, fallback: string) => String(Math.round(Number(process.env[name] || fallback) * 1_000_000));
+  const signerFor = (account: ReturnType<typeof privateKeyToAccount>, cap?: string) => new x402HTTPClient(x402Client.fromConfig({
+    schemes: [{ network: NETWORK, client: new BuyerScheme(account) }],
+    spendControls: { allowedAssets: [{ network: NETWORK, asset: AUSD, ...(cap ? { maxAmountPerPayment: cap } : {}) }] },
   }));
-  return { publicClient, robot, buyer, facilitator: new FacilitatorScheme(signer), domain: { name, version, assetTransferMethod: 'eip3009' } };
+  const buyer = signerFor(robot, atomic('MAX_PER_CALL_AUSD', '0.05'));
+  // Optional owner wallet: it holds the treasury and sends the robot one mission float at a time,
+  // so the most the robot key can ever lose is the float it holds. The owner signer is capped at
+  // one mission's Allowance; the robot's return signer is only ever pointed at the owner.
+  const owner = process.env.OWNER_PRIVATE_KEY ? privateKeyToAccount(process.env.OWNER_PRIVATE_KEY as Hex) : null;
+  const ownerSigner = owner ? signerFor(owner, atomic('MAX_PER_TASK_AUSD', '0.10')) : null;
+  const returnSigner = owner ? signerFor(robot) : null;
+  return { publicClient, robot, buyer, owner, ownerSigner, returnSigner, facilitator: new FacilitatorScheme(signer), domain: { name, version, assetTransferMethod: 'eip3009' } };
+}
+export type Chain = Awaited<ReturnType<typeof setup>>;
+/** Where a vendor is paid. A listing may carry its own payout address; otherwise each vendor gets a
+ *  stable address derived from VENDOR_SEED, and PROVIDER_ADDRESS remains the single-address fallback. */
+export function payoutAddress(providerId: string, listed?: unknown): Address {
+  if (typeof listed === 'string' && isAddress(listed)) return listed;
+  const seed = process.env.VENDOR_SEED;
+  if (seed) return privateKeyToAccount(keccak256(toHex(`${seed}:${providerId}`))).address;
+  const fallback = process.env.PROVIDER_ADDRESS;
+  if (!fallback || !isAddress(fallback)) throw new Error('Invalid provider recipient');
+  return fallback;
+}
+/** Moves AUSD between our own wallets with the same gasless ERC-3009 path a purchase uses. */
+export async function transfer(c: Chain, signer: x402HTTPClient, to: Address, amount: number, what: string): Promise<Hex> {
+  const required = requirements(amount, to, c.domain);
+  const payload = await signer.createPaymentPayload(challenge(`https://robomarket.invalid/${what}`, required));
+  const verified = await c.facilitator.verify(payload, required);
+  if (!verified.isValid) throw new Error(`${what} authorization rejected: ${verified.invalidReason || 'invalid'}`);
+  const settled = await c.facilitator.settle(payload, required);
+  if (!settled.success || !settled.transaction) throw new Error(`${what} did not settle`);
+  const receipt = await c.publicClient.waitForTransactionReceipt({ hash: settled.transaction as Hex, confirmations: 1, timeout: 60_000 });
+  if (receipt.status !== 'success') throw new Error(`${what} reverted onchain`);
+  return settled.transaction as Hex;
 }
 export function requirements(amount: number, payTo: Address, extra: Record<string,unknown>): PaymentRequirements {
   return { scheme:'exact',network:NETWORK,asset:AUSD,amount:String(amount),payTo,maxTimeoutSeconds:120,extra };

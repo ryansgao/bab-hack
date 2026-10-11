@@ -1,10 +1,10 @@
 import express from 'express';
 import { timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
-import { isAddress, type Address, type Hex } from 'viem';
+import { type Address, type Hex } from 'viem';
 import { decodePaymentSignatureHeader, encodePaymentRequiredHeader, encodePaymentResponseHeader } from '@x402/core/http';
 import { Ledger, units, money, fingerprint, type Policy } from './ledger.js';
-import { chain, missing, requirements, challenge, AUSD, abi } from './chain.js';
+import { chain, missing, requirements, challenge, payoutAddress, transfer, AUSD, abi, type Chain } from './chain.js';
 
 const app = express();
 app.use(express.json({limit:'12mb'}));
@@ -13,7 +13,8 @@ const policy: Policy = {
   maxCall:units(process.env.MAX_PER_CALL_AUSD || '0.05'), maxTask:units(process.env.MAX_PER_TASK_AUSD || '0.10'),
   maxSession:units(process.env.MAX_SESSION_AUSD || '5'), maxDaily:units(process.env.MAX_DAILY_AUSD || '5'),
   approvalThreshold:units(process.env.APPROVAL_THRESHOLD_AUSD || '0.05'),
-  vendors:(process.env.ALLOWED_VENDORS || 'vision_lab,navigation_lab,gripworks,motion_lab').split(','),
+  // Default: every vendor in the catalog that sells for real testnet payment.
+  vendors:(process.env.ALLOWED_VENDORS || 'vision_lab,navigation_lab,gripworks,motion_lab,edge_vision,sentinel_safety,atlas_perception,budget_bots,feathertouch,lumen_labs,pantry_vision,quantum_grip,routewise').split(',').map(v=>v.trim()).filter(Boolean),
 };
 const port = Number(process.env.PAYMENT_PORT || 4021);
 const serviceHeaders = () => ({'Content-Type':'application/json','X-Service-Key':process.env.SERVICE_KEY || ''});
@@ -35,6 +36,71 @@ function settleSerially<T>(work: () => Promise<T>): Promise<T> {
   settleQueue = next.catch(() => undefined);
   return next;
 }
+const balanceOf = async (c: Chain, address: Address) => Number(await c.publicClient.readContract({address:AUSD,abi,functionName:'balanceOf',args:[address]}));
+
+// ---- mission float (only when OWNER_PRIVATE_KEY is set) ----
+// The owner wallet holds the treasury. A mission's first purchase makes the owner send the robot
+// that mission's whole Allowance; what is unspent goes back when the mission closes or goes idle.
+// Float changes for one mission run one at a time, and never while a purchase of it is in flight.
+const floatLocks = new Map<string, Promise<unknown>>();
+const purchasing = new Map<string, number>();
+function withMission<T>(task: string, work: () => Promise<T>): Promise<T> {
+  const next = (floatLocks.get(task) ?? Promise.resolve()).then(work, work);
+  floatLocks.set(task, next.catch(() => undefined));
+  return next;
+}
+const ensureFloat = (c: Chain, task: string, amount: number) => withMission(task, async () => {
+  if (ledger.floatRemaining(task) >= amount) return;
+  const topUp = policy.maxTask - ledger.floatNet(task);
+  if (topUp <= 0) return;
+  if (await balanceOf(c, c.owner!.address) < topUp) throw new Error('Owner treasury cannot fund the mission float');
+  const tx = await settleSerially(() => transfer(c, c.ownerSigner!, c.robot.address, topUp, 'mission-float'));
+  ledger.floatAdd(task, 'fund', topUp, tx);
+});
+const returnFloat = (c: Chain, task: string) => withMission(task, async () => {
+  if ((purchasing.get(task) || 0) > 0 || ledger.inFlight(task)) return null;
+  const remaining = ledger.floatRemaining(task);
+  if (remaining <= 0) return null;
+  const tx = await settleSerially(() => transfer(c, c.returnSigner!, c.owner!.address, remaining, 'float-return'));
+  ledger.floatAdd(task, 'sweep', remaining, tx);
+  return tx;
+});
+/** Refuses on policy before any money moves, then makes sure the robot holds this mission's float. */
+async function holdFloat(c: Chain, task: string, vendor: string, amount: number) {
+  await treasuryReady;
+  ledger.check(task, vendor, amount, policy);
+  purchasing.set(task, (purchasing.get(task) || 0) + 1);
+  const release = () => { const n = (purchasing.get(task) || 1) - 1; if (n > 0) purchasing.set(task, n); else purchasing.delete(task); };
+  try { await ensureFloat(c, task, amount); } catch (error) { release(); throw error; }
+  return release;
+}
+// At start, anything the robot holds beyond its open floats belongs to the owner.
+const treasuryReady: Promise<void> = (async () => {
+  if (!process.env.OWNER_PRIVATE_KEY || missing().length) return;
+  const c = await chain();
+  const open = ledger.missions().reduce((sum, m) => sum + m.remaining, 0);
+  const excess = await balanceOf(c, c.robot.address) - open;
+  if (excess <= 0) return;
+  const tx = await settleSerially(() => transfer(c, c.returnSigner!, c.owner!.address, excess, 'treasury-consolidation'));
+  ledger.floatAdd('treasury', 'consolidate', excess, tx);
+  console.log(`moved ${money(excess)} AUSD from the robot to the owner treasury: ${tx}`);
+})().catch(error => console.error('treasury consolidation failed:', error instanceof Error ? error.message : error));
+const idleSeconds = Number(process.env.FLOAT_IDLE_SECONDS || 90);
+setInterval(async () => {
+  if (!process.env.OWNER_PRIVATE_KEY || missing().length) return;
+  try {
+    const c = await chain();
+    for (const m of ledger.missions()) {
+      // SQLite timestamps are UTC without a zone marker.
+      if (m.remaining > 0 && Date.now() - Date.parse(m.lastActivity.replace(' ', 'T') + 'Z') > idleSeconds * 1000) await returnFloat(c, m.task);
+    }
+  } catch (error) { console.error('idle float return failed:', error instanceof Error ? error.message : error); }
+}, 15_000).unref();
+const missionView = (m: ReturnType<Ledger['missions']>[number]) => ({ task_id: m.task, funded_ausd: money(m.funded), spent_ausd: money(m.spent),
+  returned_ausd: money(m.returned), held_by_robot_ausd: money(m.remaining), last_activity: m.lastActivity,
+  transfers: m.transfers.map(t => ({ kind: t.kind === 'fund' ? 'owner_to_robot' : 'robot_to_owner', amount_ausd: money(t.amount), transaction_hash: t.tx,
+    explorer_url: `https://sepolia.basescan.org/tx/${t.tx}`, timestamp: t.created_at })) });
+
 async function offer(modelId: string) {
   const response = await fetch(`${process.env.API_URL || 'http://127.0.0.1:8000'}/api/marketplace/models`, {signal:AbortSignal.timeout(8000)});
   if (!response.ok) throw new Error('Marketplace unavailable');
@@ -51,14 +117,33 @@ function cachedResponse(id: string, res: express.Response) {
 }
 app.get('/health', (_req,res)=>res.json({mode:'testnet',ready:missing().length===0,missing:missing(),asset:AUSD}));
 app.get('/wallet',requireKey,async (_req,res)=>{
-  let address=null, balance=null, setupError=null;
-  try { const c=await chain(); address=c.robot.address; balance=money(Number(await c.publicClient.readContract({address:AUSD,abi,functionName:'balanceOf',args:[address]}))); }
+  let address=null, balance=null, setupError=null, ownerAddress=null, treasury=null;
+  try { const c=await chain(); address=c.robot.address; balance=money(await balanceOf(c,address));
+    if(c.owner){ ownerAddress=c.owner.address; treasury=money(await balanceOf(c,c.owner.address)); } }
   catch { setupError=missing().length ? `Missing ${missing().join(', ')}` : 'RPC or token validation failed'; }
   res.json({robot_id:'robot_001',wallet_address:address,balance_ausd:balance,mode:'testnet',setup_error:setupError,
+    custody:ownerAddress?'mission_float':'robot_holds_balance',owner_address:ownerAddress,owner_treasury_ausd:treasury,
     session_used_ausd:money(ledger.used()),remaining_allowance_ausd:money(Math.max(0,policy.maxSession-ledger.used())),
     allowance:{max_per_request_ausd:money(policy.maxCall),max_per_task_ausd:money(policy.maxTask),max_session_ausd:money(policy.maxSession),max_daily_ausd:money(policy.maxDaily),approved_vendors:policy.vendors}});
 });
 app.get('/transactions',requireKey,(_req,res)=>res.json(ledger.rows().map(row=>ledger.receipt(row))));
+app.get('/vendors',requireKey,(_req,res)=>{
+  const earned=ledger.earnings();
+  res.json(policy.vendors.map(vendor=>{
+    const payTo=payoutAddress(vendor), rows=earned.filter(e=>e.vendor===vendor);
+    return {provider_id:vendor,pay_to:payTo,payments:rows.reduce((n,e)=>n+e.payments,0),earned_ausd:money(rows.reduce((n,e)=>n+e.earned,0)),
+      explorer_url:`https://sepolia.basescan.org/address/${payTo}`};
+  }));
+});
+app.get('/missions',requireKey,(_req,res)=>res.json(ledger.missions().map(missionView)));
+app.post('/missions/:task/close',requireKey,async(req,res)=>{
+  const task=z.string().regex(/^[a-zA-Z0-9-]{1,100}$/).parse(req.params.task);
+  const c=await chain();
+  if(!c.owner)throw new Error('Mission float is not enabled: set OWNER_PRIVATE_KEY');
+  const tx=await returnFloat(c,task);
+  const mission=ledger.missions().find(m=>m.task===task);
+  res.json({task_id:task,returned:!!tx,transaction_hash:tx,mission:mission?missionView(mission):null});
+});
 
 app.post('/purchase',requireKey,async(req,res)=>{
   const {max_price_ausd,...input}=z.object({max_price_ausd:z.string().regex(/^(0|[1-9]\d{0,8})(\.\d{1,6})?$/)}).passthrough().parse(req.body);
@@ -75,20 +160,22 @@ app.post('/purchase',requireKey,async(req,res)=>{
   const validation=await fetch(`${process.env.MODEL_URL || 'http://127.0.0.1:8001'}/internal/validate`,{method:'POST',headers:serviceHeaders(),body:JSON.stringify(body),signal:AbortSignal.timeout(15_000)});
   if(!validation.ok)throw new Error('Model input or readiness invalid; no payment authorized');
   const c=await chain(); // Fail before reservation if setup is incomplete.
-  const payTo=process.env.PROVIDER_ADDRESS!;
-  if(!isAddress(payTo))throw new Error('Invalid provider recipient');
-  const amount=units(model.price_ausd);
+  const payTo=payoutAddress(model.provider_id,model.payout_address);
+  const amount=units(model.price_ausd), task=body.request_id.split('_')[0];
+  const release=c.owner?await holdFloat(c,task,model.provider_id,amount):()=>{};
+  try {
   const balance=await c.publicClient.readContract({address:AUSD,abi,functionName:'balanceOf',args:[c.robot.address]});
-  // Outstanding reservations protect the wallet from concurrent authorization overspend.
-  const pending=ledger.used("AND status IN ('reserved','settling','uncertain')");
+  // Outstanding reservations protect the wallet from concurrent authorization overspend. With a
+  // mission float only this mission's reservations draw on the float the robot was just sent.
+  const pending=c.owner?ledger.used("AND task=? AND status IN ('reserved','settling')",[task]):ledger.used("AND status IN ('reserved','settling','uncertain')");
   if(balance < BigInt(amount+pending))throw new Error('Insufficient unreserved AUSD balance');
-  ledger.reserve(body.request_id,body.request_id.split('_')[0],fingerprint(body),model.provider_id,model.id,amount,policy);
+  ledger.reserve(body.request_id,task,fingerprint(body),model.provider_id,model.id,amount,policy,payTo);
   try {
     const url=`http://127.0.0.1:${port}/api/inference/${body.model_id}`;
     const initial=await fetch(url,{method:'POST',headers:serviceHeaders(),body:JSON.stringify(body),signal:AbortSignal.timeout(20_000)});
     if(initial.status!==402)throw new Error('Provider did not return a valid 402 challenge');
     const required=c.buyer.getPaymentRequiredResponse(name=>initial.headers.get(name));
-    const expected=requirements(amount,payTo as Address,c.domain);
+    const expected=requirements(amount,payTo,c.domain);
     if(required.accepts.length!==1 || fingerprint(required.accepts[0])!==fingerprint(expected))throw new Error('Provider payment requirements changed');
     const payload=await c.buyer.createPaymentPayload(required);
     const headers=c.buyer.encodePaymentSignatureHeader(payload);
@@ -102,6 +189,7 @@ app.post('/purchase',requireKey,async(req,res)=>{
     if(row.status==='reserved')ledger.update(body.request_id,'uncertain',null,null,'Purchase interrupted; reconcile before retry');
     res.status(503).json({payment:ledger.receipt(ledger.get(body.request_id)!),error:{code:'PURCHASE_INTERRUPTED',message:'Purchase interrupted. Inspect ledger; automatic repeat payment disabled.'}});
   }
+  } finally { release(); }
 });
 
 app.post('/api/inference/:modelId',requireKey,async(req,res)=>{
@@ -110,9 +198,8 @@ app.post('/api/inference/:modelId',requireKey,async(req,res)=>{
   const model=await offer(body.model_id);
   if(model.execution_mode==='simulation')throw new Error('Simulation providers cannot accept real payments');
   const c=await chain();
-  const payTo=process.env.PROVIDER_ADDRESS!;
-  if(!isAddress(payTo))throw new Error('Invalid recipient');
-  const required=requirements(units(model.price_ausd),payTo as Address,c.domain);
+  const payTo=payoutAddress(model.provider_id,model.payout_address);
+  const required=requirements(units(model.price_ausd),payTo,c.domain);
   const paymentHeader=req.get('PAYMENT-SIGNATURE');
   if(!paymentHeader) {
     const paymentRequired=challenge(`http://127.0.0.1:${port}/api/inference/${model.id}`,required);
@@ -167,6 +254,6 @@ app.post('/api/inference/:modelId',requireKey,async(req,res)=>{
 });
 app.use((error: Error,_req:express.Request,res:express.Response,_next:express.NextFunction)=>{
   console.error('payment request failed:', error.message);
-  res.status(error instanceof z.ZodError?422:503).json({error:{code:'SERVICE_UNAVAILABLE',message:error instanceof z.ZodError?'Invalid inference request':missing().length?`Testnet setup missing: ${missing().join(', ')}`:/Allowance|allowlist|threshold|Insufficient unreserved/.test(error.message)?error.message:'Purchase unavailable: check Allowance, provider and RPC configuration'}});
+  res.status(error instanceof z.ZodError?422:503).json({error:{code:'SERVICE_UNAVAILABLE',message:error instanceof z.ZodError?'Invalid inference request':missing().length?`Testnet setup missing: ${missing().join(', ')}`:/Allowance|allowlist|threshold|Insufficient unreserved|treasury|Mission float|BNB policy/.test(error.message)?error.message:'Purchase unavailable: check Allowance, provider and RPC configuration'}});
 });
 app.listen(port,process.env.PAYMENT_HOST || '127.0.0.1',()=>console.log(`RoboMarket x402 service on ${port}; mode=testnet; configured=${missing().length===0}`));
