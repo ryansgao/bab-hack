@@ -480,11 +480,10 @@ nav > button.active {
 .compose-page {
   max-width: 730px;
   margin: auto;
-  padding: 45px 35px 60px;
+  padding: clamp(45px, 16vh, 150px) 35px 60px;
   min-height: 100%;
   display: flex;
   flex-direction: column;
-  justify-content: center;
 }
 .hero-symbol {
   display: inline-flex;
