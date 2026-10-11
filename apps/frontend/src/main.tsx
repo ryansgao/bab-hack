@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import {
   Activity,
@@ -37,7 +37,6 @@ import {
 import "@fontsource-variable/inter";
 import "@fontsource/instrument-serif/400.css";
 import "@fontsource/instrument-serif/400-italic.css";
-import { ArmScene } from "./components/ArmScene";
 import { useRoboMarket, type RoboMarket } from "./lib/useRoboMarket";
 import {
   humanize,
@@ -47,6 +46,8 @@ import {
   type View,
 } from "./lib/types";
 import "./style.css";
+
+const ArmScene = lazy(() => import("./components/ArmScene").then((module) => ({ default: module.ArmScene })));
 
 function readableMessage(message: string) {
   if (/missing.*(ROBOT_PRIVATE_KEY|FACILITATOR_PRIVATE_KEY|PROVIDER_ADDRESS)/i.test(message)) {
@@ -158,7 +159,9 @@ function RobotCard({
         />
       </div>
       <div className="scene-wrap">
-        <ArmScene arm={arm} />
+        <Suspense fallback={<div className="robot-viewport robot-scene-loading" aria-label="Loading 3D robot workspace" />}>
+          <ArmScene arm={arm} />
+        </Suspense>
       </div>
       <div className="robot-card-body">
         <div className="robot-title">

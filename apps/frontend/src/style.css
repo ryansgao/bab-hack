@@ -1534,12 +1534,157 @@ nav > button.active {
 .scene-wrap {
   padding: 0 12px;
 }
-.arm-scene {
+.robot-viewport {
+  position: relative;
+  height: clamp(300px, 45vw, 540px);
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: 14px;
+  color: #d6eadb;
+  background: radial-gradient(ellipse at 51% 57%, #243b37 0%, #0c1717 69%);
+  box-shadow: inset 0 0 0 1px #bafbc01c, inset 0 0 90px #0008;
+}
+.robot-scene-loading {
+  background: radial-gradient(circle at 50% 58%, #2a4840, #0c1717 62%);
+}
+.robot-viewport::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(90deg, #0a1517ad, transparent 26%, transparent 74%, #0a151755), linear-gradient(0deg, #081314cf, transparent 24%, transparent 84%, #081314b9);
+}
+.robot-canvas,
+.robot-canvas canvas {
   display: block;
   width: 100%;
-  border-radius: 12px;
-  filter: saturate(0.8);
+  height: 100%;
 }
+.robot-canvas canvas {
+  cursor: grab;
+  touch-action: none;
+}
+.robot-canvas canvas:active {
+  cursor: grabbing;
+}
+.robot-viewport-top,
+.robot-viewport-bottom,
+.robot-target-label {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+}
+.robot-viewport-top,
+.robot-viewport-bottom {
+  left: 26px;
+  right: 26px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+}
+.robot-viewport-top {
+  top: 23px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .14em;
+}
+.robot-viewport-top > span:first-child {
+  color: #e3f1e7;
+}
+.robot-viewport-top > span:last-child {
+  color: #89a69a;
+  font-size: 8px;
+  white-space: nowrap;
+}
+.robot-viewport-top i {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin: 0 8px 1px 0;
+  border-radius: 50%;
+  background: #9ef0b4;
+  box-shadow: 0 0 12px #66f8a0;
+}
+.robot-viewport-top b {
+  color: #92efa8;
+  font-size: 10px;
+  font-weight: 400;
+}
+.robot-viewport-bottom {
+  bottom: 24px;
+  align-items: flex-end;
+}
+.robot-viewport-bottom small,
+.robot-viewport-bottom strong {
+  display: block;
+  font-family: var(--sans);
+  letter-spacing: .13em;
+}
+.robot-viewport-bottom small {
+  color: #90afa2;
+  font-size: 8px;
+  margin-bottom: 6px;
+}
+.robot-viewport-bottom strong {
+  color: #d8f1dd;
+  font-size: 11px;
+  font-weight: 600;
+}
+.robot-orbit-hint {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #8da99e;
+  font: 8px/1.6 var(--sans);
+  letter-spacing: .1em;
+}
+.orbit-glyph {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #a3dfb854;
+  border-radius: 50%;
+  color: #b3edc1;
+  font-size: 24px;
+  line-height: 1;
+}
+.robot-target-label {
+  left: 51%;
+  top: 25%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #b0e0bc;
+  font: 8px var(--sans);
+  letter-spacing: .1em;
+  opacity: .75;
+}
+.robot-target-label i {
+  width: 58px;
+  height: 1px;
+  background: linear-gradient(90deg, #a0e2b0a6, transparent);
+}
+.robot-fallback {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  color: #d8efdf;
+  font-size: 12px;
+  text-align: center;
+}
+.compact .robot-viewport { height: 250px; }
+.compact .robot-viewport-top,
+.compact .robot-viewport-bottom { left: 15px; right: 15px; }
+.compact .robot-viewport-top { top: 15px; font-size: 8px; }
+.compact .robot-viewport-top > span:last-child,
+.compact .robot-target-label,
+.compact .robot-orbit-hint { display: none; }
+.compact .robot-viewport-bottom { bottom: 15px; }
 .robot-card-body {
   padding: 19px 22px;
 }
@@ -1787,16 +1932,21 @@ nav > button.active {
 }
 .station-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(240px, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
   gap: 22px;
+}
+.station-notes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
 }
 .station-note {
   border-radius: 20px;
   padding: 25px;
 }
 .station-note + .station-note {
-  margin-top: 20px;
+  margin-top: 0;
 }
 .station-note h2 {
   font-size: 28px;
@@ -1937,6 +2087,17 @@ nav > button.active {
   .page-heading .secondary {
     margin-top: 24px;
   }
+}
+@media (max-width: 700px) {
+  .station-notes { grid-template-columns: 1fr; }
+  .robot-viewport { height: 380px; }
+  .robot-viewport-top,
+  .robot-viewport-bottom { left: 16px; right: 16px; }
+  .robot-viewport-top { top: 16px; font-size: 8px; }
+  .robot-viewport-top > span:last-child,
+  .robot-target-label,
+  .robot-orbit-hint { display: none; }
+  .robot-viewport-bottom { bottom: 17px; }
 }
 @media (max-width: 760px) {
   .app-shell {
