@@ -86,5 +86,5 @@ export function requirements(amount: number, payTo: Address, extra: Record<strin
   return { scheme:'exact',network:NETWORK,asset:AUSD,amount:String(amount),payTo,maxTimeoutSeconds:120,extra };
 }
 export function challenge(url: string, accepts: PaymentRequirements): PaymentRequired {
-  return { x402Version:2, resource:{url,description:'RoboMarket expert shard inference',mimeType:'application/json'},accepts:[accepts] };
+  return { x402Version:2, resource:{url,description:'rBazaar skill inference',mimeType:'application/json'},accepts:[accepts] };
 }

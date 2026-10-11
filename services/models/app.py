@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 from shared.schemas.contracts import InferenceRequest, InferenceResult
 from services.models.inference import infer, readiness, prepare, known, adapter, state, IMAGE_MODELS, ARM_SHARDS, MAX_PIXELS
 
-app = FastAPI(title='RoboMarket private inference worker')
+app = FastAPI(title='rBazaar private inference worker')
 
 @app.get('/health')
 def health(): return {'status': 'ready', 'models': readiness()}

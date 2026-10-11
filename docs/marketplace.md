@@ -1,4 +1,4 @@
-# Marketplace and inference (Member 2)
+# rBazaar marketplace and inference (Member 2)
 
 Owns `services/marketplace/**` and `services/models/**`.
 

@@ -1,4 +1,4 @@
-# RoboMarket architecture
+# rBazaar architecture
 
 The product starts with a general natural-language robot goal. Anthropic Claude
 creates a dependency graph of separately purchasable capabilities. Scout is the

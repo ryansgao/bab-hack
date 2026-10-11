@@ -1176,10 +1176,10 @@ function App() {
           <button
             className="brand"
             onClick={() => navigate("home")}
-            aria-label="RoboMarket home"
+            aria-label="rBazaar home"
           >
             <BrandMark />
-            <span>robomarket</span>
+            <span>rBazaar</span>
           </button>
           <IconButton
             label="Collapse sidebar"
@@ -1476,7 +1476,7 @@ function App() {
         <footer className="app-footer">
           <span>Small skills. Bigger possibilities.</span>
           <span>
-            RoboMarket <i /> Testnet workspace
+            rBazaar <i /> Testnet workspace
           </span>
         </footer>
       </div>

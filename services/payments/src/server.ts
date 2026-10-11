@@ -256,4 +256,4 @@ app.use((error: Error,_req:express.Request,res:express.Response,_next:express.Ne
   console.error('payment request failed:', error.message);
   res.status(error instanceof z.ZodError?422:503).json({error:{code:'SERVICE_UNAVAILABLE',message:error instanceof z.ZodError?'Invalid inference request':missing().length?`Testnet setup missing: ${missing().join(', ')}`:/Allowance|allowlist|threshold|Insufficient unreserved|treasury|Mission float|BNB policy/.test(error.message)?error.message:'Purchase unavailable: check Allowance, provider and RPC configuration'}});
 });
-app.listen(port,process.env.PAYMENT_HOST || '127.0.0.1',()=>console.log(`RoboMarket x402 service on ${port}; mode=testnet; configured=${missing().length===0}`));
+app.listen(port,process.env.PAYMENT_HOST || '127.0.0.1',()=>console.log(`rBazaar x402 service on ${port}; mode=testnet; configured=${missing().length===0}`));

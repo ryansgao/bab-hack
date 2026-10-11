@@ -1,4 +1,4 @@
-# Public deployment of the RoboMarket gateway (dashboard, marketplace, Scout planning) on Render.
+# Public deployment of the rBazaar gateway (dashboard, marketplace, Scout planning) on Render.
 # Deploy: https://render.com/deploy?repo=https://github.com/ryansgao/bab-hack
 # The Anthropic key is typed into Render once at creation and is stored there, never in this repo.
 # Visitors' browsers call this server; only the server calls Anthropic.

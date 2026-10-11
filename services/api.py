@@ -31,7 +31,7 @@ async def lifespan(app):
     yield
     await runtime.close()
 
-app = FastAPI(title='RoboMarket', version='0.2.0', lifespan=lifespan)
+app = FastAPI(title='rBazaar', version='0.2.0', lifespan=lifespan)
 
 @app.exception_handler(HTTPException)
 async def http_error(request, exc):

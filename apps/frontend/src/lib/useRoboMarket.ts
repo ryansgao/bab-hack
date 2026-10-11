@@ -26,7 +26,7 @@ async function api<T>(path: string, body?: unknown): Promise<T> {
   if (!response.ok)
     throw new Error(
       data?.error?.message ||
-        "Unable to reach RoboMarket. Check the local services and try again.",
+        "Unable to reach rBazaar. Check the local services and try again.",
     );
   return data as T;
 }

@@ -25,7 +25,7 @@ commands=[
 children=[]
 try:
     for command in commands: children.append(subprocess.Popen(command))
-    print('RoboMarket: http://127.0.0.1:8000 | API docs: http://127.0.0.1:8000/docs',flush=True)
+    print('rBazaar: http://127.0.0.1:8000 | API docs: http://127.0.0.1:8000/docs',flush=True)
     print('Missing wallet keys keep live purchases blocked. No mock payments are generated.',flush=True)
     while all(child.poll() is None for child in children): time.sleep(.5)
 except KeyboardInterrupt: pass

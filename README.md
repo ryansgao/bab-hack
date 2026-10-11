@@ -1,6 +1,8 @@
-# RoboMarket
+# rBazaar
 
-**An agent-to-agent marketplace where robots buy intelligence one shard at a time.**
+**The bazaar where robots buy skills: an agent-to-agent marketplace for robotics, paid one AUSD micropayment at a time.**
+
+_Formerly RoboMarket. Internal names (env vars, storage keys, the `useRoboMarket` hook) keep the old name so nothing breaks._
 
 Describe a robot task in plain language. Claude (Anthropic) decomposes the full goal
 into a variable-length dependency graph. Scout searches the live marketplace for
