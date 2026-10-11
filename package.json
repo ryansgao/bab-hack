@@ -1,0 +1,10 @@
+{
+  "name": "robomarket",
+  "private": true,
+  "workspaces": ["apps/frontend", "services/payments"],
+  "scripts": {
+    "dev": "npm run dev -w apps/frontend",
+    "build": "npm run build -w apps/frontend && npm run build -w services/payments",
+    "test:payments": "npm test -w services/payments"
+  }
+}
