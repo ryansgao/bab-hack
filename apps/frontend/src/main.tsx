@@ -48,6 +48,7 @@ import {
 import "./style.css";
 
 const ArmScene = lazy(() => import("./components/ArmScene").then((module) => ({ default: module.ArmScene })));
+const SkillPreview = lazy(() => import("./components/SkillPreview").then((module) => ({ default: module.SkillPreview })));
 
 function readableMessage(message: string) {
   if (/missing.*(ROBOT_PRIVATE_KEY|FACILITATOR_PRIVATE_KEY|PROVIDER_ADDRESS)/i.test(message)) {
@@ -917,6 +918,9 @@ function Marketplace({ data }: { data: RoboMarket }) {
             <span className="vendor-name">
               by {humanize(model.provider_id)}
             </span>
+            <Suspense fallback={<div className="skill-preview skill-preview-loading" aria-label="Loading 3D skill preview" />}>
+              <SkillPreview offer={model} />
+            </Suspense>
             <div className="market-card-bottom">
               <div>
                 <strong>{money(model.price_ausd)}</strong>
