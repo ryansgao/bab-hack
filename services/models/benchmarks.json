@@ -1,0 +1,52 @@
+{
+  "results": {
+    "yolo11n": {
+      "model_id": "yolo11n",
+      "map50": 0.6281,
+      "precision_at_serving_threshold": 0.8766,
+      "recall_at_serving_threshold": 0.4435,
+      "serving_threshold": 0.4,
+      "latency_ms_p50": 130.7,
+      "latency_ms_p95": 196.6,
+      "images": 128,
+      "ground_truth_boxes": 929,
+      "classes_evaluated": 71,
+      "ap50_selected_classes": {
+        "banana": 1.0,
+        "bottle": 0.4257,
+        "bowl": 0.6727,
+        "cup": 0.3707,
+        "orange": 0.0,
+        "person": 0.7629
+      },
+      "measured_at": "2026-10-11T20:05:06+00:00",
+      "hardware": "x86_64 x86_64, 1 torch threads, CPU"
+    },
+    "yolo11s": {
+      "model_id": "yolo11s",
+      "map50": 0.7187,
+      "precision_at_serving_threshold": 0.8802,
+      "recall_at_serving_threshold": 0.5221,
+      "serving_threshold": 0.4,
+      "latency_ms_p50": 276.0,
+      "latency_ms_p95": 375.6,
+      "images": 128,
+      "ground_truth_boxes": 929,
+      "classes_evaluated": 71,
+      "ap50_selected_classes": {
+        "banana": 1.0,
+        "bottle": 0.5028,
+        "bowl": 0.6998,
+        "cup": 0.6293,
+        "orange": 1.0,
+        "person": 0.7933
+      },
+      "measured_at": "2026-10-11T20:05:44+00:00",
+      "hardware": "x86_64 x86_64, 1 torch threads, CPU"
+    }
+  },
+  "dataset": "COCO128 (first 128 images of COCO train2017, Ultralytics release v0.0.0)",
+  "dataset_url": "https://github.com/ultralytics/assets/releases/download/v0.0.0/coco128.zip",
+  "metric": "mAP@0.5 (all-point interpolation, mean over classes present)",
+  "note": "COCO128 images come from COCO train2017; pretrained COCO weights may have seen them, so absolute mAP is optimistic. Use it to compare shards, not as a field accuracy claim."
+}

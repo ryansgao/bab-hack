@@ -41,7 +41,7 @@ requires funded testnet wallets and model dependencies. `npm run wallets:init`
 can create fresh local testnet wallets only when `.env` does not already exist;
 `npm run wallets:status` reads balances. See [payment setup](docs/payments.md).
 
-For real inference: install `requirements-models.txt` for SSD Lite and Faster
+For real inference: install `requirements-models.txt` for YOLO11, SSD Lite and Faster
 R-CNN; install `requirements-owl.txt` for open-vocabulary OWL-ViT detection. Execution prepares selected
 weights before any purchase. There are no fake detection or payment fallbacks.
 
