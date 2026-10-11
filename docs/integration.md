@@ -93,7 +93,9 @@ plan stops the simulated robot but does not reverse settled purchases.
 Frontend production build and payment TypeScript compilation pass. Browser review
 covers the general-task composer, arbitrary text entry, missing-Anthropic-key
 response, marketplace, and responsive layout. No new automated tests were added.
-Live Claude generation is unverified because the API key is intentionally absent.
+Live Claude generation was verified with `claude-opus-5-5` using a small
+localization task. It returned a validated dependency graph and a missing-image
+blocker. Set your own key privately; no credential is committed.
 
 Live AUSD settlement and OWL-ViT inference remain unverified. Local testnet wallets
 exist but need funding. Earlier COCO adapter runs returned zero detections on a

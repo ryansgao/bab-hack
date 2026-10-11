@@ -65,7 +65,7 @@ selector handles price, compatibility, remaining budget and actual purchase exec
 """
 
 def planner_status():
-    return {'provider': 'anthropic', 'model': os.getenv('ANTHROPIC_MODEL', DEFAULT_MODEL),
+    return {'provider': 'anthropic', 'model': os.getenv('ANTHROPIC_MODEL', '').strip() or DEFAULT_MODEL,
             'configured': bool(os.getenv('ANTHROPIC_API_KEY', '').strip()),
             'message': 'Add ANTHROPIC_API_KEY to the server .env and restart to enable task planning.'}
 
@@ -111,11 +111,12 @@ def decompose(request):
     try:
         with httpx.Client(timeout=httpx.Timeout(90, connect=10)) as client:
             response = client.post('https://api.anthropic.com/v1/messages',
-                headers={'x-api-key': os.environ['ANTHROPIC_API_KEY'], 'anthropic-version': '2023-06-01'},
+                headers={'x-api-key': os.environ['ANTHROPIC_API_KEY'].strip(), 'anthropic-version': '2023-06-01'},
                 json={'model': settings['model'], 'max_tokens': 12000, 'system': SYSTEM,
                       'messages': [{'role': 'user', 'content': json.dumps(context)}],
                       'tools': [{'name': 'submit_plan', 'description': 'Submit the complete robot mission decomposition. Include all required work and capability gaps. This only proposes a plan; it does not execute tools or purchase anything.', 'input_schema': Decomposition.model_json_schema()}],
-                      'tool_choice': {'type': 'tool', 'name': 'submit_plan'}})
+                      # Opus 5.5 rejects forced tool choice. Validate the returned call locally.
+                      'tool_choice': {'type': 'auto', 'disable_parallel_tool_use': True}})
         if response.status_code in (401, 403): raise PlannerError('Anthropic rejected the server API key. Check ANTHROPIC_API_KEY and account access.', 503)
         if response.status_code == 429: raise PlannerError('Anthropic rate limit reached. Wait briefly and build the plan again.', 429)
         if response.status_code >= 400: raise PlannerError('Anthropic could not generate the plan. Check the configured model and API account, then retry.')

@@ -30,7 +30,9 @@ npm run build
 Open **http://127.0.0.1:8000**. Set `ANTHROPIC_API_KEY` in the server-only `.env`
 and restart to enable planning. The example key is intentionally blank.
 `ANTHROPIC_MODEL` defaults to `claude-sonnet-4-5` and can be changed to a model
-available to your account. There is no keyword-parser fallback or fabricated plan.
+available to your account, including `claude-opus-5-5`. The planner uses automatic
+tool selection and validates the returned task graph locally. There is no
+keyword-parser fallback or fabricated plan.
 The prompt, Robot Card, and catalog go to Anthropic; uploaded images stay in the
 local inference flow. Anthropic billing is separate from the AUSD shard budget.
 
@@ -59,7 +61,9 @@ weights before any purchase. There are no fake detection or payment fallbacks.
 
 ## Current limits
 
-Live Anthropic planning has not been exercised: the API key is intentionally absent.
+Live Anthropic planning was verified with `claude-opus-5-5`: a camera-localization
+request returned a valid subtask graph and flagged its missing image. Credentials
+remain local to the ignored `.env`; the committed template is intentionally blank.
 Live AUSD settlement also remains unverified; testnet wallets need funding. Build
 and browser setup/error flows were checked, with no additional automated test suite.
 No generated plans, payments, or detections are presented as live results.
