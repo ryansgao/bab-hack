@@ -286,9 +286,9 @@ nav > button:hover {
   color: var(--ink);
 }
 nav > button.active {
-  background: #3f7d5c18;
-  color: var(--sage-dark);
-  border-color: #3f7d5c1b;
+  background: #1c1d180d;
+  color: var(--ink);
+  font-weight: 500;
 }
 .nav-count {
   margin-left: auto;
@@ -296,7 +296,7 @@ nav > button.active {
   height: 18px;
   display: grid;
   place-items: center;
-  background: #3f7d5c14;
+  background: #1c1d1810;
   border-radius: 50%;
   font-size: 10px;
 }
@@ -316,6 +316,12 @@ nav > button.active {
   text-transform: uppercase;
   letter-spacing: 1.3px;
   font-weight: 500;
+}
+.recent-missions .section-label {
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: 0;
 }
 .recent-missions > p {
   margin-top: 14px;
