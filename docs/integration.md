@@ -12,8 +12,9 @@ npm run build
 ```
 
 Open http://127.0.0.1:8000. The launcher creates a process-local service key if
-`.env` has none; it never creates or funds blockchain wallets. Planning and shard
-comparison work without wallet keys. Purchases return a clear blocked result.
+`.env` has none; it never creates or funds blockchain wallets. Set `ANTHROPIC_API_KEY` in `.env` and restart for planning. `ANTHROPIC_MODEL`
+defaults to `claude-sonnet-4-5`. The key is intentionally blank in the template,
+and stays on the server. Planning and shard comparison do not require wallet keys. Purchases return a clear blocked result.
 
 For live vision, install the optional dependencies and warm the two COCO models:
 
@@ -26,14 +27,13 @@ On Python installations missing system certificate configuration, set
 `SSL_CERT_FILE` to the CA bundle printed by `.venv/bin/python -m certifi`.
 Keep TLS verification enabled. The launcher supplies this setting automatically.
 
-Grape detection uses `google/owlvit-base-patch32`; install
-`requirements-owl.txt` and pre-download/warm that model before the demo. Its first
-use otherwise includes a large download and will likely exceed a tight deadline.
-COCO detectors cannot detect grapes, and their registry compatibility says so.
-Supply a real, clearly visible fruit image through the dashboard. Synthetic
-sensor images are supported inputs but recognition quality is unvalidated. A
-missing fruit detection blocks grasp/control. The UI's arm is a visualization;
-uploaded image coordinates are not calibrated to a physical robot.
+Open-vocabulary detection uses `google/owlvit-base-patch32`; install
+`requirements-owl.txt`. Execution prepares selected models before any paid call.
+`GET /api/models/readiness` reports cold/preparing/ready/error states;
+`POST /api/models/{id}/prepare` explicitly prepares a listed model.
+COCO adapters advertise their full fixed vocabulary; OWL-ViT accepts a named-object
+query. Upload a suitable real image for the task. Synthetic images are unvalidated,
+and image coordinates are not calibrated to real hardware.
 
 ## Independent components
 
@@ -65,35 +65,37 @@ been run on this development machine.
 
 Interactive contracts: `/docs`. Regenerate the checked-in contract after an
 approved schema change: `.venv/bin/python scripts/export_contracts.py`.
-New clients should send `robot_card` to select the kitchen-arm flow. Requests
-without it use the original warehouse navigation grammar.
+Send `robot_card` to describe the available hardware. All tasks use Anthropic,
+including mobile-base tasks with explicit `waypoints`. The prompt may be up to
+6,000 characters. Task types are extensible snake_case capability identifiers.
 
-`POST /api/vendor/quote` returns a proposed plan without saving it.
-`POST /api/agent/plan` saves the quoted plan. `POST /api/agent/execute` checks the
-whole plan and processes ready dependencies until physical motion must finish.
-The dashboard advances the simulator at 500 ms intervals, then resumes execution.
-Closing the dashboard pauses these ticks; the prototype has no background robot
-daemon. Reload restores the current plan from its locally saved ID.
+`GET /api/agent/config` reports the provider/model and whether a key is configured,
+never the key. `POST /api/vendor/quote` calls Claude and prices its proposed plan
+without saving it. `POST /api/agent/plan` saves the quoted plan. Both incur Anthropic
+API usage when configured; that billing is separate from the AUSD budget.
+`POST /api/agent/execute` queues the mission and returns immediately. The server
+prepares models, processes dependencies, and waits for simulated motion between
+steps. Closing the browser does not stop this loop. `/api/events?plan_id=...`
+streams snapshots and telemetry; reload restores the saved plan by ID.
+
+Only direct prerequisite outputs are passed to a shard. Independent branches
+execute serially on the single robot. Plans expose purpose, success criteria,
+assumptions, and blockers. Current adapters determine their own completion from
+actual returned data/motion; arbitrary semantic outcomes require suitable adapters.
+Restarting the server blocks interrupted missions because simulation state is not
+durable. Inspect any existing receipts before starting a replacement task.
 
 Use a new task only after the prior task completes or is cancelled. Cancelling a
 plan stops the simulated robot but does not reverse settled purchases.
 
 ## Validation status
 
-The frontend production build and payment TypeScript compilation passed.
-Before the request to minimize tests, 10 Python checks and 5 payment-ledger checks
-passed. Subsequent verification focuses on browser visual checks. Two real
-torchvision models ran locally on a synthetic warehouse image; both returned zero
-detections. This proves the adapters execute, not that perception succeeds on the
-demo objects. No detection accuracy benchmark is claimed.
+Frontend production build and payment TypeScript compilation pass. Browser review
+covers the general-task composer, arbitrary text entry, missing-Anthropic-key
+response, marketplace, and responsive layout. No new automated tests were added.
+Live Claude generation is unverified because the API key is intentionally absent.
 
-Live AUSD settlement has not been run: funded testnet wallet credentials are not
-configured. The payment implementation is type-checked, but its AUSD domain,
-facilitator compatibility, and full payment-to-inference path still need a funded
-testnet run. OWL-ViT weights/inference are also unverified locally.
-
-Browser review covered desktop and narrow layouts, the orange quote (3 shards),
-the grape quote (3 shards with different compatible providers), a mixed three-object
-mission (9 shards), candidate rejection reasons, marketplace cards, persisted plan
-restoration, and the missing-wallet execution block. No live payment was attempted
-with funded credentials.
+Live AUSD settlement and OWL-ViT inference remain unverified. Local testnet wallets
+exist but need funding. Earlier COCO adapter runs returned zero detections on a
+synthetic warehouse image; this is not an accuracy benchmark. There are no fake
+planner responses, detections, or receipts in the live product.

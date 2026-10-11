@@ -1,5 +1,4 @@
-from shared.schemas.contracts import MissionRequest, ModelOffer, Observation, Point, SelectionRequest, Vector
-from services.agent.planner import decompose
+from shared.schemas.contracts import ModelOffer, Observation, Point, SelectionRequest, Vector
 from services.agent.selection import select, risk_score
 
 def observation(**kwargs):
@@ -14,13 +13,6 @@ def request(**kwargs):
     values = dict(observation=observation(),remaining_budget_ausd='0.05',inference_deadline_ms=300)
     values.update(kwargs)
     return SelectionRequest(**values)
-
-def test_variable_plans():
-    assert len(decompose(MissionRequest(task='detect obstacles')).subtasks) == 1
-    assert len(decompose(MissionRequest(task='navigate to loading bay')).subtasks) == 2
-    plan = decompose(MissionRequest(task='inspect shelves',waypoints=[Point(x=2,y=2),Point(x=3,y=3)]))
-    assert len(plan.subtasks) == 6
-    assert plan.subtasks[-1].depends_on == ['step_5']
 
 def test_price_changes_selection():
     models = [offer('a'),offer('b',price_ausd='0.008')]

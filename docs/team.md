@@ -9,8 +9,8 @@
 
 The integration lead owns `shared/**`, `services/api.py`, root manifests,
 `docker-compose.yml`, `scripts/**`, and `tests/integration/**`. Agree on a schema
-change before touching these files. Component developers add tests beside their
-components or in their corresponding `tests/test_<component>.py` files.
+change before touching these files. Keep tests minimal per the current user instruction: use browser visual checks and
+required build/type compilation; do not expand automated suites for routine changes.
 
 ## Working together
 
@@ -24,7 +24,7 @@ points. Generated OpenAPI belongs to the schema owner; do not hand-edit it.
 ## Integration checkpoints
 
 1. Contracts and examples compile before implementations begin.
-2. Registry and agent run without loading detector weights or requiring keys.
+2. Registry/UI run without keys; Claude planning reports missing Anthropic configuration.
 3. Simulation produces observations, and plans expose unresolved capabilities.
 4. Real detector runs return measured outputs and latency.
 5. Live testnet setup proves 402 → authorization → settlement → inference result.
@@ -34,8 +34,9 @@ The two-minute demo should show one short mission, its decomposition, a candidat
 rejection, one verified purchase, an obstacle-induced stop/replan, and the receipt.
 Only claim live settlement after the external integration check succeeds.
 
-The latest build plan makes the arm/shard flow primary. Retain the existing folder
-layout to avoid moving shared files during parallel work. Vendor quote ownership
-is currently with Member 3 (`services/agent/quote.py`); Member 2 owns the listing
-metadata it consumes. Member 1 owns the event-channel client, and the integration
-lead owns `/api/events` in the gateway. No LLM key is required for the grammar fallback.
+The latest direction is general natural-language task planning through Anthropic,
+not a fixed fruit demo. Keep the existing folder layout for parallel work.
+Member 3 owns `planner.py`, `quote.py`, and the autonomous runtime. Member 2 owns
+capability metadata and execution adapters. Member 1 owns the prompt/graph UI and
+event client; the integration lead owns `/api/events` and shared contracts.
+`ANTHROPIC_API_KEY` stays blank until the operator configures it privately.

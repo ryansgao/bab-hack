@@ -41,7 +41,7 @@ function ArmScene({arm}:{arm:Arm}){
  </svg>;
 }
 function App(){
- const [tab,setTab]=useState('Mission control'),[task,setTask]=useState(''),[budget,setBudget]=useState('0.05'),[deadline,setDeadline]=useState(3000),[gripper,setGripper]=useState('parallel_jaw');
+ const [tab,setTab]=useState('Mission control'),[task,setTask]=useState(()=>localStorage.getItem('robomarket-task-draft')||''),[budget,setBudget]=useState('0.05'),[deadline,setDeadline]=useState(3000),[gripper,setGripper]=useState('parallel_jaw');
  const [models,setModels]=useState<Offer[]>([]),[plan,setPlan]=useState<Plan|null>(null),[selected,setSelected]=useState(0),[arm,setArm]=useState(initialArm),[wallet,setWallet]=useState<WalletState|null>(null),[receipts,setReceipts]=useState<Receipt[]>([]);
  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[online,setOnline]=useState(false),[paymentError,setPaymentError]=useState(''),[image,setImage]=useState<string|undefined>(),[imageName,setImageName]=useState('Simulator RGB view'),[filter,setFilter]=useState('all');
  const [planner,setPlanner]=useState<PlannerConfig|null>(null);
@@ -67,6 +67,7 @@ function App(){
    socket.onclose=()=>{if(!closed)timer=setTimeout(connect,1500)};
   };connect();return()=>{closed=true;if(timer)clearTimeout(timer);socket?.close()};
  },[plan?.id]);
+ useEffect(()=>{localStorage.setItem('robomarket-task-draft',task)},[task]);
  useEffect(()=>{if(plan)localStorage.setItem('robomarket-plan',plan.id)},[plan]);
  const createPlan=async()=>{if(busy||task.trim().length<3||['queued','preparing','running','waiting_for_motion'].includes(plan?.status||''))return;setBusy(true);setError('');try{const result=await api<Plan>('/agent/plan',{task,budget_ausd:budget,inference_deadline_ms:deadline,robot_card:{robot_id:'robot_001',embodiment:'6dof_arm',dof:6,gripper,max_payload_kg:1.5,sensors:['rgb','depth','wrist_force'],onboard_compute:'jetson_orin'},...(image?{image_base64:image}:{})});setPlan(result);setSelected(0);setTab('Mission control')}catch(e){setError((e as Error).message)}finally{setBusy(false)}};
  const execute=async()=>{if(!plan)return;setBusy(true);setError('');try{setPlan(await api<Plan>('/agent/execute',{plan_id:plan.id}));setArm(await api<Arm>('/arm'));void reload()}catch(e){setError((e as Error).message)}finally{setBusy(false)}};

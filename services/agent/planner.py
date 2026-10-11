@@ -79,6 +79,9 @@ def validate_graph(draft, request):
         ordered.extend(ready)
         pending = [s for s in pending if s not in ready]
     for step in ordered:
+        if step.object_name: step.object_name = step.object_name.strip().lower()
+        if step.requirements: step.requirements.object_name = step.requirements.object_name.strip().lower()
+    for step in ordered:
         if step.requirements:
             # Model-generated values are always estimates, regardless of its claimed source.
             step.requirements.source = 'llm_estimate'
