@@ -10,6 +10,10 @@ def risk_score(obs):
                + .2 * math.exp(-time_to_collision / 2) + .15 * obs.sensor_uncertainty)
 
 def select(request, models):
+    subject = request.object_name or (request.requirements.object_name if request.requirements else None)
+    # Keep comparisons useful and bounded as the niche catalog grows.
+    models = [m for m in models if m.task_type==request.task_type and
+        (not m.specialist or subject in m.supported_objects)]
     risk = max(risk_score(request.observation), request.requirements.fragility if request.requirements else 0)
     budget = Decimal(request.remaining_budget_ausd)
     compatible = [m for m in models if m.task_type == request.task_type]

@@ -1,5 +1,6 @@
-export type View = "home" | "mission" | "marketplace" | "wallet" | "robot";
+export type View = "home" | "mission" | "marketplace" | "bounties" | "wallet" | "robot";
 export type Offer = {
+  category: string; tags: string[]; specialist: boolean;
   execution_mode: "simulation" | "testnet";
   description: string;
   id: string;
@@ -76,11 +77,14 @@ export type Step = {
   } | null;
 };
 export type Plan = {
+  bounty_ids: string[];
   simulation_scene: SimulationScene | null;
   planner: string; planner_model: string | null; assumptions: string[]; blockers: string[];
   simulation_cost_ausd: string;
   request: {
     execution_mode: "simulation" | "testnet";
+    auto_bounties: boolean;
+    bounty_reward_ausd: string;
     task: string;
     budget_ausd: string;
     inference_deadline_ms: number;
@@ -93,6 +97,17 @@ export type Plan = {
   explanation: string;
   spent_ausd: string;
   estimated_cost_ausd: string;
+};
+export type BountySubmission = {
+  id: string; producer_id: string; model_name: string; description: string;
+  price_ausd: string; evidence_url: string; status: string; operation: string; attribute: string; value: string;
+};
+export type Bounty = {
+  id: string; title: string; description: string; task_type: string; object_name: string | null;
+  execution_mode: "simulation" | "testnet"; reward_ausd: string; success_criteria: string;
+  status: string; plan_ids: string[]; submissions: BountySubmission[]; published_model_id: string | null;
+  funding_status: string; created_at: string;
+  award: {amount: string; currency: string; producer_id: string; status: string} | null;
 };
 export type Arm = {
   phase: string;

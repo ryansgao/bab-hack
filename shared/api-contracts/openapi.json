@@ -305,6 +305,234 @@
         }
       }
     },
+    "/api/marketplace/vendors": {
+      "get": {
+        "tags": [
+          "marketplace"
+        ],
+        "summary": "Vendors",
+        "description": "Provider profiles with live listing counts and price ranges.",
+        "operationId": "vendors_api_marketplace_vendors_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/marketplace/stats": {
+      "get": {
+        "tags": [
+          "marketplace"
+        ],
+        "summary": "Stats",
+        "description": "Market depth per capability: how many sellers compete and at what prices.",
+        "operationId": "stats_api_marketplace_stats_get",
+        "parameters": [
+          {
+            "name": "execution_mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "testnet",
+                    "simulation"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Execution Mode"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bounties": {
+      "get": {
+        "tags": [
+          "bounties"
+        ],
+        "summary": "Listing",
+        "operationId": "listing_api_bounties_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "bounties"
+        ],
+        "summary": "Create",
+        "operationId": "create_api_bounties_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BountyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bounties/{identity}/submissions": {
+      "post": {
+        "tags": [
+          "bounties"
+        ],
+        "summary": "Submit",
+        "operationId": "submit_api_bounties__identity__submissions_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmissionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bounties/{identity}/accept": {
+      "post": {
+        "tags": [
+          "bounties"
+        ],
+        "summary": "Accept",
+        "operationId": "accept_api_bounties__identity__accept_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Acceptance"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/agent/select": {
       "post": {
         "summary": "Selection",
@@ -590,12 +818,34 @@
       "get": {
         "summary": "Demo Scene",
         "operationId": "demo_scene_api_simulation_scene_get",
+        "parameters": [
+          {
+            "name": "task",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Task"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
               }
             }
           }
@@ -779,6 +1029,82 @@
   },
   "components": {
     "schemas": {
+      "Acceptance": {
+        "properties": {
+          "submission_id": {
+            "type": "string",
+            "title": "Submission Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "submission_id"
+        ],
+        "title": "Acceptance"
+      },
+      "BountyRequest": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 3,
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 3000,
+            "minLength": 3,
+            "title": "Description"
+          },
+          "task_type": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{1,63}$",
+            "title": "Task Type"
+          },
+          "object_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Object Name"
+          },
+          "execution_mode": {
+            "type": "string",
+            "enum": [
+              "simulation",
+              "testnet"
+            ],
+            "title": "Execution Mode",
+            "default": "simulation"
+          },
+          "reward_ausd": {
+            "type": "string",
+            "pattern": "^(0|[1-9]\\d{0,8})(\\.\\d{1,6})?$",
+            "title": "Reward Ausd",
+            "default": "0.05"
+          },
+          "success_criteria": {
+            "type": "string",
+            "maxLength": 1500,
+            "title": "Success Criteria",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "title",
+          "description",
+          "task_type"
+        ],
+        "title": "BountyRequest"
+      },
       "CandidateEvaluation": {
         "properties": {
           "model": {
@@ -909,6 +1235,13 @@
       },
       "MissionPlan": {
         "properties": {
+          "bounty_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Bounty Ids"
+          },
           "simulation_scene": {
             "additionalProperties": true,
             "type": "object",
@@ -1008,6 +1341,17 @@
       },
       "MissionRequest": {
         "properties": {
+          "auto_bounties": {
+            "type": "boolean",
+            "title": "Auto Bounties",
+            "default": true
+          },
+          "bounty_reward_ausd": {
+            "type": "string",
+            "pattern": "^(0|[1-9]\\d{0,8})(\\.\\d{1,6})?$",
+            "title": "Bounty Reward Ausd",
+            "default": "0.05"
+          },
           "execution_mode": {
             "type": "string",
             "enum": [
@@ -1089,6 +1433,37 @@
       },
       "ModelOffer": {
         "properties": {
+          "category": {
+            "type": "string",
+            "maxLength": 60,
+            "title": "Category",
+            "default": ""
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Tags"
+          },
+          "specialist": {
+            "type": "boolean",
+            "title": "Specialist",
+            "default": false
+          },
+          "simulation_program": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Simulation Program"
+          },
           "execution_mode": {
             "type": "string",
             "enum": [
@@ -1609,6 +1984,21 @@
             "type": "boolean",
             "title": "Include Incompatible",
             "default": true
+          },
+          "execution_mode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "testnet",
+                  "simulation"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Execution Mode"
           }
         },
         "additionalProperties": false,
@@ -1793,6 +2183,68 @@
           "status"
         ],
         "title": "StatusUpdate"
+      },
+      "SubmissionRequest": {
+        "properties": {
+          "producer_id": {
+            "type": "string",
+            "pattern": "^[a-z0-9_-]{1,64}$",
+            "title": "Producer Id"
+          },
+          "model_name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 3,
+            "title": "Model Name"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 3000,
+            "minLength": 10,
+            "title": "Description"
+          },
+          "evidence_url": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Evidence Url",
+            "default": ""
+          },
+          "price_ausd": {
+            "type": "string",
+            "pattern": "^(0|[1-9]\\d{0,8})(\\.\\d{1,6})?$",
+            "title": "Price Ausd",
+            "default": "0.001"
+          },
+          "operation": {
+            "type": "string",
+            "enum": [
+              "inspect_attribute",
+              "set_attribute"
+            ],
+            "title": "Operation",
+            "default": "set_attribute"
+          },
+          "attribute": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{1,63}$",
+            "title": "Attribute"
+          },
+          "value": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Value",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "producer_id",
+          "model_name",
+          "description",
+          "attribute"
+        ],
+        "title": "SubmissionRequest"
       },
       "Subtask": {
         "properties": {

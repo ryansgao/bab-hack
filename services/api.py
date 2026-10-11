@@ -13,6 +13,7 @@ from shared.schemas.contracts import (ModelOffer, SelectionRequest, SelectionDec
     MissionPlan, ExecuteRequest, SimulationControl)
 from services.marketplace import registry
 from services.marketplace.routes import router as marketplace_router
+from services.marketplace.bounties import router as bounty_router, auto_post
 from services.agent.selection import select
 from services.agent.planner import decompose, planner_status, PlannerError
 from services.agent.limits import admit
@@ -65,6 +66,7 @@ def register(model: ModelOffer, x_service_key: str = Header(default='')):
     return registry.register(model)
 
 app.include_router(marketplace_router)
+app.include_router(bounty_router)
 
 @app.post('/api/agent/select', response_model=SelectionDecision)
 def selection(request: SelectionRequest): return select(request, registry.list_models())
@@ -73,7 +75,7 @@ def selection(request: SelectionRequest): return select(request, registry.list_m
 def plan(request: MissionRequest):
     for point in request.waypoints:
         if (point.x,point.y) in world.blocked(): raise ValueError('A destination is occupied')
-    return save(quote(decompose(request)))
+    return save(auto_post(quote(decompose(request))))
 
 @app.post('/api/vendor/quote', response_model=MissionPlan, dependencies=[Depends(admit)])
 def vendor_quote(request: MissionRequest): return quote(decompose(request))
@@ -129,9 +131,10 @@ async def events(socket: WebSocket):
     except WebSocketDisconnect: pass
 
 @app.get('/api/simulation/scene')
-def demo_scene():
-    from apps.simulation.scene import default_scene, scene_image
-    scene=default_scene()
+def demo_scene(task: str = ''):
+    from apps.simulation.scene import scene_image
+    from apps.simulation.catalog import scene_for_task
+    scene=scene_for_task(task[:6000])
     return {**scene,'image_base64':scene_image(scene)}
 
 @app.get('/api/simulation')

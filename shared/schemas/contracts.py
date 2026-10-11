@@ -46,6 +46,10 @@ class Requirements(Contract):
     source: Literal['documented_task_prior', 'operator', 'llm_estimate'] = 'documented_task_prior'
 
 class ModelOffer(Contract):
+    category: str = Field(default='', max_length=60)
+    tags: list[str] = Field(default_factory=list, max_length=20)
+    specialist: bool = False
+    simulation_program: dict | None = None
     execution_mode: Literal['testnet', 'simulation'] = 'testnet'
     description: str = ''
     id: str = Field(pattern=r'^[a-z0-9_-]{1,64}$')
@@ -94,6 +98,8 @@ class SelectionDecision(Contract):
     safe_fallback: bool
 
 class MissionRequest(Contract):
+    auto_bounties: bool = True
+    bounty_reward_ausd: Money = '0.05'
     execution_mode: Literal['testnet', 'simulation'] = 'testnet'
     robot_card: RobotCard | None = None
     robot_id: Literal['robot_001'] = 'robot_001'
@@ -161,6 +167,7 @@ class Subtask(Contract):
     error: str | None = None
 
 class MissionPlan(Contract):
+    bounty_ids: list[str] = Field(default_factory=list)
     simulation_scene: dict = Field(default_factory=dict)
     simulation_cost_ausd: Money = '0'
     planner: str = 'legacy'

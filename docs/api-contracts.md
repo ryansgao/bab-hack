@@ -148,3 +148,29 @@ subtask graph, including named targets and `destination` zone keys. Playback
 does not call planning or execution endpoints; toggling it has no extra API-token
 or demo-credit cost. It is an interpretation walkthrough rather than a physics
 validator. Plan generation remains an Anthropic request regardless of this toggle.
+
+## Bounties and niche providers
+
+`ModelOffer` adds `category`, `tags`, `specialist` and optional `simulation_program`.
+Specialist providers enforce their advertised object. Planner discovery filters
+the large catalog to the mission scene; selection compares the relevant layer
+and object. Fixture profiles add narrowly scoped attribute inspection capabilities.
+
+`MissionRequest.auto_bounties` defaults true; `bounty_reward_ausd` is the reward
+pledge per missing capability. Planning persists capability gaps as bounties and
+returns their IDs in `MissionPlan.bounty_ids`. Input, price and deadline failures
+do not create capability bounties. Vendor quoting has no bounty-writing side effect.
+
+- `GET /api/bounties`: persisted requests, submissions and awards.
+- `POST /api/bounties`: create a consumer request with criteria and reward.
+- `POST /api/bounties/{id}/submissions`: producer solution, price, evidence link,
+  and a declarative fixture attribute operation for simulation delivery.
+- `POST /api/bounties/{id}/accept`: accept a submission and publish its listing.
+  Retries for the same submission return the original award; another acceptance
+  returns 409. The listing and award are committed atomically.
+
+Simulation acceptance records `recorded_demo_award` with no transaction hash.
+Real acceptance records `awaiting_funding` and a listing awaiting integration;
+it never claims a chain payment or installed model. Evidence URLs are stored
+as links, never fetched or executed. Fixture program output carries simulation
+provenance and requires direct object-detection evidence.

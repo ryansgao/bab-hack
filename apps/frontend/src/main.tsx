@@ -15,6 +15,7 @@ import {
   ExternalLink,
   Eye,
   Fingerprint,
+  Flag,
   Hand,
   ImagePlus,
   Layers3,
@@ -51,6 +52,7 @@ import "./style.css";
 const ArmScene = lazy(() => import("./components/ArmScene").then((module) => ({ default: module.ArmScene })));
 const SkillPreview = lazy(() => import("./components/SkillPreview").then((module) => ({ default: module.SkillPreview })));
 const TaskPreview3D = lazy(() => import("./components/TaskPreview3D"));
+const BountyBoard = lazy(() => import("./components/BountyBoard"));
 
 function TaskPreviewToggle({ data, plan, selected, onSelect }: {
   data: RoboMarket; plan?: Plan; selected?: number; onSelect?: (index: number) => void;
@@ -486,6 +488,7 @@ function Composer({
         )}
       </div>
       {data.executionMode === "simulation" && <TaskPreviewToggle data={data} />}
+      <div className="auto-bounty-settings glass-quiet"><label><input type="checkbox" checked={data.autoBounties} onChange={e=>data.setAutoBounties(e.target.checked)} /> Automatically post bounties for missing skills</label>{data.autoBounties && <label className="bounty-reward-setting">Reward per missing capability <input aria-label="Automatic bounty reward" type="number" min="0.000001" step="0.001" value={data.bountyReward} onChange={e=>data.setBountyReward(e.target.value)} /><span>{data.executionMode==='simulation'?'demo credits':'AUSD pledge'}</span></label>}<p>Creates a producer request when no compatible skill exists. Posting commits a reward pledge; it does not send a payment.</p></div>
       <div className="suggestions">
         <span>A place to start</span>
         {[
@@ -683,7 +686,7 @@ function StepDetail({ step }: { step: Step }) {
   );
 }
 
-function Mission({ data, onNew }: { data: RoboMarket; onNew: () => void }) {
+function Mission({ data, onNew, onBounties }: { data: RoboMarket; onNew: () => void; onBounties: () => void }) {
   const [selected, setSelected] = useState(0);
   const detailPanel = useRef<HTMLDivElement>(null);
   const { plan, busy } = data;
@@ -746,6 +749,7 @@ function Mission({ data, onNew }: { data: RoboMarket; onNew: () => void }) {
         </div>
       </div>
       {simulated && <TaskPreviewToggle data={data} plan={plan} selected={selected} onSelect={setSelected} />}
+      {!!plan.bounty_ids?.length && <div className="bounty-mission-notice glass-quiet"><Flag size={18}/><div><strong>{plan.bounty_ids.length} missing-skill {plan.bounty_ids.length===1?'bounty':'bounties'} posted automatically</strong><p>Producers can deliver the missing capabilities. Review submissions in the bounty board, then rebuild this plan with the published solution.</p><button className="secondary" onClick={onBounties}>View bounties</button><button className="secondary" disabled={busy || plan.status!=='blocked'} onClick={()=>void data.replan()}>Rebuild with new expertise</button></div></div>}
       {plan.status === "blocked" && (
         <div className="mission-alert" role="status">
           <CircleHelp size={19} />
@@ -875,16 +879,18 @@ function Mission({ data, onNew }: { data: RoboMarket; onNew: () => void }) {
   );
 }
 
-function Marketplace({ data }: { data: RoboMarket }) {
+function Marketplace({ data, onBounties }: { data: RoboMarket; onBounties: () => void }) {
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [category, setCategory] = useState('all');
+  const [page, setPage] = useState(0);
+  useEffect(()=>setPage(0),[filter,search,category]);
   const shown = data.models.filter(
     (model) =>
       (filter === "all" || model.task_type === filter) &&
-      `${model.name} ${model.provider_id} ${model.task_type}`
-        .toLowerCase()
-        .includes(search.toLowerCase()),
+      (category==='all'||model.category===category) &&
+      search.toLowerCase().trim().split(/\s+/).every(term=>`${model.name} ${model.description} ${model.provider_id} ${model.task_type} ${(model.tags||[]).join(' ')}`.toLowerCase().includes(term)),
   );
   return (
     <div className="page market-page enter">
@@ -928,8 +934,9 @@ function Marketplace({ data }: { data: RoboMarket }) {
           />
         </label>
       </div>
+      <div className="market-browse"><label>Collection <select aria-label="Skill collection" value={category} onChange={e=>setCategory(e.target.value)}><option value="all">All collections</option>{[...new Set(data.models.map(m=>m.category).filter(Boolean))].sort().map(value=><option key={value} value={value}>{humanize(value)}</option>)}</select></label><span>{shown.length} matching skills</span><button className="text-button" onClick={onBounties}><Flag size={13} /> Need a missing skill? Post a bounty</button></div>
       <div className="market-grid">
-        {shown.map((model) => (
+        {shown.slice(page*18,(page+1)*18).map((model) => (
           <article className="glass market-card" key={model.id}>
             <div className="market-card-top">
               <span className={"layer-icon layer-" + model.task_type}>
@@ -1010,6 +1017,7 @@ function Marketplace({ data }: { data: RoboMarket }) {
           </article>
         ))}
       </div>
+      {shown.length>18 && <div className="market-pagination"><button className="secondary" disabled={page===0} onClick={()=>setPage(page-1)}>Previous</button><span>Page {page+1} of {Math.ceil(shown.length/18)}</span><button className="secondary" disabled={(page+1)*18>=shown.length} onClick={()=>setPage(page+1)}>Next</button></div>}
       {!shown.length && (
         <EmptyState
           icon={<Search size={26} />}
@@ -1143,6 +1151,7 @@ function App() {
   const nav = [
     { key: "mission" as View, title: "Missions", icon: Sparkles },
     { key: "marketplace" as View, title: "Marketplace", icon: Layers3 },
+    { key: "bounties" as View, title: "Bounties", icon: Flag },
     { key: "robot" as View, title: "Robot station", icon: Bot },
     { key: "wallet" as View, title: "Wallet & receipts", icon: Wallet },
   ];
@@ -1279,6 +1288,7 @@ function App() {
                     ? "Missions"
                     : view === "marketplace"
                       ? "Marketplace"
+                      : view === "bounties" ? "Bounties"
                       : view === "wallet"
                         ? "Wallet & receipts"
                         : "Robot station"}
@@ -1397,9 +1407,10 @@ function App() {
             </div>
           )}
           {view === "mission" && (
-            <Mission data={data} onNew={() => void newMission()} />
+            <Mission data={data} onNew={() => void newMission()} onBounties={()=>navigate('bounties')} />
           )}
-          {view === "marketplace" && <Marketplace data={data} />}
+          {view === "marketplace" && <Marketplace data={data} onBounties={()=>navigate('bounties')} />}
+          {view === "bounties" && <Suspense fallback={<p className="preview-loading">Loading bounty board…</p>}><BountyBoard data={data} /></Suspense>}
           {view === "wallet" && <WalletPage data={data} />}
           {view === "robot" && (
             <div className="page enter">

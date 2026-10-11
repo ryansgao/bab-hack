@@ -126,3 +126,24 @@ fixture-backed subtasks for 0.016 demo credits, with actual AUSD spending at zer
 credits, placing packages A and B in their shipping zones. The optional preview's
 default-off toggle, target selection, playback and placements were checked in
 the dashboard; no new automated tests added.
+
+## Niche expertise and capability bounties
+
+The catalog now includes 1,086 scoped simulation listings across 68 object
+profiles: phones, oranges, cables, tools, kitchen items, parcels and more.
+They perform detection, handling, placement and narrow checks such as screen
+cracks, connector damage, fruit ripeness, seals, labels and tip wear using explicit
+fixture state. These are runnable demo adapters, not newly trained ML models.
+Search by object/action or collection; the dashboard paginates the catalog.
+The planner receives relevant object listings and bounded provider comparisons.
+
+Automatic bounties default on and have a configurable reward per missing skill.
+Only genuine catalog gaps post a bounty; budget/deadline failures do not. Requests
+persist in SQLite with mission links and acceptance criteria. The Bounties page
+also accepts manual requests and producer submissions. Accepting a demo solution
+publishes its scoped fixture adapter and records an idempotent demo reward. A
+producer can read an existing object attribute or change an attribute; these
+declarative programs never execute uploaded code. Rebuild the blocked mission
+to use the new listing. Demo awards do not transfer AUSD. Real submissions remain
+unavailable pending adapter integration, and their reward remains an unfunded
+pledge until an actual settlement flow is configured.

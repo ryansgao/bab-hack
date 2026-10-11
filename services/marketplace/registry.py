@@ -22,6 +22,8 @@ def backend(model_id):
     """Adapter that runs when this listing is purchased."""
     return BACKENDS.get(model_id, model_id)
 
+from apps.simulation.catalog import niche_offers
+SEEDS.extend(niche_offers())
 
 def benchmarks():
     return json.loads(BENCHMARKS.read_text()) if BENCHMARKS.exists() else {'results': {}}

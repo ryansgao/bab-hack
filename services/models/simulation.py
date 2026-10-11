@@ -7,6 +7,7 @@ import time
 from copy import deepcopy
 from PIL import ImageStat
 from apps.simulation.scene import find_objects, render_scene
+from apps.simulation.catalog import NICHES, TRAIT_CAPS
 from shared.schemas.contracts import InferenceResult, Prediction
 
 CAPABILITIES = {
@@ -33,25 +34,34 @@ CAPABILITIES = {
  'completion_verification':('Outcome Verification','Verify prerequisite evidence; for placement verify final bounds against planned bounds.'),
 }
 SIM_IDS = {f'sim_{cap}':cap for cap in CAPABILITIES}
+SIM_IDS.update({key: cap for key,(cap,_) in NICHES.items()})
 
 def offers():
     return [dict(id=model_id,name=CAPABILITIES[cap][0],description=CAPABILITIES[cap][1],
         provider_id='simlab',task_type=cap,price_ausd='0.001',latency_ms=25,kind='algorithm',
         execution_mode='simulation',embodiments=['6dof_arm'],pose_error_mm=.1,min_force_n=.01)
-        for model_id,cap in SIM_IDS.items()]
+        for cap in CAPABILITIES for model_id in [f'sim_{cap}']]
 
 def infer_simulated(request):
     started=time.perf_counter()
     data=request.input
     if data.execution_mode!='simulation' or data.simulation_scene.get('source')!='simulation_fixture':
         raise ValueError('Simulation providers require explicit simulation mode and a fixture scene')
-    cap=SIM_IDS[request.model_id]
+    program = None
+    if request.model_id not in SIM_IDS:
+        from services.marketplace.registry import get_model
+        offer = get_model(request.model_id)
+        if not offer or offer.execution_mode!='simulation' or not offer.simulation_program: raise ValueError('Unknown simulation adapter')
+        program = offer.simulation_program; cap = offer.task_type
+    else: cap=SIM_IDS[request.model_id]
     scene=deepcopy(data.simulation_scene)
     matches=find_objects(scene,data.object_name)
     generic={'camera_capture','image_quality','scene_mapping','completion_verification'}
     if cap not in generic and len(matches)!=1:
         raise ValueError('This shard needs one named fixture object. Choose coffee mug, wrench, screwdriver, package a or package b.')
     obj=matches[0] if len(matches)==1 else None
+    if request.model_id in NICHES and (not obj or obj['name']!=NICHES[request.model_id][1]['name']):
+        raise ValueError('This specialist only serves its advertised object')
     outputs=[r.get('output',{}) for r in data.dependency_outputs.values()]
     def require(*caps):
         found={o.get('capability') for o in outputs if not obj or o.get('object_id')==obj['id'] or not o.get('object_id')}
@@ -61,7 +71,22 @@ def infer_simulated(request):
          'object_name':obj['name'] if obj else None,'evidence_steps':list(data.dependency_outputs)}
     if obj:
         x1,y1,x2,y2=obj['bbox']; center=[(x1+x2)/2,(y1+y2)/2]
-    if cap=='camera_capture': out.update(frame_id=scene['id'],resolution=[scene['width'],scene['height']],camera_available=True)
+    if program:
+        if not obj: raise ValueError('A producer fixture program needs one named object')
+        require('object_detection')
+        operation=program['operation']; attribute=program['attribute']
+        if operation=='inspect_attribute':
+            if attribute not in obj.get('traits',{}): raise ValueError('Fixture attribute unavailable: '+attribute)
+            out.update(attribute=attribute,value=obj['traits'][attribute])
+        elif operation=='set_attribute':
+            out.update(attribute=attribute,value=program['value'],trait_updates={obj['id']:{attribute:program['value']}})
+        else: raise ValueError('Unsupported producer fixture operation')
+        out['producer_program']=True
+    elif cap in TRAIT_CAPS:
+        require('object_detection'); attribute=TRAIT_CAPS[cap][0]
+        if attribute not in obj.get('traits',{}): raise ValueError('No fixture attribute for this check')
+        out.update(attribute=attribute,value=obj['traits'][attribute])
+    elif cap=='camera_capture': out.update(frame_id=scene['id'],resolution=[scene['width'],scene['height']],camera_available=True)
     elif cap=='image_quality':
         require('camera_capture'); stats=ImageStat.Stat(render_scene(scene).convert('L'))
         out.update(mean_brightness=round(stats.mean[0],2),contrast_std=round(stats.stddev[0],2),usable=stats.stddev[0]>5)
@@ -116,6 +141,6 @@ def infer_simulated(request):
         out.update(verified=verified,checked_steps=list(data.dependency_outputs),scope='Simulation evidence only; no real-world completion claim')
         if not verified: raise ValueError('Simulated outcome verification failed')
     result.output=out
-    result.summary=CAPABILITIES[cap][0]+' completed using simulated scene state.'
+    result.summary=(CAPABILITIES[cap][0] if cap in CAPABILITIES else cap.replace('_',' ').capitalize())+' completed using simulated scene state.'
     result.inference_latency_ms=(time.perf_counter()-started)*1000
     return result

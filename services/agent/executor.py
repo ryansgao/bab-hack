@@ -107,6 +107,9 @@ def execute(plan_id, purchase=None):
                             for object_id,bbox in completed_step.result.output.get('scene_updates',{}).items():
                                 for obj in scene.get('objects',[]):
                                     if obj['id']==object_id: obj['bbox']=bbox
+                            for object_id,traits in completed_step.result.output.get('trait_updates',{}).items():
+                                for obj in scene.get('objects',[]):
+                                    if obj['id']==object_id: obj.setdefault('traits',{}).update(traits)
                 from apps.simulation.scene import scene_image
                 body = InferenceRequest(request_id=f'{plan.id}_{step.id}', model_id=step.decision.selected_model_id,
                     input=InferenceInput(execution_mode=plan.request.execution_mode,simulation_scene=scene,destination=step.destination,observation=request.observation, target=step.target,

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   Arm,
+  Bounty,
   Offer,
   Plan,
   PlannerConfig,
@@ -55,6 +56,9 @@ const initialArm: Arm = {
 
 export function useRoboMarket() {
   const [executionMode, setExecutionMode] = useState<"simulation" | "testnet">("simulation");
+  const [autoBounties, setAutoBounties] = useState(true);
+  const [bountyReward, setBountyReward] = useState("0.05");
+  const [bounties, setBounties] = useState<Bounty[]>([]);
   const [previewEnabled, setPreviewEnabled] = useState(false);
   const [scene, setScene] = useState<SimulationScene | null>(null);
   useEffect(()=>{void api<SimulationScene>("/simulation/scene").then(setScene).catch(()=>{});},[]);
@@ -100,6 +104,8 @@ export function useRoboMarket() {
     });
   }, []);
   const restoreFields = useCallback((next: Plan) => {
+    setAutoBounties(next.request.auto_bounties ?? true);
+    setBountyReward(next.request.bounty_reward_ausd || '0.05');
     setExecutionMode(next.request.execution_mode || "testnet");
     setTask(next.request.task);
     setBudget(next.request.budget_ausd);
@@ -114,6 +120,7 @@ export function useRoboMarket() {
   }, []);
   const refresh = useCallback(async () => {
     await Promise.allSettled([
+      api<Bounty[]>("/bounties").then(setBounties),
       api<PlannerConfig>("/agent/config").then(setPlanner).catch(() => setPlanner(null)),
       api<Offer[]>("/marketplace/models")
         .then((result) => {
@@ -213,6 +220,7 @@ export function useRoboMarket() {
       }
       if (["queued", "preparing", "running", "waiting_for_motion"].includes(activePlan.current?.status || "")) throw new Error("Finish or cancel the active mission first.");
       const next = await api<Plan>("/agent/plan", {
+        auto_bounties: autoBounties, bounty_reward_ausd: bountyReward,
         execution_mode: executionMode,
         task: task.trim(),
         budget_ausd: budget,
@@ -229,6 +237,7 @@ export function useRoboMarket() {
         ...(image && executionMode === "testnet" ? { image_base64: image } : {}),
       });
       remember(next);
+      void refresh();
       return next;
     });
   const rebuildInSimulation = () => change(async () => {
@@ -236,6 +245,20 @@ export function useRoboMarket() {
     const {image_base64: _image, ...request} = plan.request;
     const next = await api<Plan>("/agent/plan", {...request, execution_mode:"simulation"});
     setExecutionMode("simulation"); remember(next); return next;
+  });
+  const replan = () => change(async () => {
+    if (!plan) return;
+    const next = await api<Plan>("/agent/plan", plan.request);
+    remember(next); await refresh(); return next;
+  });
+  const postBounty = (request: Record<string, unknown>) => change(async () => {
+    const next = await api<Bounty>("/bounties", request); await refresh(); return next;
+  });
+  const submitBounty = (id: string, request: Record<string, unknown>) => change(async () => {
+    const next = await api<Bounty>(`/bounties/${id}/submissions`, request); await refresh(); return next;
+  });
+  const acceptBounty = (id: string, submissionId: string) => change(async () => {
+    const next = await api<Bounty>(`/bounties/${id}/accept`, {submission_id: submissionId}); await refresh(); return next;
   });
   const execute = () =>
     change(async () => {
@@ -305,6 +328,7 @@ export function useRoboMarket() {
   }
   return {
     executionMode, setExecutionMode, previewEnabled, setPreviewEnabled, scene, rebuildInSimulation,
+    autoBounties, setAutoBounties, bountyReward, setBountyReward, bounties, postBounty, submitBounty, acceptBounty, replan,
     models,
     planner,
     plan,

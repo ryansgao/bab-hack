@@ -137,13 +137,16 @@ def validate_graph(draft, request):
 def decompose(request):
     settings = planner_status()
     if not settings['configured']: raise PlannerError(settings['message'], 503)
-    from apps.simulation.scene import default_scene
-    scene = default_scene() if request.execution_mode=='simulation' else {}
+    from apps.simulation.catalog import scene_for_task
+    scene = scene_for_task(request.task) if request.execution_mode=='simulation' else {}
+    subjects = {o['name'] for o in scene.get('objects',[])}
+    offers = [m for m in list_models() if m.execution_mode==request.execution_mode and
+        (not m.specialist or bool(subjects.intersection(m.supported_objects)))]
     context = {'execution_mode':request.execution_mode, 'simulation_scene':scene, 'goal': request.task, 'robot_card': request.robot_card.model_dump() if request.robot_card else None,
                'waypoints': [p.model_dump() for p in request.waypoints], 'budget_ausd': request.budget_ausd,
                'inference_deadline_ms': request.inference_deadline_ms,
                'camera_image_supplied': bool(request.image_base64) or bool(scene),
-               'marketplace': capability_summary(request.execution_mode)}
+               'marketplace': capability_summary(request.execution_mode, offers)}
     try:
         with httpx.Client(timeout=httpx.Timeout(90, connect=10)) as client:
             response = client.post('https://api.anthropic.com/v1/messages',

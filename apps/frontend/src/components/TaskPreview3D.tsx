@@ -127,11 +127,20 @@ export default function TaskPreview3D({ scene: fixture, plan, selected = 0, onSe
         handle.rotation.z = Math.PI / 2; handle.position.set(-width * .22, .105, 0);
         box(width * .58, .035, .035, metal, width * .25, .105, 0, group);
         for (let x = -.42; x <= -.12; x += .1) box(.02, .018, .12, dark, x, .2, 0, group);
+      } else if (item.category === 'produce') {
+        const fruit = mesh(new THREE.SphereGeometry(Math.min(width,depth)*.48,24,18),objectMaterial,group);
+        fruit.scale.y = Math.max(.65,height / Math.min(width,depth)); fruit.position.y = height*.48;
+        box(.025,.07,.025,dark,0,height,0,group);
+      } else if (item.category === 'electronics') {
+        box(width*.8,.09,depth,objectMaterial,0,.07,0,group);
+        box(width*.7,.012,depth*.8,dark,0,.121,0,group);
       } else {
         box(width, height, depth, objectMaterial, 0, height / 2, 0, group);
         box(.14, .009, depth + .01, ivory, 0, height + .005, 0, group);
-        const text = label(item.id.endsWith("a") ? "A" : "B", "#5c5b49", group);
-        text.scale.set(.4, .12, 1); text.position.set(-.22, height + .08, .1);
+        if (item.category === 'package') {
+          const text = label(item.id.endsWith("a") ? "A" : "B", "#5c5b49", group);
+          text.scale.set(.4, .12, 1); text.position.set(-.22, height + .08, .1);
+        }
         if (item.defects.length) box(.14, .08, .14, material(0x9d8061), -width / 2 + .06, height - .04, depth / 2 - .06, group);
       }
       const ring = mesh(new THREE.TorusGeometry(Math.max(width, depth) * .57, .016, 8, 60), new THREE.MeshBasicMaterial({ color: 0x528c63 }), group);

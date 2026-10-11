@@ -13,6 +13,7 @@ def db():
     conn.execute('PRAGMA journal_mode=WAL')
     conn.executescript('''
       CREATE TABLE IF NOT EXISTS models (id TEXT PRIMARY KEY, body TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS bounties (id TEXT PRIMARY KEY, body TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS plans (id TEXT PRIMARY KEY, body TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS telemetry (id INTEGER PRIMARY KEY, created_at TEXT DEFAULT CURRENT_TIMESTAMP, body TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS planner_calls (ts REAL NOT NULL, visitor TEXT NOT NULL);
