@@ -433,6 +433,7 @@ function Composer({
             >
               <Settings2 size={15} />
               <span>Parameters</span>
+              <ChevronDown size={13} className="settings-chevron" />
             </button>
           </div>
           <span className="budget-hint">
@@ -457,54 +458,56 @@ function Composer({
             )}
           </button>
         </div>
-        {settingsOpen && (
-          <div id="mission-settings" className="mission-settings">
-            <label>
-              Skill spending limit <span>USD · maximum for marketplace calls</span>
-              <input
-                aria-label="Skill spending limit in USD"
-                type="number"
-                min="0.001"
-                step="0.01"
-                max="99999999"
-                value={data.budget}
-                onChange={(event) => data.setBudget(event.target.value)}
-              />
-            </label>
-            <label>
-              Inference deadline
-              <select
-                aria-label="Inference deadline"
-                value={data.deadline}
-                onChange={(event) =>
-                  data.setDeadline(Number(event.target.value))
-                }
-              >
-                {[100, 800, 3000, 10000, 30000].map((value) => (
-                  <option key={value} value={value}>
-                    {value >= 1000 ? `${value / 1000} seconds` : `${value} ms`}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Gripper
-              <select
-                aria-label="Gripper"
-                value={data.gripper}
-                onChange={(event) => data.setGripper(event.target.value)}
-              >
-                <option value="parallel_jaw">Parallel jaw</option>
-                <option value="suction">Suction</option>
-                <option value="none">None</option>
-              </select>
-            </label>
-            <p>
-              Parameters apply to this plan. Settlement time is separate from
-              inference time.
-            </p>
+        <div
+          id="mission-settings"
+          className={"mission-settings-wrap " + (settingsOpen ? "open" : "")}
+          inert={!settingsOpen}
+        >
+          <div className="mission-settings-clip">
+            <div className="mission-settings">
+              <label>
+                Spending limit (USD)
+                <input
+                  aria-label="Skill spending limit in USD"
+                  type="number"
+                  min="0.001"
+                  step="0.01"
+                  max="99999999"
+                  value={data.budget}
+                  onChange={(event) => data.setBudget(event.target.value)}
+                />
+              </label>
+              <label>
+                Inference deadline
+                <select
+                  aria-label="Inference deadline"
+                  value={data.deadline}
+                  onChange={(event) =>
+                    data.setDeadline(Number(event.target.value))
+                  }
+                >
+                  {[100, 800, 3000, 10000, 30000].map((value) => (
+                    <option key={value} value={value}>
+                      {value >= 1000 ? `${value / 1000} seconds` : `${value} ms`}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Gripper
+                <select
+                  aria-label="Gripper"
+                  value={data.gripper}
+                  onChange={(event) => data.setGripper(event.target.value)}
+                >
+                  <option value="parallel_jaw">Parallel jaw</option>
+                  <option value="suction">Suction</option>
+                  <option value="none">None</option>
+                </select>
+              </label>
+            </div>
           </div>
-        )}
+        </div>
       </div>
       {footer}
     </div>

@@ -557,13 +557,25 @@ nav > button.active {
   align-items: center;
   gap: 6px;
   color: var(--muted);
-  font-size: 11px;
-  padding: 6px 8px;
-  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1;
+  padding: 7px 9px;
+  border-radius: 9px;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
 .settings-trigger:hover,
 .settings-trigger.active {
-  background: #1c1d1806;
+  background: #1c1d1808;
+  color: var(--ink);
+}
+.settings-chevron {
+  color: var(--faint);
+  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.settings-trigger.active .settings-chevron {
+  transform: rotate(180deg);
 }
 .budget-hint {
   font-size: 10px;
@@ -588,38 +600,77 @@ nav > button.active {
   background: #a9afa1;
   opacity: 0.6;
 }
+.mission-settings-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows 0.32s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.22s ease;
+}
+.mission-settings-wrap.open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+.mission-settings-clip {
+  min-height: 0;
+  overflow: hidden;
+}
 .mission-settings {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  padding: 17px 20px;
-  gap: 14px;
+  gap: 12px;
+  padding: 16px 18px 18px;
   border-top: 1px solid var(--line);
-  background: #ffffff40;
 }
 .mission-settings label {
-  font-size: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 500;
   color: var(--muted);
-}
-.mission-settings label > span {
-  float: right;
-  font-size: 9px;
-  color: var(--faint);
 }
 .mission-settings input,
 .mission-settings select {
+  appearance: none;
   width: 100%;
+  height: 36px;
+  padding: 0 12px;
   border: 1px solid #1c1d1812;
-  border-radius: 8px;
-  background: #ffffff75;
-  padding: 9px 7px;
-  margin-top: 7px;
-  font-size: 11px;
+  border-radius: 10px;
+  background-color: #ffffff80;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 400;
+  transition:
+    border-color 0.15s,
+    background-color 0.15s;
 }
-.mission-settings > p {
-  grid-column: 1 / -1;
-  font-size: 9px;
-  line-height: 1.6;
-  color: var(--faint);
+.mission-settings select {
+  padding-right: 32px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237c7e73' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 11px center;
+  background-size: 13px;
+}
+.mission-settings input:hover,
+.mission-settings select:hover {
+  border-color: #1c1d1824;
+}
+.mission-settings input:focus,
+.mission-settings select:focus {
+  outline: none;
+  border-color: #1c1d1838;
+  background-color: #fff;
+}
+.mission-settings input::-webkit-outer-spin-button,
+.mission-settings input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.mission-settings input[type="number"] {
+  -moz-appearance: textfield;
 }
 .attachment {
   display: flex;
