@@ -195,6 +195,96 @@
         }
       }
     },
+    "/api/vendor/quote": {
+      "post": {
+        "summary": "Vendor Quote",
+        "operationId": "vendor_quote_api_vendor_quote_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MissionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MissionPlan"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/arm": {
+      "get": {
+        "summary": "Arm State",
+        "operationId": "arm_state_api_arm_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/arm/control": {
+      "post": {
+        "summary": "Arm Control",
+        "operationId": "arm_control_api_arm_control_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimulationControl"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/agent/plans/{plan_id}": {
       "get": {
         "summary": "Read Plan",
@@ -461,6 +551,11 @@
       },
       "InferenceResult": {
         "properties": {
+          "output": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Output"
+          },
           "model_id": {
             "type": "string",
             "title": "Model Id"
@@ -552,6 +647,12 @@
             "title": "Spent Ausd",
             "default": "0"
           },
+          "estimated_cost_ausd": {
+            "type": "string",
+            "pattern": "^(0|[1-9]\\d{0,8})(\\.\\d{1,6})?$",
+            "title": "Estimated Cost Ausd",
+            "default": "0"
+          },
           "explanation": {
             "type": "string",
             "title": "Explanation"
@@ -569,6 +670,16 @@
       },
       "MissionRequest": {
         "properties": {
+          "robot_card": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RobotCard"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "robot_id": {
             "type": "string",
             "const": "robot_001",
@@ -652,7 +763,9 @@
             "enum": [
               "object_detection",
               "path_planning",
-              "scene_inspection"
+              "scene_inspection",
+              "grasp",
+              "control"
             ],
             "title": "Task Type"
           },
@@ -717,6 +830,67 @@
             ],
             "title": "Status",
             "default": "available"
+          },
+          "embodiments": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Embodiments"
+          },
+          "grippers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Grippers"
+          },
+          "required_sensors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Required Sensors"
+          },
+          "object_size_range_mm": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "maxItems": 2,
+            "minItems": 2,
+            "title": "Object Size Range Mm"
+          },
+          "pose_error_mm": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pose Error Mm"
+          },
+          "min_force_n": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Force N"
+          },
+          "supported_objects": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Supported Objects"
           },
           "kind": {
             "type": "string",
@@ -840,6 +1014,135 @@
         ],
         "title": "Prediction"
       },
+      "Requirements": {
+        "properties": {
+          "object_name": {
+            "type": "string",
+            "title": "Object Name"
+          },
+          "object_size_mm": {
+            "type": "number",
+            "maximum": 1000.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Object Size Mm"
+          },
+          "mass_kg": {
+            "type": "number",
+            "maximum": 100.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Mass Kg"
+          },
+          "fragility": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Fragility"
+          },
+          "max_pose_error_mm": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Max Pose Error Mm"
+          },
+          "max_force_n": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Max Force N"
+          },
+          "layers": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "object_detection",
+                "path_planning",
+                "scene_inspection",
+                "grasp",
+                "control"
+              ]
+            },
+            "type": "array",
+            "title": "Layers"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "documented_task_prior",
+              "operator"
+            ],
+            "title": "Source",
+            "default": "documented_task_prior"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "object_name",
+          "object_size_mm",
+          "mass_kg",
+          "fragility",
+          "max_pose_error_mm",
+          "max_force_n",
+          "layers"
+        ],
+        "title": "Requirements"
+      },
+      "RobotCard": {
+        "properties": {
+          "robot_id": {
+            "type": "string",
+            "const": "robot_001",
+            "title": "Robot Id",
+            "default": "robot_001"
+          },
+          "embodiment": {
+            "type": "string",
+            "enum": [
+              "6dof_arm",
+              "mobile_base"
+            ],
+            "title": "Embodiment",
+            "default": "6dof_arm"
+          },
+          "dof": {
+            "type": "integer",
+            "maximum": 30.0,
+            "minimum": 1.0,
+            "title": "Dof",
+            "default": 6
+          },
+          "gripper": {
+            "type": "string",
+            "enum": [
+              "parallel_jaw",
+              "suction",
+              "none"
+            ],
+            "title": "Gripper",
+            "default": "parallel_jaw"
+          },
+          "max_payload_kg": {
+            "type": "number",
+            "maximum": 100.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Max Payload Kg",
+            "default": 1.5
+          },
+          "sensors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sensors"
+          },
+          "onboard_compute": {
+            "type": "string",
+            "title": "Onboard Compute",
+            "default": "jetson_orin"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "RobotCard"
+      },
       "SelectionDecision": {
         "properties": {
           "selected_model_id": {
@@ -892,6 +1195,26 @@
       },
       "SelectionRequest": {
         "properties": {
+          "robot_card": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RobotCard"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "requirements": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Requirements"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "observation": {
             "$ref": "#/components/schemas/Observation"
           },
@@ -900,7 +1223,9 @@
             "enum": [
               "object_detection",
               "path_planning",
-              "scene_inspection"
+              "scene_inspection",
+              "grasp",
+              "control"
             ],
             "title": "Task Type",
             "default": "object_detection"
@@ -967,6 +1292,16 @@
       },
       "Subtask": {
         "properties": {
+          "requirements": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Requirements"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "id": {
             "type": "string",
             "title": "Id"
@@ -980,7 +1315,9 @@
             "enum": [
               "object_detection",
               "path_planning",
-              "scene_inspection"
+              "scene_inspection",
+              "grasp",
+              "control"
             ],
             "title": "Task Type"
           },

@@ -4,7 +4,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 Money = Annotated[str, Field(pattern=r"^(0|[1-9]\d{0,8})(\.\d{1,6})?$")]
-TaskType = Literal['object_detection', 'path_planning', 'scene_inspection']
+TaskType = Literal['object_detection', 'path_planning', 'scene_inspection', 'grasp', 'control']
 
 class Contract(BaseModel):
     model_config = ConfigDict(extra='forbid', allow_inf_nan=False)
@@ -26,6 +26,25 @@ class Observation(Contract):
     sensor_uncertainty: float = Field(default=0.3, ge=0, le=1)
     revision: int = Field(default=0, ge=0)
 
+class RobotCard(Contract):
+    robot_id: Literal['robot_001'] = 'robot_001'
+    embodiment: Literal['6dof_arm', 'mobile_base'] = '6dof_arm'
+    dof: int = Field(default=6, ge=1, le=30)
+    gripper: Literal['parallel_jaw', 'suction', 'none'] = 'parallel_jaw'
+    max_payload_kg: float = Field(default=1.5, gt=0, le=100)
+    sensors: list[str] = Field(default_factory=lambda: ['rgb', 'depth', 'wrist_force'])
+    onboard_compute: str = 'jetson_orin'
+
+class Requirements(Contract):
+    object_name: str
+    object_size_mm: float = Field(gt=0, le=1000)
+    mass_kg: float = Field(gt=0, le=100)
+    fragility: float = Field(ge=0, le=1)
+    max_pose_error_mm: float = Field(gt=0)
+    max_force_n: float = Field(gt=0)
+    layers: list[TaskType]
+    source: Literal['documented_task_prior', 'operator'] = 'documented_task_prior'
+
 class ModelOffer(Contract):
     id: str = Field(pattern=r'^[a-z0-9_-]{1,64}$')
     name: str = Field(min_length=1, max_length=100)
@@ -38,9 +57,18 @@ class ModelOffer(Contract):
     quality_source: Literal['unknown', 'configured_estimate', 'measured_benchmark'] = 'unknown'
     benchmark_reference: str | None = None
     status: Literal['available', 'unavailable'] = 'available'
+    embodiments: list[str] = Field(default_factory=lambda: ['6dof_arm', 'mobile_base'])
+    grippers: list[str] = Field(default_factory=lambda: ['parallel_jaw', 'suction', 'none'])
+    required_sensors: list[str] = Field(default_factory=list)
+    object_size_range_mm: list[float] = Field(default_factory=lambda: [1, 1000], min_length=2, max_length=2)
+    pose_error_mm: float | None = Field(default=None, gt=0)
+    min_force_n: float | None = Field(default=None, gt=0)
+    supported_objects: list[str] = Field(default_factory=list)
     kind: Literal['pretrained_model', 'algorithm'] = 'pretrained_model'
 
 class SelectionRequest(Contract):
+    robot_card: RobotCard | None = None
+    requirements: Requirements | None = None
     observation: Observation
     task_type: TaskType = 'object_detection'
     remaining_budget_ausd: Money
@@ -62,6 +90,7 @@ class SelectionDecision(Contract):
     safe_fallback: bool
 
 class MissionRequest(Contract):
+    robot_card: RobotCard | None = None
     robot_id: Literal['robot_001'] = 'robot_001'
     task: str = Field(min_length=3, max_length=500)
     waypoints: list[Point] = Field(default_factory=list, max_length=20)
@@ -76,6 +105,9 @@ class Prediction(Contract):
     bbox: list[float] = Field(min_length=4, max_length=4)
 
 class InferenceInput(Contract):
+    robot_card: RobotCard | None = None
+    requirements: Requirements | None = None
+    prior: dict = Field(default_factory=dict)
     image_base64: str | None = Field(default=None, max_length=8_000_000)
     observation: Observation
     target: Point
@@ -91,6 +123,7 @@ class InferenceRequest(Contract):
     input: InferenceInput
 
 class InferenceResult(Contract):
+    output: dict = Field(default_factory=dict)
     model_id: str
     predictions: list[Prediction] = Field(default_factory=list)
     path: list[Point] = Field(default_factory=list)
@@ -100,6 +133,7 @@ class InferenceResult(Contract):
     observation_revision: int
 
 class Subtask(Contract):
+    requirements: Requirements | None = None
     id: str
     title: str
     task_type: TaskType
@@ -117,6 +151,7 @@ class MissionPlan(Contract):
     subtasks: list[Subtask]
     status: Literal['planned', 'running', 'waiting_for_motion', 'blocked', 'completed'] = 'planned'
     spent_ausd: Money = '0'
+    estimated_cost_ausd: Money = '0'
     explanation: str
 
 class ExecuteRequest(Contract):

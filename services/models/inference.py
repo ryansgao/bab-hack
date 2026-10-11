@@ -28,7 +28,15 @@ def infer(request):
     model_id, data = request.model_id, request.input
     result = InferenceResult(model_id=model_id, inference_latency_ms=0,
         observation_revision=data.observation.revision, source='algorithm')
-    if model_id in ('ssdlite', 'fasterrcnn'):
+    if model_id in ('power_grasp','precision_grasp','standard_control','soft_control'):
+        from services.models.arm_shards import run_shard
+        result.output = run_shard(model_id, data)
+        result.summary = result.output['basis']
+    elif model_id == 'owlvit':
+        result.predictions = owlvit(data)
+        result.source = 'pretrained_model'
+        result.summary = 'Open-vocabulary detections; confidence is not measured accuracy'
+    elif model_id in ('ssdlite', 'fasterrcnn'):
         if not data.image_base64: raise ValueError('Object detection requires image_base64')
         raw = base64.b64decode(data.image_base64, validate=True)
         with Image.open(io.BytesIO(raw)) as image:
@@ -57,3 +65,21 @@ def infer(request):
     else: raise ValueError('No local adapter registered for model')
     result.inference_latency_ms = (time.perf_counter() - started) * 1000
     return result
+
+
+def owlvit(data):
+    if not data.image_base64 or not data.requirements: raise ValueError('OWL-ViT needs an image and object requirements')
+    from transformers import OwlViTProcessor, OwlViTForObjectDetection
+    import torch
+    image=Image.open(io.BytesIO(base64.b64decode(data.image_base64,validate=True))).convert('RGB')
+    if image.width*image.height>16_000_000: raise ValueError('Image exceeds 16 megapixels')
+    image.thumbnail((1280,1280))
+    with _lock:
+        if 'owlvit' not in _models:
+            name='google/owlvit-base-patch32'
+            _models['owlvit']=(OwlViTForObjectDetection.from_pretrained(name).eval(),OwlViTProcessor.from_pretrained(name))
+        model,processor=_models['owlvit']
+        inputs=processor(text=[[f'a photo of a {data.requirements.object_name}']],images=image,return_tensors='pt')
+        with torch.inference_mode(): outputs=model(**inputs)
+        result=processor.post_process_object_detection(outputs=outputs,target_sizes=torch.tensor([[image.height,image.width]]),threshold=.1)[0]
+        return [Prediction(label=data.requirements.object_name,confidence=float(score),bbox=box.tolist()) for score,box in zip(result['scores'],result['boxes'])]

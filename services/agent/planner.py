@@ -3,6 +3,9 @@ from uuid import uuid4
 from shared.schemas.contracts import MissionPlan, Point, Subtask
 
 def decompose(request):
+    if request.robot_card and request.robot_card.embodiment == '6dof_arm':
+        from services.agent.scout import arm_plan
+        return arm_plan(request)
     text = request.task.lower()
     inspect = bool(re.search(r'\b(inspect|scan|survey|check)\b', text))
     navigate = bool(re.search(r'\b(navigate|go|move|deliver|visit|patrol|transport)\b', text))

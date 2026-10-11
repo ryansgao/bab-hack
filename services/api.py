@@ -12,6 +12,8 @@ from shared.schemas.contracts import (ModelOffer, SelectionRequest, SelectionDec
 from services.marketplace import registry
 from services.agent.selection import select
 from services.agent.planner import decompose
+from services.agent.quote import quote
+from apps.simulation.arm import arm
 from services.agent.executor import execute, save, get
 from services.storage import db
 from apps.simulation.world import world
@@ -50,7 +52,21 @@ def selection(request: SelectionRequest): return select(request, registry.list_m
 def plan(request: MissionRequest):
     for point in request.waypoints:
         if (point.x,point.y) in world.blocked(): raise ValueError('A destination is occupied')
-    return save(decompose(request))
+    return save(quote(decompose(request)))
+
+@app.post('/api/vendor/quote', response_model=MissionPlan)
+def vendor_quote(request: MissionRequest): return quote(decompose(request))
+
+@app.get('/api/arm')
+def arm_state(): return arm.snapshot()
+
+@app.post('/api/arm/control')
+def arm_control(request: SimulationControl):
+    if request.action=='reset': arm.reset()
+    elif request.action=='pause': arm.running=False
+    elif request.action=='start' and arm.output: arm.running=True
+    elif request.action=='tick': return arm.tick()
+    return arm.snapshot()
 
 @app.get('/api/agent/plans/{plan_id}', response_model=MissionPlan)
 def read_plan(plan_id: str):

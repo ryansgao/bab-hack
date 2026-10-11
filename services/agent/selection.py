@@ -10,7 +10,7 @@ def risk_score(obs):
                + .2 * math.exp(-time_to_collision / 2) + .15 * obs.sensor_uncertainty)
 
 def select(request, models):
-    risk = risk_score(request.observation)
+    risk = max(risk_score(request.observation), request.requirements.fragility if request.requirements else 0)
     budget = Decimal(request.remaining_budget_ausd)
     compatible = [m for m in models if m.task_type == request.task_type]
     max_price = max([float(m.price_ausd) for m in compatible] + [.000001])
@@ -25,6 +25,17 @@ def select(request, models):
         if model.latency_ms > request.inference_deadline_ms: reasons.append('Exceeds inference deadline')
         if quality_floor and (model.quality is None or model.quality < quality_floor):
             reasons.append(f'Quality does not satisfy risk-adjusted floor {quality_floor:.3f}')
+        card, needs = request.robot_card, request.requirements
+        if card:
+            if card.embodiment not in model.embodiments: reasons.append('Robot embodiment incompatible')
+            if card.gripper not in model.grippers: reasons.append('Gripper incompatible')
+            if not set(model.required_sensors) <= set(card.sensors): reasons.append('Required sensors missing')
+        if needs:
+            if card and needs.mass_kg > card.max_payload_kg: reasons.append('Object exceeds robot payload')
+            if not model.object_size_range_mm[0] <= needs.object_size_mm <= model.object_size_range_mm[1]: reasons.append('Object size outside shard range')
+            if model.supported_objects and needs.object_name not in model.supported_objects: reasons.append('Object class unsupported by detector')
+            if request.task_type == 'grasp' and (model.pose_error_mm is None or model.pose_error_mm > needs.max_pose_error_mm): reasons.append('Grasp precision insufficient for fragility')
+            if request.task_type == 'control' and (model.min_force_n is None or model.min_force_n > needs.max_force_n): reasons.append('Minimum force exceeds fragile-object limit')
         evaluation = CandidateEvaluation(model=model, eligible=not reasons, reasons=reasons)
         if not reasons:
             cost = float(model.price_ausd) / max_price

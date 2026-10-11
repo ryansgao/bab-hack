@@ -8,6 +8,8 @@ from services.storage import db, event
 from services.marketplace.registry import list_models, feedback
 from services.agent.selection import select
 from apps.simulation.world import world
+from apps.simulation.arm import arm
+from services.agent.quote import quote
 
 execution_lock = threading.Lock()
 
@@ -33,6 +35,13 @@ def execute(plan_id, purchase=None):
                 other = MissionPlan.model_validate_json(row['body'])
                 if other.status in ('running', 'waiting_for_motion'):
                     raise RuntimeError('The robot already has an active mission')
+        is_arm = bool(plan.request.robot_card and plan.request.robot_card.embodiment == '6dof_arm')
+        if plan.status == 'planned':
+            quote(plan)
+            if any(s.decision.safe_fallback for s in plan.subtasks):
+                plan.status = 'blocked'
+                plan.explanation += ' Preflight blocked: all required shards must fit the mission budget and compatibility constraints.'
+                return save(plan)
         plan.status = 'running'
         save(plan)
         for step in plan.subtasks:
@@ -41,9 +50,10 @@ def execute(plan_id, purchase=None):
                 step.error = 'Interrupted purchase: inspect payment ledger before creating another mission'
                 step.status, plan.status = 'blocked', 'blocked'
                 world.stop(step.error)
+                if is_arm: arm.running=False; arm.reason=step.error
                 return save(plan)
             if step.status == 'waiting_for_motion':
-                if world.position != (step.target.x, step.target.y):
+                if (is_arm and arm.phase != 'complete') or (not is_arm and world.position != (step.target.x, step.target.y)):
                     plan.status = 'waiting_for_motion'
                     return save(plan)
                 step.status = 'completed'
@@ -51,7 +61,14 @@ def execute(plan_id, purchase=None):
                 continue
             if any(next(s for s in plan.subtasks if s.id == dep).status != 'completed' for dep in step.depends_on): break
             remaining = Decimal(plan.request.budget_ausd) - Decimal(plan.spent_ausd)
-            request = SelectionRequest(observation=world.observe(), task_type=step.task_type,
+            future_min = Decimal(0)
+            for future in plan.subtasks[plan.subtasks.index(step)+1:]:
+                if future.status != 'completed' and future.decision:
+                    feasible = [Decimal(c.model.price_ausd) for c in future.decision.candidates if c.eligible]
+                    if feasible: future_min += min(feasible)
+            remaining = max(Decimal(0), remaining-future_min)
+            request = SelectionRequest(observation=arm.observation() if is_arm else world.observe(), task_type=step.task_type,
+                robot_card=plan.request.robot_card, requirements=step.requirements,
                 remaining_budget_ausd=str(max(Decimal(0), remaining)), inference_deadline_ms=plan.request.inference_deadline_ms,
                 minimum_quality=plan.request.minimum_quality)
             step.decision = select(request, list_models())
@@ -59,6 +76,7 @@ def execute(plan_id, purchase=None):
             if step.decision.safe_fallback:
                 step.status, step.error, plan.status = 'blocked', step.decision.explanation, 'blocked'
                 world.stop(step.error)
+                if is_arm: arm.running=False; arm.reason=step.error
                 return save(plan)
             step.status = 'running'
             save(plan)  # Durable intent before any external payment.
@@ -66,7 +84,9 @@ def execute(plan_id, purchase=None):
                 predictions = [p for s in plan.subtasks if s.result for p in s.result.predictions]
                 body = InferenceRequest(request_id=f'{plan.id}_{step.id}', model_id=step.decision.selected_model_id,
                     input=InferenceInput(observation=request.observation, target=step.target,
-                        image_base64=plan.request.image_base64 or world.sensor_image(),
+                        robot_card=plan.request.robot_card, requirements=step.requirements,
+                        prior=next((s.result.output for s in reversed(plan.subtasks[:plan.subtasks.index(step)]) if s.result and s.result.output), {}),
+                        image_base64=plan.request.image_base64 or (arm.sensor_image() if is_arm else world.sensor_image()),
                         obstacles=[Point(x=x,y=y) for x,y in world.blocked()], predictions=predictions))
                 if purchase:
                     response = purchase(body)
@@ -91,7 +111,15 @@ def execute(plan_id, purchase=None):
                 event({'type': 'inference', 'plan_id': plan.id, 'step_id': step.id, **result.model_dump()})
                 if result.inference_latency_ms > plan.request.inference_deadline_ms:
                     raise ValueError('Inference exceeded deadline; receipt retained, robot stopped')
-                world.apply(result, step.target)
+                if is_arm:
+                    if step.task_type == 'object_detection' and not any(step.requirements.object_name in p.label.lower() for p in result.predictions):
+                        raise ValueError('Real perception did not detect the requested object. Supply a suitable camera image; grasp/control remain blocked.')
+                    arm.apply(result,step.requirements)
+                    if step.task_type == 'control':
+                        step.status,plan.status='waiting_for_motion','waiting_for_motion'
+                        return save(plan)
+                else:
+                    world.apply(result, step.target)
                 if step.task_type == 'path_planning' and world.position != (step.target.x,step.target.y):
                     step.status, plan.status = 'waiting_for_motion', 'waiting_for_motion'
                     world.running = True
@@ -102,6 +130,7 @@ def execute(plan_id, purchase=None):
                 step.status, plan.status = 'blocked', 'blocked'
                 step.error = str(exc) if isinstance(exc, ValueError) else f'{type(exc).__name__}: service unavailable; check setup and ledger before retry'
                 world.stop(step.error)
+                if is_arm: arm.running=False; arm.reason=step.error
                 return save(plan)
         plan.status = 'completed' if all(s.status == 'completed' for s in plan.subtasks) else 'blocked'
         return save(plan)

@@ -38,3 +38,15 @@ def feedback(model_id, latency):
         model.latency_ms = max(0.001, model.latency_ms)
         model.latency_source = 'measured_ema'
         register(model)
+
+SEEDS.extend([
+    dict(id='owlvit',name='OWL-ViT · Open Vocabulary',provider_id='vision_lab',task_type='object_detection',price_ausd='0.006',latency_ms=1800,required_sensors=['rgb'],supported_objects=['orange','grape']),
+    dict(id='power_grasp',name='General Power Grasp',provider_id='gripworks',task_type='grasp',price_ausd='0.003',latency_ms=15,kind='algorithm',embodiments=['6dof_arm'],grippers=['parallel_jaw'],required_sensors=['rgb','depth'],object_size_range_mm=[30,150],pose_error_mm=2),
+    dict(id='precision_grasp',name='Precision Pinch Grasp',provider_id='gripworks',task_type='grasp',price_ausd='0.008',latency_ms=25,kind='algorithm',embodiments=['6dof_arm'],grippers=['parallel_jaw'],required_sensors=['rgb','depth'],object_size_range_mm=[5,100],pose_error_mm=.1),
+    dict(id='standard_control',name='Standard Force Controller',provider_id='motion_lab',task_type='control',price_ausd='0.002',latency_ms=10,kind='algorithm',embodiments=['6dof_arm'],grippers=['parallel_jaw'],required_sensors=['wrist_force'],min_force_n=.8),
+    dict(id='soft_control',name='Soft Force Controller',provider_id='motion_lab',task_type='control',price_ausd='0.006',latency_ms=20,kind='algorithm',embodiments=['6dof_arm'],grippers=['parallel_jaw'],required_sensors=['wrist_force'],min_force_n=.05),
+])
+# COCO has an orange class but no grape class. Do not silently substitute labels.
+for _seed in SEEDS:
+    if _seed['id'] in ('ssdlite','fasterrcnn'):
+        _seed.update(required_sensors=['rgb'],supported_objects=['orange','person'])
