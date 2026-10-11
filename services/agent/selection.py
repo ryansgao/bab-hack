@@ -30,10 +30,12 @@ def select(request, models):
             if card.embodiment not in model.embodiments: reasons.append('Robot embodiment incompatible')
             if card.gripper not in model.grippers: reasons.append('Gripper incompatible')
             if not set(model.required_sensors) <= set(card.sensors): reasons.append('Required sensors missing')
+        object_name = request.object_name or (needs.object_name if needs else None)
+        if object_name and model.supported_objects and object_name not in model.supported_objects:
+            reasons.append('Object class unsupported by detector')
         if needs:
             if card and needs.mass_kg > card.max_payload_kg: reasons.append('Object exceeds robot payload')
             if not model.object_size_range_mm[0] <= needs.object_size_mm <= model.object_size_range_mm[1]: reasons.append('Object size outside shard range')
-            if model.supported_objects and needs.object_name not in model.supported_objects: reasons.append('Object class unsupported by detector')
             if request.task_type == 'grasp' and (model.pose_error_mm is None or model.pose_error_mm > needs.max_pose_error_mm): reasons.append('Grasp precision insufficient for fragility')
             if request.task_type == 'control' and (model.min_force_n is None or model.min_force_n > needs.max_force_n): reasons.append('Minimum force exceeds fragile-object limit')
         evaluation = CandidateEvaluation(model=model, eligible=not reasons, reasons=reasons)

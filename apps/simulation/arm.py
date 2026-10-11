@@ -17,7 +17,7 @@ class Arm:
             self.phase='idle'
             self.progress=0
             self.running=False
-            self.object_name='orange'
+            self.object_name=''
             self.grasp_point=[390,220]
             self.reason='Awaiting purchased shard outputs'
     def observation(self):
@@ -26,9 +26,8 @@ class Arm:
         image=Image.new('RGB',(640,480),'#dbd6c9')
         draw=ImageDraw.Draw(image)
         draw.rounded_rectangle((100,60,580,410),radius=35,fill='#ba9066')
-        draw.ellipse((340,170,440,270),fill='#ed880d',outline='#a24a04',width=3)
-        draw.ellipse((465,265,491,291),fill='#8260a6',outline='#453151',width=2)
-        draw.ellipse((475,272,480,277),fill='#bd9dd6')
+        draw.rectangle((320,170,410,260),fill='#97ada0',outline='#61786c',width=3)
+        draw.rounded_rectangle((450,230,500,290),radius=8,fill='#e8eae4',outline='#819280',width=3)
         out=io.BytesIO();image.save(out,format='PNG')
         return base64.b64encode(out.getvalue()).decode()
     def apply(self,result,needs):
@@ -51,7 +50,7 @@ class Arm:
                 index=min(len(phases)-1,int(self.progress*len(phases)))
                 self.phase=phases[index]['phase']
                 if self.progress>=1:
-                    self.phase='complete'; self.running=False; self.reason='Handling trajectory complete; no skin-removal physics modeled'
+                    self.phase='complete'; self.running=False; self.reason='Simulated handling trajectory complete'
             return self.snapshot()
     def snapshot(self):
         return dict(phase=self.phase,progress=self.progress,running=self.running,object_name=self.object_name,

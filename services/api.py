@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 import secrets
+from contextlib import asynccontextmanager
 from pathlib import Path
 import httpx
 from fastapi import FastAPI, Header, HTTPException, Request, WebSocket, WebSocketDisconnect
@@ -12,14 +13,22 @@ from shared.schemas.contracts import (ModelOffer, SelectionRequest, SelectionDec
     MissionPlan, ExecuteRequest, SimulationControl)
 from services.marketplace import registry
 from services.agent.selection import select
-from services.agent.planner import decompose
+from services.agent.planner import decompose, planner_status, PlannerError
 from services.agent.quote import quote
 from apps.simulation.arm import arm
 from services.agent.executor import execute, save, get, cancel
 from services.storage import db
 from apps.simulation.world import world
 
-app = FastAPI(title='RoboMarket', version='0.1.0')
+from services.agent.runtime import runtime
+
+@asynccontextmanager
+async def lifespan(app):
+    await runtime.start()
+    yield
+    await runtime.close()
+
+app = FastAPI(title='RoboMarket', version='0.2.0', lifespan=lifespan)
 
 @app.exception_handler(HTTPException)
 async def http_error(request, exc):
@@ -32,6 +41,13 @@ async def invalid(request, exc):
 @app.exception_handler(ValueError)
 async def bad_value(request, exc):
     return JSONResponse(status_code=422, content={'error': {'code':'INVALID_INPUT','message':str(exc)}})
+
+@app.exception_handler(PlannerError)
+async def planner_error(request, exc):
+    return JSONResponse(status_code=exc.status, content={'error': {'code':'PLANNER_UNAVAILABLE', 'message':str(exc)}})
+
+@app.get('/api/agent/config')
+def agent_config(): return planner_status()
 
 @app.get('/api/health')
 def health():
@@ -66,7 +82,8 @@ def arm_control(request: SimulationControl):
     if request.action=='reset': arm.reset()
     elif request.action=='pause': arm.running=False
     elif request.action=='start' and arm.output: arm.running=True
-    elif request.action=='tick': return arm.tick()
+    # Ticks are owned by the server clock, not by connected clients.
+    elif request.action=='tick': return arm.snapshot()
     return arm.snapshot()
 
 @app.get('/api/agent/plans/{plan_id}', response_model=MissionPlan)
@@ -75,8 +92,8 @@ def read_plan(plan_id: str):
     except KeyError: raise HTTPException(404, 'Plan not found')
 
 @app.post('/api/agent/execute', response_model=MissionPlan)
-def run(request: ExecuteRequest):
-    try: return execute(request.plan_id)
+async def run(request: ExecuteRequest):
+    try: return await runtime.submit(request.plan_id)
     except KeyError: raise HTTPException(404, 'Plan not found')
     except RuntimeError as exc: raise HTTPException(409, str(exc))
 
@@ -89,7 +106,8 @@ def cancel_plan(request: ExecuteRequest):
 @app.websocket('/api/events')
 async def events(socket: WebSocket):
     await socket.accept()
-    last_id=0
+    with db() as conn:
+        last_id=conn.execute('SELECT COALESCE(MAX(id),0) AS id FROM telemetry').fetchone()['id']
     try:
         while True:
             with db() as conn:
@@ -98,6 +116,11 @@ async def events(socket: WebSocket):
                 payload=json.loads(row['body'])
                 await socket.send_json({'ts':row['created_at'],'source':'scout','type':payload.get('type','telemetry'),'payload':payload})
                 last_id=row['id']
+            with db() as conn:
+                latest=(conn.execute('SELECT body FROM plans WHERE id=?',(socket.query_params.get('plan_id'),)).fetchone() if socket.query_params.get('plan_id') else conn.execute('SELECT body FROM plans ORDER BY rowid DESC LIMIT 1').fetchone())
+            latest_plan=json.loads(latest['body']) if latest else None
+            if latest_plan: latest_plan.pop('request',None)
+            await socket.send_json({'type':'snapshot','source':'runtime','payload':{'arm':arm.snapshot(),'plan':latest_plan}})
             await asyncio.sleep(.5)
     except WebSocketDisconnect: pass
 
@@ -105,7 +128,8 @@ async def events(socket: WebSocket):
 def simulation(): return world.snapshot()
 
 @app.post('/api/simulation/control')
-def control(request: SimulationControl): return world.control(request)
+def control(request: SimulationControl):
+    return world.snapshot() if request.action=='tick' else world.control(request)
 
 async def payment_read(path):
     try:
@@ -115,6 +139,25 @@ async def payment_read(path):
             if response.status_code >= 400: raise HTTPException(response.status_code, 'Payment service unavailable or not configured')
             return response.json()
     except httpx.HTTPError: raise HTTPException(503, 'Payment service offline. Start it and configure testnet wallets.')
+
+@app.get('/api/models/readiness')
+async def model_readiness():
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            response=await client.get(os.getenv('MODEL_URL','http://127.0.0.1:8001')+'/health')
+            response.raise_for_status()
+            return response.json()
+    except httpx.HTTPError: raise HTTPException(503,'Model worker is offline')
+
+@app.post('/api/models/{model_id}/prepare')
+async def prepare_model(model_id: str):
+    if registry.get_model(model_id) is None: raise HTTPException(404,'Unknown shard')
+    try:
+        async with httpx.AsyncClient(timeout=600) as client:
+            response=await client.post(os.getenv('MODEL_URL','http://127.0.0.1:8001')+'/internal/prepare',json={'model_id':model_id},headers={'X-Service-Key':os.getenv('SERVICE_KEY','')})
+            if response.status_code>=400: raise HTTPException(503,'Model preparation failed. Check installed dependencies and model download access.')
+            return response.json()
+    except httpx.HTTPError: raise HTTPException(503,'Model worker unavailable during preparation')
 
 @app.get('/api/wallet/{robot_id}')
 async def wallet(robot_id: str):

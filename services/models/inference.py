@@ -8,6 +8,37 @@ from apps.simulation.world import astar
 
 _models = {}
 _lock = threading.Lock()
+_preparing = set()
+_errors = {}
+MODEL_IDS = ('ssdlite','fasterrcnn','owlvit','power_grasp','precision_grasp','standard_control','soft_control','astar','scene_summary')
+ALGORITHMS = set(MODEL_IDS) - {'ssdlite','fasterrcnn','owlvit'}
+
+def load_owl_detector():
+    from transformers import OwlViTProcessor, OwlViTForObjectDetection
+    name='google/owlvit-base-patch32'
+    return OwlViTForObjectDetection.from_pretrained(name).eval(), OwlViTProcessor.from_pretrained(name)
+
+def readiness():
+    import importlib.util
+    return [{'model_id': key, 'state': 'preparing' if key in _preparing else 'ready' if key in _models or key in ALGORITHMS else 'error' if key in _errors else 'cold',
+             'dependencies_installed': key in ALGORITHMS or (importlib.util.find_spec('torchvision') is not None and (key!='owlvit' or importlib.util.find_spec('transformers') is not None)),
+             'error': _errors.get(key)} for key in MODEL_IDS]
+
+def prepare(model_id):
+    if model_id not in MODEL_IDS: raise ValueError('Unknown model adapter')
+    if model_id in ALGORITHMS: return {'model_id':model_id,'state':'ready'}
+    _preparing.add(model_id)
+    try:
+        with _lock:
+            if model_id not in _models:
+                _models[model_id] = load_owl_detector() if model_id=='owlvit' else load_detector(model_id)
+        _errors.pop(model_id,None)
+        return {'model_id':model_id,'state':'ready'}
+    except Exception as exc:
+        _errors[model_id]=f'{type(exc).__name__}: model preparation failed; check dependency installation and download access'
+        raise
+    finally: _preparing.discard(model_id)
+
 
 def load_detector(model_id):
     import torch
@@ -68,7 +99,8 @@ def infer(request):
 
 
 def owlvit(data):
-    if not data.image_base64 or not data.requirements: raise ValueError('OWL-ViT needs an image and object requirements')
+    object_name = data.object_name or (data.requirements.object_name if data.requirements else None)
+    if not data.image_base64 or not object_name: raise ValueError('OWL-ViT needs an image and an object name')
     from transformers import OwlViTProcessor, OwlViTForObjectDetection
     import torch
     image=Image.open(io.BytesIO(base64.b64decode(data.image_base64,validate=True))).convert('RGB')
@@ -76,10 +108,9 @@ def owlvit(data):
     image.thumbnail((1280,1280))
     with _lock:
         if 'owlvit' not in _models:
-            name='google/owlvit-base-patch32'
-            _models['owlvit']=(OwlViTForObjectDetection.from_pretrained(name).eval(),OwlViTProcessor.from_pretrained(name))
+            _models['owlvit']=load_owl_detector()
         model,processor=_models['owlvit']
-        inputs=processor(text=[[f'a photo of a {data.requirements.object_name}']],images=image,return_tensors='pt')
+        inputs=processor(text=[[f'a photo of a {object_name}']],images=image,return_tensors='pt')
         with torch.inference_mode(): outputs=model(**inputs)
         result=processor.post_process_object_detection(outputs=outputs,target_sizes=torch.tensor([[image.height,image.width]]),threshold=.1)[0]
-        return [Prediction(label=data.requirements.object_name,confidence=float(score),bbox=box.tolist()) for score,box in zip(result['scores'],result['boxes'])]
+        return [Prediction(label=object_name,confidence=float(score),bbox=box.tolist()) for score,box in zip(result['scores'],result['boxes'])]

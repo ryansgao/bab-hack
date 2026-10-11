@@ -1,0 +1,15 @@
+import {createPublicClient,createWalletClient,http,parseAbi} from 'viem';
+import {baseSepolia} from 'viem/chains';
+import {privateKeyToAccount} from 'viem/accounts';
+const facilitator=privateKeyToAccount(process.env.FACILITATOR_PRIVATE_KEY as `0x${string}`);
+const robot=privateKeyToAccount(process.env.ROBOT_PRIVATE_KEY as `0x${string}`);
+const transport=http(process.env.BASE_SEPOLIA_RPC_URL||'https://sepolia.base.org');
+const publicClient=createPublicClient({chain:baseSepolia,transport});
+if(await publicClient.getChainId()!==84532)throw new Error('Only Base Sepolia is allowed');
+if(await publicClient.getBalance({address:facilitator.address})===0n)throw new Error('Fund the facilitator with Base Sepolia test ETH first: '+facilitator.address);
+const wallet=createWalletClient({account:facilitator,chain:baseSepolia,transport});
+const {request}=await publicClient.simulateContract({account:facilitator,address:'0xd236c18D274E54FAccC3dd9DDA4b27965a73ee6C',abi:parseAbi(['function requestFunds(address receiver)']),functionName:'requestFunds',args:[robot.address]});
+const hash=await wallet.writeContract(request);
+const receipt=await publicClient.waitForTransactionReceipt({hash});
+if(receipt.status!=='success')throw new Error('Testnet faucet request reverted');
+console.log('Confirmed test AUSD faucet request: https://sepolia.basescan.org/tx/'+hash);

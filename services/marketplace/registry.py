@@ -14,6 +14,10 @@ def seed():
         for offer in SEEDS:
             model = ModelOffer(**offer)
             conn.execute('INSERT OR IGNORE INTO models VALUES (?, ?)', (model.id, model.model_dump_json()))
+            existing = ModelOffer.model_validate_json(conn.execute('SELECT body FROM models WHERE id=?',(model.id,)).fetchone()['body'])
+            if model.id in ('owlvit','ssdlite','fasterrcnn') and existing.supported_objects in (['orange','grape'], ['orange','person']):
+                existing.supported_objects = model.supported_objects
+                conn.execute('UPDATE models SET body=? WHERE id=?',(existing.model_dump_json(),model.id))
 
 def list_models(task_type=None):
     seed()
@@ -40,13 +44,14 @@ def feedback(model_id, latency):
         register(model)
 
 SEEDS.extend([
-    dict(id='owlvit',name='OWL-ViT · Open Vocabulary',provider_id='vision_lab',task_type='object_detection',price_ausd='0.006',latency_ms=1800,required_sensors=['rgb'],supported_objects=['orange','grape']),
+    dict(id='owlvit',name='OWL-ViT · Open Vocabulary',provider_id='vision_lab',task_type='object_detection',price_ausd='0.006',latency_ms=1800,required_sensors=['rgb'],supported_objects=[]),
     dict(id='power_grasp',name='General Power Grasp',provider_id='gripworks',task_type='grasp',price_ausd='0.003',latency_ms=15,kind='algorithm',embodiments=['6dof_arm'],grippers=['parallel_jaw'],required_sensors=['rgb','depth'],object_size_range_mm=[30,150],pose_error_mm=2),
     dict(id='precision_grasp',name='Precision Pinch Grasp',provider_id='gripworks',task_type='grasp',price_ausd='0.008',latency_ms=25,kind='algorithm',embodiments=['6dof_arm'],grippers=['parallel_jaw'],required_sensors=['rgb','depth'],object_size_range_mm=[5,100],pose_error_mm=.1),
     dict(id='standard_control',name='Standard Force Controller',provider_id='motion_lab',task_type='control',price_ausd='0.002',latency_ms=10,kind='algorithm',embodiments=['6dof_arm'],grippers=['parallel_jaw'],required_sensors=['wrist_force'],min_force_n=.8),
     dict(id='soft_control',name='Soft Force Controller',provider_id='motion_lab',task_type='control',price_ausd='0.006',latency_ms=20,kind='algorithm',embodiments=['6dof_arm'],grippers=['parallel_jaw'],required_sensors=['wrist_force'],min_force_n=.05),
 ])
-# COCO has an orange class but no grape class. Do not silently substitute labels.
+# Fixed COCO label vocabulary; OWL-ViT accepts an arbitrary object query.
+COCO_OBJECTS = 'person,bicycle,car,motorcycle,airplane,bus,train,truck,boat,traffic light,fire hydrant,stop sign,parking meter,bench,bird,cat,dog,horse,sheep,cow,elephant,bear,zebra,giraffe,backpack,umbrella,handbag,tie,suitcase,frisbee,skis,snowboard,sports ball,kite,baseball bat,baseball glove,skateboard,surfboard,tennis racket,bottle,wine glass,cup,fork,knife,spoon,bowl,banana,apple,sandwich,orange,broccoli,carrot,hot dog,pizza,donut,cake,chair,couch,potted plant,bed,dining table,toilet,tv,laptop,mouse,remote,keyboard,cell phone,microwave,oven,toaster,sink,refrigerator,book,clock,vase,scissors,teddy bear,hair drier,toothbrush'.split(',')
 for _seed in SEEDS:
     if _seed['id'] in ('ssdlite','fasterrcnn'):
-        _seed.update(required_sensors=['rgb'],supported_objects=['orange','person'])
+        _seed.update(required_sensors=['rgb'],supported_objects=COCO_OBJECTS)
