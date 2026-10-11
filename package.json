@@ -13,5 +13,8 @@
     "wallets:init": "node --import tsx scripts/init-testnet-wallets.ts",
     "wallets:status": "node --env-file=.env --import tsx scripts/wallet-status.ts",
     "wallets:fund": "node --env-file=.env --import tsx scripts/fund-testnet.ts"
+  },
+  "overrides": {
+    "qr": "0.5.5"
   }
 }
