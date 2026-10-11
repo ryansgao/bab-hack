@@ -33,7 +33,6 @@ import {
   Sparkles,
   Wallet,
   X,
-  Zap,
 } from "lucide-react";
 import "@fontsource-variable/inter";
 import "@fontsource/instrument-serif/400.css";
@@ -351,9 +350,13 @@ function WalletCard({
 function Composer({
   data,
   onPlanned,
+  hero,
+  footer,
 }: {
   data: RoboMarket;
   onPlanned: () => void;
+  hero?: ReactNode;
+  footer?: ReactNode;
 }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const input = useRef<HTMLTextAreaElement>(null);
@@ -372,9 +375,8 @@ function Composer({
   return (
     <div className="compose-page enter">
       <div className="hero-heading">
-        <h1>New mission</h1>
+        {hero ?? <h1>New mission</h1>}
       </div>
-      <div className="simulation-mode glass-quiet"><label>Execution mode <select aria-label="Execution mode" value={data.executionMode} onChange={e=>data.setExecutionMode(e.target.value as "simulation"|"testnet")}><option value="simulation">Simulation · demo credits</option><option value="testnet">Real providers · AUSD testnet</option></select></label><p>{data.executionMode==="simulation"?"Your prompt creates the demo scene. Available marketplace skills run locally; missing skills use free virtual effects and can open producer bounties. Claude planning usage still applies.":"Real model inference and testnet payments. Supply an observation and funded wallets."}</p></div>
       <div className="composer glass-raised">
         <textarea
           ref={input}
@@ -504,6 +506,7 @@ function Composer({
           </div>
         )}
       </div>
+      <div className="simulation-mode glass-quiet"><label>Execution mode <select aria-label="Execution mode" value={data.executionMode} onChange={e=>data.setExecutionMode(e.target.value as "simulation"|"testnet")}><option value="simulation">Simulation · demo credits</option><option value="testnet">Real providers · AUSD testnet</option></select></label><p>{data.executionMode==="simulation"?"Your prompt creates the demo scene. Available marketplace skills run locally; missing skills use free virtual effects and can open producer bounties. Claude planning usage still applies.":"Real model inference and testnet payments. Supply an observation and funded wallets."}</p></div>
       {data.executionMode === "simulation" && <TaskPreviewToggle data={data} />}
       <div className="auto-bounty-settings glass-quiet"><label><input type="checkbox" checked={data.autoBounties} onChange={e=>data.setAutoBounties(e.target.checked)} /> Automatically post bounties for missing skills</label>{data.autoBounties && <label className="bounty-reward-setting">Reward per missing capability <input aria-label="Automatic bounty reward" type="number" min="0.000001" step="0.001" value={data.bountyReward} onChange={e=>data.setBountyReward(e.target.value)} /><span>{data.executionMode==='simulation'?'demo credits':'AUSD pledge'}</span></label>}<p>Creates a producer request when no compatible skill exists. Posting commits a reward pledge; it does not send a payment.</p></div>
       <div className="suggestions">
@@ -531,6 +534,7 @@ function Composer({
           <p>{data.planner?.configured ? data.planner.model : "Add ANTHROPIC_API_KEY on the server to plan missions."}</p>
         </div>
       </div>
+      {footer}
     </div>
   );
 }
@@ -1322,61 +1326,44 @@ function App() {
             </div>
           )}
           {view === "home" && (
-            <div className="landing enter">
-              <div className="hero-heading">
-                <h1>Robot Workspace</h1>
-              </div>
-              <div className="welcome-cards">
-                <button
-                  className="welcome-card glass-raised"
-                  onClick={() => navigate("mission")}
-                >
-                  <div className="welcome-card-title">
-                    <span className="welcome-icon">
-                      <Zap size={19} strokeWidth={1.7} />
-                    </span>
-                    <h2>{data.plan ? "Your mission" : "Run a mission"}</h2>
-                    <ArrowRight size={17} />
-                  </div>
+            <Composer
+              data={data}
+              onPlanned={() => navigate("mission")}
+              hero={
+                <>
+                  <h1>A marketplace where robots buy skills</h1>
                   <p>
-                    {data.plan
-                      ? "Review the plan, see every decision, and follow robot progress."
-                      : "Describe a task to decompose into skills and execute."}
+                    Describe a task in plain language. rBazaar breaks it into
+                    steps, finds a skill in the marketplace for each one, and
+                    pays for it per use.
                   </p>
-                  <div className="welcome-card-footer">
-                    <span className="skill-bubble">
-                      <Eye size={13} />
+                </>
+              }
+              footer={
+                <ol className="how-it-works">
+                  <li>
+                    <strong>Describe a task</strong>
+                    <span>
+                      Say what the robot should do, like “organize my workbench”.
                     </span>
-                    <span className="skill-bubble">
-                      <Hand size={13} />
+                  </li>
+                  <li>
+                    <strong>Match skills</strong>
+                    <span>
+                      Each step gets a skill that fits your robot’s hardware and
+                      budget. If none exists, post a bounty.
                     </span>
-                    <span className="skill-bubble">
-                      <Activity size={13} />
+                  </li>
+                  <li>
+                    <strong>Pay per use</strong>
+                    <span>
+                      Skills run in order and are paid in AUSD micropayments,
+                      with a receipt for each.
                     </span>
-                  </div>
-                </button>
-                <button
-                  className="welcome-card glass"
-                  onClick={() => navigate("marketplace")}
-                >
-                  <div className="welcome-card-title">
-                    <span className="welcome-icon neutral">
-                      <Layers3 size={19} strokeWidth={1.7} />
-                    </span>
-                    <h2>Explore expertise</h2>
-                    <ArrowRight size={17} />
-                  </div>
-                  <p>
-                    Browse models, controllers, and skills by embodiment and budget.
-                  </p>
-                  <div className="welcome-card-footer">
-                    <span className="soft-pill">Perception</span>
-                    <span className="soft-pill">Grasp</span>
-                    <span className="soft-pill">Control</span>
-                  </div>
-                </button>
-              </div>
-            </div>
+                  </li>
+                </ol>
+              }
+            />
           )}
           {view === "mission" && (
             <Mission data={data} onNew={() => void newMission()} onBounties={()=>navigate('bounties')} />
