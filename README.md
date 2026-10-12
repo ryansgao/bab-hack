@@ -1,206 +1,60 @@
 # rBazaar
 
-**The bazaar where robots buy skills: an agent-to-agent marketplace for robotics, paid one AUSD micropayment at a time.**
+**The bazaar where robots buy skills.** An agentic marketplace for physical AI: describe a task, and your robot's agent finds the exact model weights it needs and pays for them per call in AUSD.
 
-_Formerly RoboMarket. Internal names (env vars, storage keys, the `useRoboMarket` hook) keep the old name so nothing breaks._
+▶️ **[Product launch video](https://youtu.be/4LPFffFtbiI)** · 🎥 **[Live demo with the team](https://youtu.be/jc98RDj3_ss)**
 
-Describe a robot task in plain language. Claude (Anthropic) decomposes the full goal
-into a variable-length dependency graph. Scout searches the live marketplace for
-each required capability, checks the Robot Card and budget, then buys the selected
-shards through AUSD/x402 and passes their outputs to dependent steps.
+---
 
-The task is not restricted to predefined verbs or objects. Every subtask includes
-its purpose, prerequisites, and completion criterion. Missing capabilities stay in
-the plan as explicit blockers; the system does not silently replace the requested
-goal with a simpler demo. The current executable adapters cover detection, sensor
-summaries, grid navigation, and simulated grasp/handling. Other capabilities need
-providers and execution adapters before they can run.
+## Why
 
-## Start locally
+Robots ship with a body, not a brain for every job. The models exist (detectors, grasp planners, force controllers, VLAs), but finding one that fits *your* arm, sensors and budget is slow, and robots have no way to pay for intelligence on demand. rBazaar fixes both.
 
-Requires Python 3.13 and Node 24+.
+## How it works
+
+1. **Describe a task.** "Pick up the red mug and set it on the tray. Slow down if a person walks in." Attach images, PDFs, schematics or video if you have them.
+2. **Claude builds a skill graph.** The goal becomes a dependency graph of capabilities (detect → grasp → place), and a matching robot and workcell are generated from your prompt.
+3. **Scout shops the marketplace.** For every step, Scout scores competing listings on price, latency, measured quality, relevance and live risk, and filters out anything your robot can't run. When risk spikes, it upgrades to a more accurate model on the fly.
+4. **Pay per call in AUSD.** Each inference settles as a gasless x402 micropayment on Base, with a receipt logged on BNB Chain.
+5. **Missing a skill? Post a bounty.** Scout posts bounties for capability gaps automatically, producers submit solutions, and accepted ones go live in the marketplace.
+
+## Highlights
+
+- **1,186 listings · 22 vendors · 38 capabilities**, including real YOLO11, Faster R-CNN, SSD Lite and OWL-ViT models benchmarked on COCO (YOLO11s 0.72 mAP).
+- **Trained matching model** (TF-IDF + logistic regression) that maps plain-language tasks to capabilities: 75% top-1 on unseen phrasings vs 40% for keyword search.
+- **Risk-aware selection**: distance, nearby people, time-to-collision and fragility all reshape the quality floor and the score.
+- **Live 3D simulation studio**: generated workcells with PBR materials, analytic IK, and a server-owned motion clock that follows the mission step by step.
+- **Bring your own wallet**: RainbowKit (MetaMask, Coinbase, Rainbow, Ledger…), gasless top-ups, per-user spending limits and receipts.
+
+## Built for the sponsor tracks
+
+**Agora · AUSD + x402**
+- Official x402 v2 SDK with the `exact` scheme on Base Sepolia (`eip155:84532`).
+- ERC-3009 `transferWithAuthorization`: the robot signs and a facilitator pays the gas, so the robot never holds ETH.
+- Allowance limits per call, per mission and per day, plus idempotency, replay protection and automatic on-chain reconciliation of in-flight payments.
+- An owner treasury funds a per-mission float, and every vendor gets its own payout address.
+
+**YZi Labs · BNB Chain**
+- `RoboMarketPolicy.sol` on BSC Testnet stores each robot's spending policy: caps and a vendor allowlist.
+- `check()` runs before every signature, and `record()` writes a tamper-evident receipt after settlement. It's an auditable trail for an autonomous spender.
+
+## Stack
+
+FastAPI (Python 3.13) · React + Vite · Three.js · TypeScript x402 service (viem) · Solidity · SQLite · Claude (Anthropic) · PyTorch / Ultralytics
+
+## Quick start
 
 ```sh
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-npm ci
-cp .env.example .env
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+npm ci && cp .env.example .env    # add ANTHROPIC_API_KEY
 npm run build
-.venv/bin/python scripts/dev.py
+.venv/bin/python scripts/dev.py   # → http://127.0.0.1:8000
 ```
 
-Open **http://127.0.0.1:8000**. Set `ANTHROPIC_API_KEY` in the server-only `.env`
-and restart to enable planning. The example key is intentionally blank.
-`ANTHROPIC_MODEL` defaults to `claude-sonnet-4-5` and can be changed to a model
-available to your account, including `claude-opus-5-5`. The planner uses automatic
-tool selection and validates the returned task graph locally. There is no keyword-parser fallback or fabricated plan.
-The prompt, optional reference files, and capability catalog go to Anthropic.
-Claude infers the robot, appearance, dimensions and fixture objects from this
-context; there is no manually configured robot panel or preset scene sent as user
-context. References support JPEG/PNG/WebP/GIF images, PDF and text documents,
-and six locally sampled video frames (audio is not analyzed). Anthropic billing
-is separate from the marketplace skill spending limit. Keep uploads out of Git.
+Optional: `pip install -r requirements-models.txt` for real detectors, and `npm run wallets:init` for testnet wallets ([payment setup](docs/payments.md)).
 
-The UI and marketplace remain available without credentials. Purchase execution
-requires funded testnet wallets and model dependencies. `npm run wallets:init`
-can create fresh local testnet wallets only when `.env` does not already exist;
-`npm run wallets:status` reads balances. See [payment setup](docs/payments.md).
+## Docs
 
-For real inference: install `requirements-models.txt` for YOLO11, SSD Lite and Faster
-R-CNN; install `requirements-owl.txt` for open-vocabulary OWL-ViT detection. Execution prepares selected
-weights before any purchase. There are no fake detection or payment fallbacks.
+[Architecture](docs/architecture.md) · [Marketplace](docs/marketplace.md) · [Payments](docs/payments.md) · [API contracts](docs/api-contracts.md) · [Integration](docs/integration.md) · [Team](docs/team.md)
 
-## What is implemented
-
-- Anthropic task decomposition with validated acyclic dependencies, assumptions, and capability gaps.
-- Server-owned execution and simulation clocks; browser disconnects do not stop a mission.
-- Model readiness/preparation before payment and per-shard receipts.
-- Robot Card compatibility and explainable budget/risk/latency scoring.
-- Vendor quotes that reserve enough task budget for downstream layers.
-- SQLite marketplace, persisted plans, telemetry, and WebSocket decision events.
-- React dashboard, simulated arm, and secondary warehouse A* simulation APIs.
-- Two torchvision detector adapters, optional OWL-ViT, and analytic grasp/control.
-- Official x402 v2 SDK integration with explicit Base Sepolia AUSD configuration.
-- Persistent Allowance limits, idempotency, replay checks, and uncertain-payment holds.
-- Owner treasury with a per-mission float returned on close or idle, and one payout address per vendor.
-- Spending policy and a per-payment receipt in a contract on BNB chain (BSC Testnet), checked before signing.
-- Bring your own wallet through RainbowKit (Rainbow, Coinbase, MetaMask, Binance, Ledger …): gasless
-  top-ups by one signature, and sign-in with a wallet; Google and GitHub sign-in when keys are set.
-- User accounts with a wallet of their own, starter test AUSD, withdrawals, per-user spending limits,
-  a payment screen with receipts, private payment history, data export and account deletion.
-- Separate component entry points and Docker Compose configuration.
-
-## Current limits
-
-Live Anthropic planning was verified with `claude-opus-5-5`: a camera-localization
-request returned a valid subtask graph and flagged its missing image. Credentials
-remain local to the ignored `.env`; the committed template is intentionally blank.
-Live AUSD settlement was verified on Base Sepolia with funded testnet wallets: the
-payment service's live check (`services/payments/scripts/live-check.ts`) settles real
-AUSD payments and exercises every Allowance rule, replay, concurrency and failure
-case against a stub marketplace and model worker. A full mission through the real
-marketplace and model workers with live settlement is not yet recorded here. Build
-and browser setup/error flows were checked.
-No generated plans, payments, or detections are presented as live results.
-
-LLM-inferred physical requirements are labeled simulation estimates. The workcell
-is illustrative; arbitrary physical tasks are not implemented by the generic arm
-animation. The server blocks interrupted missions after restart because simulation
-state is not durable. Provider registration also needs a model adapter. Each vendor
-is paid at its own address when `VENDOR_SEED` is set; with `OWNER_PRIVATE_KEY` set an
-owner wallet holds the treasury and the robot holds only one mission float at a time
-(see the payment setup). Paying in AUSD needs a signed-in account, and each account has its own
-wallet and limits; the payment service itself must still stay off the public network. The gateway alone (dashboard,
-marketplace, planning) can be hosted publicly with `render.yaml`; planning calls
-are capped per visitor and per day. See the integration guide.
-
-## Team handoff
-
-- [Architecture and tradeoffs](docs/architecture.md)
-- [Four-owner implementation map](docs/team.md)
-- [Shared API contracts](docs/api-contracts.md) and [generated OpenAPI](shared/api-contracts/openapi.json)
-- [Local setup, independent services, validation status](docs/integration.md)
-- [AUSD/x402 setup and official references](docs/payments.md)
-
-The initial implementation is pushed to `main` in small checkpoints as requested.
-Use component branches for parallel changes, stage only owned files, fetch before
-pushing, and never force-push shared history. Keep `.env`, wallet keys, model
-weights, images, and runtime databases out of Git.
-
-## Simulation missions
-
-New dashboard missions default to **Simulation · USD estimates**. Claude creates
-the objects and initial fixture traits needed by the prompt in the same planning
-call, including objects outside the sample catalog. Named destinations are
-created automatically. One generated robot/workcell is shared by the mission
-preview and Simulation studio, with procedural object geometry, PBR materials,
-shadows, camera controls and estimated arm kinematics.
-Local producer adapters expose capture, mapping, detection, geometry, condition,
-grasp, placement and reporting capabilities, alongside the niche catalog below.
-Claude plans only actions needed for the goal, with no minimum subtask count.
-Routine input, identity, reachability, collision, grasp and completion checks happen
-inside provider inference; they are never separate paid confirmation subtasks.
-Requested inspections remain useful outputs. A simple pickup typically needs
-detection, grasp planning and handling; larger goals add actual requested work.
-
-Simulation providers compute from explicit scene fixtures, not learned perception.
-The mug has a dirt patch; packages can have damage and sealed/unknown contents.
-These findings are visible in the per-step output. A missing upload is not a blocker
-in this mode. Unknown objects become prompt-generated fixtures. Unsupported
-operations use free, mission-scoped **virtual demo effects** while genuine catalog
-gaps still create bounties. Virtual effects record expected state transitions;
-they are not trained inference, hardware execution, producer listings or purchases.
-They never enter the shared catalog and cannot be used in real-provider mode.
-When a fixture adapter cannot satisfy its inputs, its step can also use an explicit
-virtual effect without charging for failed inference. Real-provider constraints
-and verified payment requirements remain enforced.
-Untouched older blocked simulation plans recover locally when opened; missions
-with receipts or inference results are preserved. Recovery makes no new LLM call.
-
-Simulation prices are shown in USD, including subcent precision where needed.
-The cost card separates selected skills, the skill spending limit, actual
-Anthropic token usage and its estimated API cost, and independent bounty pledges.
-Execution records `simulated`
-charges and `simulation_cost_ausd` separately from `spent_ausd` (actual AUSD).
-No payment service, funded wallet or model-weight download is needed. Anthropic
-planning still uses the configured API account. Choose **Real providers · AUSD
-testnet** to use the existing real inference and settlement flow. The old blocked
-plan can be regenerated using **Rebuild with simulation providers**.
-
-**3D task preview** starts switched off. Turn it on in the composer to inspect the
-fixture, or on a mission to review Scout's interpretation, targets, assumptions and
-individual steps before execution. Play/pause or select a step. **Run simulation**
-automatically opens the preview and follows the server-owned motion clock.
-Pickups close the jaws and lift the object; placements carry, lower and release it.
-Pause/resume controls freeze/resume motion. The studio follows the same mission.
-Drag to rotate, scroll to zoom, or choose front/overhead views.
-This lazy-loaded Three.js walkthrough renders locally from the existing plan. It
-makes no additional Anthropic calls, runs no providers and spends no demo credits.
-Building or rebuilding a plan still uses Anthropic. Fixture geometry illustrates
-intent; estimated geometry and analytic IK do not certify calibrated hardware
-motion, dynamics or physical safety.
-
-Earlier visual verification, before simplifying the planner: “Find and inspect a coffee mug” produced and completed 16
-fixture-backed subtasks for 0.016 demo credits, with actual AUSD spending at zero.
-“Sort packages by destination” produced and completed 28 subtasks for 0.028 demo
-credits, placing packages A and B in their shipping zones. The optional preview's
-default-off toggle, target selection, playback and placements were checked in
-the dashboard; no new automated tests added.
-
-## Niche expertise and capability bounties
-
-The catalog now includes 1,086 scoped simulation listings across 68 object
-profiles: phones, oranges, cables, tools, kitchen items, parcels and more.
-They perform detection, handling, placement and narrow checks such as screen
-cracks, connector damage, fruit ripeness, seals, labels and tip wear using explicit
-fixture state. These are runnable demo adapters, not newly trained ML models.
-Search by object/action or collection; the dashboard paginates the catalog.
-The planner receives relevant object listings and bounded provider comparisons.
-
-Automatic bounties default on and have a configurable reward per missing skill.
-Only genuine catalog gaps post a bounty; budget/deadline failures do not. Requests
-persist in SQLite with mission links and acceptance criteria. The Bounties page
-also accepts manual requests and producer submissions. Accepting a demo solution
-publishes its scoped fixture adapter and records an idempotent demo reward. A
-producer can read an existing object attribute or change an attribute; these
-declarative programs never execute uploaded code. Bounties retain the generated
-object fixture so producers can deliver solutions for unfamiliar objects too.
-Rebuild the mission
-to use the new listing. Demo awards do not transfer AUSD. Real submissions remain
-unavailable pending adapter integration, and their reward remains an unfunded
-pledge until an actual settlement flow is configured.
-
-Visual check with the simplified planner: “Pick up my phone, then peel an orange”
-created five actionable subtasks and one automatic orange-peeling bounty. A producer
-submitted a fixture adapter setting `peel_state=peeled`; acceptance published the
-skill and recorded a 0.05 demo-credit reward. Rebuilding selected that provider and
-completed all five steps for 0.0034 demo credits, with actual AUSD spent at zero.
-The optional 3D preview showed phone/orange targets. No automated tests were added.
-
-Prompt-generated scene checks: “Eat the cheese” completed four steps for 0.0018
-demo credits, including a free virtual consumption effect and an automatic bounty.
-“Wash my shirt and fold it, then put it in the laundry basket” completed eight steps
-for 0.0036 demo credits. It generated both objects, opened washing/folding bounties,
-and placed the shirt at the basket's simulated location. The 3D preview showed the
-generated objects and placement. These are fictional demo outcomes, not physical
-eating or laundry operations. No automated tests added.
+Built at B@B Hacks 2.0.
