@@ -66,22 +66,11 @@ export default function WorkbenchScene({scene:fixture,plan,selected=0,robot=DEFA
       const [x,,z]=point(fixture,...xy);const target=new THREE.Group();scene.add(target);target.position.set(x,TABLE_Y+.003,z);
       const zone=box(.14,.002,.13,mat('#639575',{transparent:true,opacity:.12}),0,0,0,target);zone.castShadow=false;ring(.09,.0015,green,0,.002,0,target);
     }
-    const objects=new Map<string,any>(),focusRings=new Map<string,any>(),liquids=new Map<string,any>();
+    const objects=new Map<string,any>(),focusRings=new Map<string,any>();
     for(const item of fixture.objects){
       const group=new THREE.Group();scene.add(group);objects.set(item.id,group);
       const [w,d,h]=item.size_mm.map(v=>Math.max(.004,Math.min(.65,v/1000)));const color=mat(item.color);const name=item.name.toLowerCase();
-      if(/matcha bowl|latte glass/.test(name)){
-        const r=Math.min(w,d)*.47,isGlass=/glass/.test(name);
-        const vessel=new THREE.MeshPhysicalMaterial({color:isGlass?'#e6f1e9':item.color,transparent:isGlass,opacity:isGlass?.58:1,transmission:isGlass?.34:0,thickness:.003,ior:1.46,roughness:isGlass?.10:.32,metalness:0,clearcoat:isGlass?1:.45,clearcoatRoughness:.17,side:THREE.DoubleSide,depthWrite:!isGlass});
-        const body=mesh(isGlass?new THREE.CylinderGeometry(r,r*.90,h,48,1,true):new THREE.LatheGeometry([new THREE.Vector2(r*.60,0),new THREE.Vector2(r*.75,h*.12),new THREE.Vector2(r*.91,h*.60),new THREE.Vector2(r,h*.95),new THREE.Vector2(r,h)],48),vessel,group);if(isGlass)body.position.y=h/2;
-        cyl(r*.83,.005,vessel,0,.004,0,group);ring(r,.0025,isGlass?vessel:white,0,h,0,group);
-        const liquid=cyl(r*.81,1,mat('#72a45b',{roughness:.27,metalness:0}),0,.01,0,group);liquid.visible=false;liquids.set(item.id,liquid);
-        const surface=mesh(new THREE.CircleGeometry(r*.81,48),mat('#a3bf80',{roughness:.54,metalness:0}),group);surface.rotation.x=-Math.PI/2;surface.visible=false;liquid.userData.surface=surface;
-        const ripples=new THREE.Group();group.add(ripples);for(let i=0;i<3;i++){const ripple=ring(r*(.20+i*.20),.0007,mat('#d4e2b5',{transparent:true,opacity:.12,metalness:0}),0,0,0,ripples);ripple.castShadow=false;}ripples.visible=false;liquid.userData.ripples=ripples;
-      }else if(/bamboo whisk/.test(name)){
-        cyl(.010,h*.60,color,0,h*.70,0,group);ring(.022,.0018,color,0,h*.18,0,group);
-        for(let i=0;i<18;i++){const angle=i*Math.PI/9;const tine=mesh(new THREE.CylinderGeometry(.0009,.0015,h*.48,8),color,group);tine.position.set(Math.cos(angle)*.019,h*.26,Math.sin(angle)*.019);tine.rotation.z=Math.cos(angle)*.20;tine.rotation.x=Math.sin(angle)*.20;}
-      }else if(/basket|tray|bowl|container/.test(name)){
+      if(/basket|tray|bowl|container/.test(name)){
         box(w,.008,d,color,0,.004,0,group);for(const x of [-w/2,w/2])box(.008,h,d,color,x,h/2,0,group);for(const z of [-d/2,d/2])box(w,h,.008,color,0,h/2,z,group);
         if(/basket/.test(name))for(let y=.03;y<h;y+=.022){for(const x of [-w/2-.004,w/2+.004])box(.002,.003,d*.88,black,x,y,0,group);}
       }else if(/shirt|towel|sock|clothes|glove/.test(name)){
@@ -130,7 +119,6 @@ export default function WorkbenchScene({scene:fixture,plan,selected=0,robot=DEFA
     const route=new THREE.Line(new THREE.BufferGeometry(),new THREE.LineDashedMaterial({color:'#dc9c57',dashSize:.015,gapSize:.009}));scene.add(route);
     const sweep=mesh(new THREE.ConeGeometry(.12,.50,32,1,true),new THREE.MeshBasicMaterial({color:'#72bd98',transparent:true,opacity:.085,depthWrite:false}));sweep.rotation.x=Math.PI;sweep.castShadow=false;
     const idle=new THREE.Vector3(.15,TABLE_Y+.26,.16),end=new THREE.Vector3();
-    const stream=cyl(.003,1,mat('#88b774',{transparent:true,opacity:.72,roughness:.2}),0,0,0);stream.visible=false;stream.castShadow=false;
     const link=(object:any,a:any,b:any)=>{const delta=b.clone().sub(a);object.position.copy(a).add(b).multiplyScalar(.5);object.scale.y=delta.length();object.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),delta.normalize());};
     const solve=(target:any)=>{
       const delta=target.clone().add(new THREE.Vector3(0,.09,0)).sub(shoulder),reach=robot.reach_mm/1000;
@@ -159,46 +147,15 @@ export default function WorkbenchScene({scene:fixture,plan,selected=0,robot=DEFA
       let progress=clock.tick(time,key,current,relevant?state.arm:undefined,state.mode==='live',state.mode==='live'||state.playing,state.playhead?.current||0);
       if(reduced.matches)progress=1;
       const selectedObject=subject(fixture,current),target=selectedObject?position(fixture,selectedObject,state.plan?.subtasks,state.selected).xyz:null;
-      let grip=.04,wristTilt=0;end.copy(idle);sweep.visible=false;route.visible=false;stream.visible=false;
+      let grip=.04;end.copy(idle);sweep.visible=false;route.visible=false;
       robotRoot.position.set(0,0,0);
       if(current&&/nav|locomotion|move_robot/.test(current.task_type)){const targetZone=destination(fixture,current,state.plan?.subtasks||[]);if(targetZone)robotRoot.position.set(targetZone[0]*smooth(progress),0,(targetZone[2]-.52)*smooth(progress));}
       for(const item of fixture.objects){const group=objects.get(item.id),pose=position(fixture,item,state.plan?.subtasks,state.selected);group.position.set(...pose.xyz);group.rotation.set(0,0,0);group.visible=!pose.hidden;group.scale.set(1,1,1);focusRings.get(item.id).visible=item.id===selectedObject?.id;
-        const liquid=liquids.get(item.id);if(liquid){const traits={...item.traits};for(const previous of state.plan?.subtasks.slice(0,state.selected)||[]){const updates=previous.result?.output.trait_updates as Record<string,Record<string,string>>|undefined;if(updates?.[item.id])Object.assign(traits,updates[item.id]);}
-          const updates=current?.result?.output.trait_updates as Record<string,Record<string,string>>|undefined;
-          const interpolated=(key:string)=>Number(traits[key]||0)+(Number(updates?.[item.id]?.[key]??traits[key]??0)-Number(traits[key]||0))*smooth(Math.max(0,(progress-.35)/.35));
-          const water=interpolated('water_ml'),milk=interpolated('milk_ml'),matcha=interpolated('matcha_ml');const ml=water+milk+matcha;
-          const level=Math.min(item.size_mm[2]/1000*.8,ml/250*(item.size_mm[2]/1000*.85));liquid.visible=ml>0;liquid.scale.y=Math.max(.001,level);liquid.position.y=level/2+.006;
-          const liquidColor=new THREE.Color(milk>0?'#f3e9cc':'#6d974e');if(milk>0)liquidColor.lerp(new THREE.Color('#8aac6b'),Math.min(1,matcha/60));liquid.material.color.copy(liquidColor);
-          const surface=liquid.userData.surface,ripples=liquid.userData.ripples;surface.visible=liquid.visible;surface.position.y=level+.007;surface.material.color.copy(liquidColor).lerp(new THREE.Color('#f8f0d4'),.10);
-          ripples.visible=liquid.visible&&item.id===selectedObject?.id&&progress>.38&&progress<.77;ripples.position.y=level+.008;ripples.rotation.y=progress*3;
-          const rippleScale=1+Math.sin(progress*Math.PI*24)*.08;ripples.scale.set(rippleScale,1,rippleScale);
-        }
       }
       if(current&&target&&selectedObject){
         const object=objects.get(selectedObject.id),height=Math.max(.004,selectedObject.size_mm[2]/1000),center=new THREE.Vector3(...target).add(new THREE.Vector3(0,height/2,0));
         const virtual=!!current.decision?.candidates.find(c=>c.model.id===current.decision?.selected_model_id)?.model.simulation_placeholder;
-        const program=current.decision?.candidates.find(c=>c.model.id===current.decision?.selected_model_id)?.model.simulation_program;
-        const motion=String(current.result?.output.motion_kind||program?.motion_kind||'');
-        const toolItem=fixture.objects.find(o=>o.id===current.result?.output.tool_object_id || o.name===program?.tool_name);
-        if(toolItem&&['pour','whisk','scoop'].includes(motion)&&!virtual){
-          const tool=objects.get(toolItem.id),origin=new THREE.Vector3(...position(fixture,toolItem,state.plan?.subtasks,state.selected).xyz),toolH=toolItem.size_mm[2]/1000;
-          const grasp=origin.clone().add(new THREE.Vector3(0,toolH*.65,0)),lift=grasp.clone().add(new THREE.Vector3(0,.20,0));
-          const above=center.clone().add(new THREE.Vector3(0,height/2+.11,0));
-          const action=above.clone();if(motion==='whisk')action.y=target[1]+height+toolH*.30;
-          if(progress<.14)end.copy(stepStart).lerp(grasp,phase(progress,0,.14));
-          else if(progress<.23)end.copy(grasp).lerp(lift,phase(progress,.14,.23));
-          else if(progress<.36){const path=new THREE.QuadraticBezierCurve3(lift,lift.clone().lerp(above,.5).add(new THREE.Vector3(0,.06,0)),above);end.copy(path.getPoint(phase(progress,.23,.36)));}
-          else if(progress<.43)end.copy(above).lerp(action,phase(progress,.36,.43));
-          else if(progress<.69){end.copy(action);if(motion==='whisk'){const amplitude=.011*phase(progress,.43,.48)*(1-phase(progress,.64,.69));end.x+=Math.sin(progress*Math.PI*36)*amplitude;end.z+=Math.cos(progress*Math.PI*36)*amplitude;tool.rotation.y=progress*Math.PI*36;} }
-          else if(progress<.76)end.copy(action).lerp(above,phase(progress,.69,.76));
-          else if(progress<.89){const path=new THREE.QuadraticBezierCurve3(above,above.clone().lerp(lift,.5).add(new THREE.Vector3(0,.06,0)),lift);end.copy(path.getPoint(phase(progress,.76,.89)));}
-          else if(progress<.96)end.copy(lift).lerp(grasp,phase(progress,.89,.96));
-          else end.copy(grasp).lerp(idle,phase(progress,.96,1));
-          const attached=progress>=.14&&progress<.96;
-          grip=.04-.026*phase(progress,.10,.14)+.026*phase(progress,.94,.96);
-          if(attached){const tilt=motion==='whisk'?0:phase(progress,.38,.45)*(1-phase(progress,.67,.75))*.68;tool.rotation.z=-tilt;wristTilt=-tilt;tool.position.copy(end).sub(new THREE.Vector3(0,toolH*.65,0).applyEuler(tool.rotation));}
-          if(motion!=='whisk'&&progress>.44&&progress<.68){const tip=tool.localToWorld(new THREE.Vector3(-toolItem.size_mm[0]/2000,toolH*.85,0)),bottom=center.clone().add(new THREE.Vector3(0,height*.15,0));stream.visible=true;link(stream,tip,bottom);stream.material.opacity=.65*phase(progress,.44,.48)*(1-phase(progress,.64,.68));stream.material.color.set(current.task_type==='matcha_milk_pouring'?'#f3e9cc':current.task_type==='matcha_water_pouring'?'#b8dfe4':'#6d974e');}
-        }else if(current.task_type==='control'&&!virtual){
+        if(current.task_type==='control'&&!virtual){
           const graspWidth=Math.min(.06,selectedObject.size_mm[0]/2000),hover=center.clone().add(new THREE.Vector3(0,.14,0));
           if(progress<.30)end.copy(stepStart).lerp(hover,phase(progress,0,.30));
           else if(progress<.47)end.copy(hover).lerp(center,phase(progress,.30,.47));
@@ -232,7 +189,7 @@ export default function WorkbenchScene({scene:fixture,plan,selected=0,robot=DEFA
         if(held?.task_type==='control'&&!held.decision?.candidates.find(c=>c.model.id===held.decision?.selected_model_id)?.model.simulation_placeholder){const item=subject(fixture,held);if(item){const pose=position(fixture,item,state.plan.subtasks,state.selected);const group=objects.get(item.id);group.position.y=TABLE_Y+.18;end.set(pose.xyz[0],group.position.y+item.size_mm[2]/2000,pose.xyz[2]);grip=Math.min(.06,item.size_mm[0]/2000);}}
       }
       renderEnd.lerp(end,reduced.matches?1:damping(dt,22));renderGrip+=(grip-renderGrip)*damping(dt,22);
-      left.position.x=-renderGrip;right.position.x=renderGrip;claw.rotation.z+=(wristTilt-claw.rotation.z)*damping(dt,18);solve(renderEnd);
+      left.position.x=-renderGrip;right.position.x=renderGrip;solve(renderEnd);
       const v=view.current;for(const key of ['yaw','pitch','radius'] as const)currentView[key]+=(v[key]-currentView[key])*damping(dt,8);
       const desiredAim=state.focusAction&&target?new THREE.Vector3(...target).add(new THREE.Vector3(0,.17,0)):new THREE.Vector3(0,.94,.02);aim.lerp(desiredAim,damping(dt,4));
       focusMix+=((state.focusAction?1:0)-focusMix)*damping(dt,5);

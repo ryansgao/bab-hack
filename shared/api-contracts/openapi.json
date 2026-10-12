@@ -1443,17 +1443,6 @@
       },
       "MissionPlan": {
         "properties": {
-          "demo_scenario": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Demo Scenario"
-          },
           "robot_visual": {
             "additionalProperties": true,
             "type": "object",

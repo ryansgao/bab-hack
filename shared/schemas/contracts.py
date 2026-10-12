@@ -1,7 +1,7 @@
 """Shared v1 contracts. Money is decimal text, never binary floating point."""
 from __future__ import annotations
 from typing import Annotated, Literal
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 Money = Annotated[str, Field(pattern=r"^(0|[1-9]\d{0,8})(\.\d{1,6})?$")]
 TaskType = Annotated[str, Field(pattern=r'^[a-z][a-z0-9_]{1,63}$')]
@@ -189,7 +189,13 @@ class Subtask(Contract):
     error: str | None = None
 
 class MissionPlan(Contract):
-    demo_scenario: str | None = None
+    @model_validator(mode='before')
+    @classmethod
+    def _drop_retired_fields(cls, data):
+        # Plans saved before `demo_scenario` was retired still carry it; extra fields are forbidden.
+        if isinstance(data, dict) and 'demo_scenario' in data:
+            data = {key: value for key, value in data.items() if key != 'demo_scenario'}
+        return data
     robot_visual: dict = Field(default_factory=dict)
     planning_usage: dict = Field(default_factory=dict)
     simulation_fallbacks: list[ModelOffer] = Field(default_factory=list, max_length=64)

@@ -1,7 +1,7 @@
 export type Family =
   | "detect" | "segment" | "human" | "pose" | "capture"
   | "inspect" | "read" | "measure" | "verify"
-  | "grasp" | "control" | "place" | "pour" | "whisk" | "dose"
+  | "grasp" | "control" | "place"
   | "path" | "map" | "reach" | "collision";
 
 const FAMILY: Record<string, Family> = {
@@ -18,14 +18,11 @@ const FAMILY: Record<string, Family> = {
 };
 
 export const familyOf = (taskType: string): Family =>
-  FAMILY[taskType]
-  ?? (/pour|combin|fill/.test(taskType) ? "pour"
-    : /whisk|stir|mix|blend/.test(taskType) ? "whisk"
-      : /dos(e|ing)|weigh|scoop/.test(taskType) ? "dose" : "inspect");
+  FAMILY[taskType] ?? "inspect";
 
 export const GROUPS: { key: string; label: string; families: Family[] }[] = [
   { key: "perception", label: "Perception", families: ["detect", "segment", "human", "pose", "capture"] },
   { key: "inspection", label: "Inspection", families: ["inspect", "read", "measure", "verify"] },
-  { key: "manipulation", label: "Manipulation", families: ["grasp", "control", "place", "pour", "whisk", "dose"] },
+  { key: "manipulation", label: "Manipulation", families: ["grasp", "control", "place"] },
   { key: "planning", label: "Planning & safety", families: ["path", "map", "reach", "collision"] },
 ];

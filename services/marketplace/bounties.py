@@ -59,24 +59,20 @@ def auto_post(plan):
     if not plan.request.auto_bounties: return plan
     models=registry.list_models()
     gaps=[]
-    from apps.simulation.matcha_demo import forced_bounty
     for step in plan.subtasks:
         available=[m for m in models if m.execution_mode==plan.request.execution_mode and m.task_type==step.task_type
             and not registry.compatibility(m,plan.request.robot_card,step.object_name)]
-        if forced_bounty(plan,step) or not available: gaps.append(step)
+        if not available: gaps.append(step)
     with db() as conn:
         conn.execute('BEGIN IMMEDIATE')
         for step in gaps:
             existing=[json.loads(row['body']) for row in conn.execute('SELECT body FROM bounties')]
             bounty=next((b for b in existing if b['status'] in ('open','review') and
                 b['task_type']==step.task_type and b['object_name']==step.object_name and
-                b['execution_mode']==plan.request.execution_mode and (forced_bounty(plan,step) or b['success_criteria']==step.success_criteria)),None)
+                b['execution_mode']==plan.request.execution_mode and b['success_criteria']==step.success_criteria),None)
             if bounty:
                 bounty['plan_ids']=list(dict.fromkeys([*bounty['plan_ids'],plan.id]))
                 bounty['step_ids']=list(dict.fromkeys([*bounty['step_ids'],step.id]))
-                if forced_bounty(plan,step):
-                    bounty['success_criteria']=step.success_criteria
-                    bounty['description']=step.description
             else:
                 bounty=_create(BountyRequest(title=step.title,description=step.description or step.title,
                     task_type=step.task_type,object_name=step.object_name,execution_mode=plan.request.execution_mode,

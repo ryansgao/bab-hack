@@ -32,8 +32,7 @@ export class MotionClock {
         this.progress=Math.max(this.progress,this.progress+(target-this.progress)*damping(dt,10));
       }
     }else if(playing){
-      const program=step?.decision?.candidates.find(c=>c.model.id===step.decision?.selected_model_id)?.model.simulation_program;
-      const waitingForTrajectory=['control','object_placement'].includes(step?.task_type||'')||!!program?.motion_kind;
+      const waitingForTrajectory=['control','object_placement'].includes(step?.task_type||'');
       if(!waitingForTrajectory)this.progress=Math.min(.985,this.progress+dt/1.6);
     }
     return this.progress;

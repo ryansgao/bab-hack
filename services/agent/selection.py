@@ -29,15 +29,11 @@ def _resolve(task_type, object_name):
     return task, confidence, subject, relevance
 
 
-def select(request, models, *, exact=False):
+def select(request, models):
     raw_subject = request.object_name or (request.requirements.object_name if request.requirements else None)
     # The matching model maps loose planner wording onto catalog capabilities and objects
     # ("limes" -> lime, "pedestrian" -> person, "seal_check" -> seal_inspection).
-    if exact:
-        task, task_confidence, subject = request.task_type, 1.0, raw_subject
-        relevance_of = lambda model: 1.0 if not model.supported_objects or raw_subject in model.supported_objects else 0.0
-    else:
-        task, task_confidence, subject, relevance_of = _resolve(request.task_type, raw_subject)
+    task, task_confidence, subject, relevance_of = _resolve(request.task_type, raw_subject)
     # Keep comparisons useful and bounded as the niche catalog grows.
     models = [m for m in models if m.task_type == task and relevance_of(m) > 0]
     risk = max(risk_score(request.observation), request.requirements.fragility if request.requirements else 0)

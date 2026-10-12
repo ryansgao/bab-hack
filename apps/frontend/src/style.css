@@ -1202,19 +1202,6 @@ nav > button.active {
 .sp-fadeloop { animation-name: sp-fadeloop; animation-duration: 8s; animation-timing-function: linear; }
 .sp-spin { animation-name: sp-spin; animation-duration: 4s; animation-timing-function: linear; }
 .sp-blink { animation-name: sp-blink; animation-duration: 4s; animation-timing-function: ease-out; }
-.sp-level { animation-name: sp-level; transform-origin: bottom center; }
-.sp-surface { animation-name: sp-surface; }
-.sp-stream { animation-name: sp-stream; animation-timing-function: linear; }
-.sp-flow { animation: sp-flow 0.45s linear infinite; }
-.sp-tilt { animation-name: sp-tilt; }
-.sp-steam { animation-name: sp-steam; animation-duration: 3s; animation-timing-function: ease-out; }
-.sp-froth { animation-name: sp-froth; animation-timing-function: ease-in-out; }
-.sp-whisk { animation-name: sp-whisk; animation-duration: 0.55s; animation-direction: alternate; animation-timing-function: ease-in-out; }
-.sp-digit-0 { animation-name: sp-digit-0; animation-timing-function: steps(1, end); }
-.sp-digit-1 { animation-name: sp-digit-1; animation-timing-function: steps(1, end); }
-.sp-digit-2 { animation-name: sp-digit-2; animation-timing-function: steps(1, end); }
-.sp-fall { animation: sp-fall 1.2s linear infinite; transform-box: fill-box; }
-.sp-scoop { animation-name: sp-scoop; }
 
 @keyframes sp-sweep { 0% { transform: translateX(46px); opacity: 0; } 4% { opacity: 1; } 26% { transform: translateX(274px); opacity: 1; } 30%, 100% { transform: translateX(274px); opacity: 0; } }
 @keyframes sp-propose { 0%, 4% { opacity: 0; } 10%, 22% { opacity: 0.9; } 30%, 100% { opacity: 0; } }
@@ -1255,19 +1242,6 @@ nav > button.active {
 @keyframes sp-fadeloop { 0% { opacity: 0; } 5%, 86% { opacity: 1; } 94%, 100% { opacity: 0; } }
 @keyframes sp-spin { to { transform: rotate(360deg); } }
 @keyframes sp-blink { 0% { opacity: 1; } 55%, 100% { opacity: 0.18; } }
-@keyframes sp-level { 0%, 24% { transform: scaleY(0.18); } 72%, 88% { transform: scaleY(1); } 100% { transform: scaleY(0.18); } }
-@keyframes sp-surface { 0%, 24% { transform: scale(0.3); } 72%, 88% { transform: scale(1); } 100% { transform: scale(0.3); } }
-@keyframes sp-stream { 0%, 24% { opacity: 0; } 29%, 70% { opacity: 1; } 75%, 100% { opacity: 0; } }
-@keyframes sp-flow { to { stroke-dashoffset: -8; } }
-@keyframes sp-tilt { 0%, 8% { transform: rotate(0deg); } 26%, 72% { transform: rotate(52deg); } 88%, 100% { transform: rotate(0deg); } }
-@keyframes sp-steam { 0% { transform: translateY(4px); opacity: 0; } 30% { opacity: 0.9; } 100% { transform: translateY(-10px); opacity: 0; } }
-@keyframes sp-froth { 0% { opacity: 0.05; } 78%, 90% { opacity: 0.95; } 100% { opacity: 0.05; } }
-@keyframes sp-whisk { from { transform: translateX(-8px) rotate(-7deg); } to { transform: translateX(8px) rotate(7deg); } }
-@keyframes sp-digit-0 { 0% { opacity: 1; } 30%, 100% { opacity: 0; } }
-@keyframes sp-digit-1 { 0% { opacity: 0; } 30% { opacity: 1; } 54%, 100% { opacity: 0; } }
-@keyframes sp-digit-2 { 0% { opacity: 0; } 54% { opacity: 1; } 100% { opacity: 1; } }
-@keyframes sp-fall { 0% { transform: translateY(0); opacity: 0; } 15% { opacity: 1; } 100% { transform: translateY(26px); opacity: 0; } }
-@keyframes sp-scoop { 0%, 8% { transform: rotate(0deg); } 26%, 72% { transform: rotate(-12deg); } 88%, 100% { transform: rotate(0deg); } }
 @media (prefers-reduced-motion: reduce) {
   .skill-preview .sp { animation: none; }
   .skill-preview .sp-transient { display: none; }
@@ -2193,32 +2167,6 @@ nav > button.active {
 
 .attachment-list{display:flex;flex-wrap:wrap;gap:8px;padding:0 18px 4px}.attachment-list>div{display:flex;align-items:center;gap:9px;background:#eef3e8;border:1px solid #d2deca;border-radius:8px;padding:5px 7px 5px 10px;font-size:11px}.attachment-list small{font-size:9px;color:var(--muted)}.attachment-list .icon-button{width:23px;height:23px}.station-config h3{font-size:11px;font-weight:600;margin-top:22px}.station-config li{font-size:11px;line-height:1.8;overflow-wrap:anywhere}.task-preview{scroll-margin-top:20px}
 
-.suggestions { display: flex; justify-content: center; margin-top: 16px; }
-.suggestion-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 11px;
-  padding: 9px 15px 9px 18px;
-  border: 1px solid #3f7d5c38;
-  border-radius: 999px;
-  background: #ffffffa6;
-  backdrop-filter: blur(14px);
-  box-shadow: 0 8px 26px -14px #1c1d1840, inset 0 1px 0 #ffffffcc;
-  color: var(--ink);
-  cursor: pointer;
-  animation: chip-in 0.6s 0.25s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-  transition: transform 0.25s cubic-bezier(0.2, 0.7, 0.2, 1), box-shadow 0.25s, background 0.25s;
-}
-.suggestion-chip span { display: flex; flex-direction: column; align-items: flex-start; text-align: left; line-height: 1.25; }
-.suggestion-chip strong { font-size: 13.5px; font-weight: 500; }
-.suggestion-chip small { font-size: 10px; color: var(--faint); }
-.suggestion-chip > svg:last-child { color: var(--sage-dark); transition: transform 0.25s; }
-.suggestion-chip:hover { transform: translateY(-2px); border-color: #3f7d5c66; background: #ffffffe0; box-shadow: 0 14px 32px -14px #1c1d1850, inset 0 1px 0 #ffffffe6; }
-.suggestion-chip:hover > svg:last-child { transform: translateY(-2px); }
-.suggestion-chip:active { transform: translateY(0) scale(0.98); }
-.suggestion-chip:focus-visible { outline: 2px solid var(--sage); outline-offset: 3px; }
-@keyframes chip-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-@media (prefers-reduced-motion: reduce) { .suggestion-chip { animation: none; transition: none; } }
 
 /* Mission page: header, stage + plan, selected step, details. */
 .mission-header {

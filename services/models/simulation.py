@@ -34,6 +34,8 @@ CAPABILITIES = {
  'completion_verification':('Outcome Verification','Verify prerequisite evidence; for placement verify final bounds against planned bounds.'),
 }
 SIM_IDS = {f'sim_{cap}':cap for cap in CAPABILITIES}
+# Declarative producer programs this worker can run for a published listing.
+PROGRAM_OPERATIONS = ('inspect_attribute', 'set_attribute')
 SIM_IDS.update({key: cap for key,(cap,_) in NICHES.items()})
 
 def offers():
@@ -56,9 +58,6 @@ def infer_simulated(request):
         if not offer or offer.execution_mode!='simulation' or not offer.simulation_program: raise ValueError('Unknown simulation adapter')
         program = offer.simulation_program; cap = offer.task_type
     else: cap=SIM_IDS[adapter_id]
-    if program and program.get('operation')=='matcha_demo':
-        from apps.simulation.matcha_demo import infer
-        return infer(request,program)
     scene=deepcopy(data.simulation_scene)
     matches=find_objects(scene,data.object_name)
     generic={'camera_capture','image_quality','scene_mapping','completion_verification'}

@@ -39,7 +39,7 @@ const OBJECTS: Record<string, [Shape, string]> = {
   can: ["can", "#b6c0c8"], jar: ["can", "#e8d9b8"],
   bottle: ["bottle", "#8fbfa6"], "glass bottle": ["bottle", "#8fbfa6"], "water bottle": ["bottle", "#9fc6dd"], "soap dispenser": ["bottle", "#cfe1df"],
   cup: ["cup", "#f1ede6"], mug: ["cup", "#f1ede6"], "wine glass": ["cup", "#dfe9ea"],
-  bowl: ["plate", "#f1ede6"], "matcha bowl": ["plate", "#46503f"], plate: ["plate", "#f3f0ea"], "latte glass": ["glass", "#eef3f4"],
+  bowl: ["plate", "#f1ede6"], plate: ["plate", "#f3f0ea"],
   washer: ["ring", "#a6adb2"], nut: ["ring", "#9aa3a8"], gear: ["ring", "#9aa3a8"],
   towel: ["flat", "#9fb7c9"], sock: ["flat", "#b8a6c9"], glove: ["flat", "#d9b96e"], "shipping label": ["flat", "#fbfaf6"],
   "padded envelope": ["flat", "#e3cfa6"], keyboard: ["flat", "#e2e5e0"], sunglasses: ["flat", "#3e4348"],
@@ -824,104 +824,13 @@ function map(s: S): Scene {
   };
 }
 
-const LIQUID = { milk: "#f1e8d6", water: "#d3e7ee", matcha: "#7fa35a" };
-
-function Jug({ color }: { color: string }) {
-  // Drawn with the spout tip at the origin so tilting pivots around it.
-  return <>
-    <path d="M-20 6C-28 6-28 18-20 18" fill="none" stroke="#e3e0d8" strokeWidth={2.6} strokeLinecap="round" />
-    <g transform="translate(-12 24)">{cylinder(8, 20, "#f4f2ec", "jug")}</g>
-    <ellipse cx={-12} cy={4} rx={6.4} ry={3} fill={color} />
-    <path d="M-5 2L0 0-3 5Z" fill="#f4f2ec" stroke="#1c1d18" strokeOpacity={0.15} strokeWidth={0.5} />
-  </>;
-}
-
-function pour(s: S): Scene {
-  const { id, look, offer } = s;
-  const bowl = /bowl/.test(look.name);
-  const millilitres = offer.name.match(/(\d+)\s*mL/i)?.[1];
-  const kind = /water/.test(offer.task_type + offer.name) ? "water" : /combin/.test(offer.task_type) ? "matcha" : /milk/.test(offer.task_type + offer.name) ? "milk" : "water";
-  const color = LIQUID[kind];
-  const vx = 178, vy = 90;
-  const vessel = thing(look, id + "v");
-  const mouth = vy + vessel.box.y0 + (bowl ? 10 : 6);
-  const liquid = bowl
-    ? <g transform="translate(0 -13)"><ellipse className="sp sp-surface" rx={16} ry={7.6} fill={color} /></g>
-    : <>
-      {kind === "matcha" && cylinder(10.8, 16, LIQUID.milk, id + "base")}
-      <g transform={`translate(0 ${kind === "matcha" ? -16 : 0})`}><g className="sp sp-level">{cylinder(10.8, kind === "matcha" ? 14 : 30, color, id + "liq")}</g></g>
-    </>;
-  return {
-    node: <>
-      {at(vx, vy, <><Shadow id={id} box={vessel.box} />{bowl ? <>{vessel.node}{liquid}</> : <>{liquid}{vessel.node}</>}</>)}
-      {kind === "water" && [0, 1].map((i) => <g key={i} transform={`translate(${vx - 6 + i * 10} ${mouth - 14})`}>
-        <path className="sp sp-steam" style={later(i * 1.4)} d="M0 0c-3-4 3-6 0-10s3-6 0-10" fill="none" stroke="#1c1d18" strokeOpacity={0.18} strokeWidth={1.2} strokeLinecap="round" />
-      </g>)}
-      <g className="sp sp-stream"><path className="sp-flow" d={`M148 40Q158 ${mouth - 14} ${vx - 2} ${mouth}`} fill="none" stroke={kind === "water" ? "#9cc6d6" : kind === "milk" ? "#dccba8" : color} strokeWidth={2.6} strokeLinecap="round" strokeDasharray="6 2" /></g>
-      {at(148, 40, <Jug color={color} />, "sp sp-pivot sp-tilt")}
-    </>,
-    readout: kind === "matcha" ? "2 layers · matcha latte" : `+${millilitres ?? 120} mL ${kind === "water" ? "· 80 °C" : "oat milk"}`,
-  };
-}
-
-function whisk(s: S): Scene {
-  const { id, look } = s;
-  const bowl = thing(/bowl/.test(look.name) ? look : lookFor("matcha bowl"), id + "b");
-  const froth = Array.from({ length: 12 }, (_, i) => [Math.cos(i * 2.4) * (4 + (i % 4) * 3.2), Math.sin(i * 2.4) * (2 + (i % 4) * 1.4)]);
-  return {
-    node: <>
-      {at(160, 92, <g transform="scale(1.2)">
-        <Shadow id={id} box={bowl.box} />{bowl.node}
-        <g transform="translate(0 -13)">
-          <ellipse rx={16} ry={7.6} fill={LIQUID.matcha} />
-          <ellipse className="sp sp-froth" rx={14} ry={6.6} fill="#b9d08f" />
-          {froth.map(([x, y], i) => <circle key={i} className="sp sp-reveal" style={later(i * 0.12)} cx={x} cy={y} r={0.9} fill="#e3eccd" />)}
-        </g>
-      </g>)}
-      {at(160, 76, <g className="sp sp-whisk">
-        <rect x={-2} y={-60} width={4} height={40} rx={2} fill="#d8bf88" />
-        <rect x={-2} y={-60} width={1.4} height={40} fill="#fff" opacity={0.4} />
-        <path d="M-7-20C-8-10-5-2 0 0C5-2 8-10 7-20Z" fill="#e8d6a8" stroke="#b99a5c" strokeWidth={0.6} />
-        <path d="M-4.5-19L-3-2M0-20V0M4.5-19L3-2" stroke="#b99a5c" strokeWidth={0.6} />
-      </g>)}
-    </>,
-    readout: "froth · 92% smooth",
-  };
-}
-
-function dose(s: S): Scene {
-  const { id, look, offer } = s;
-  const grams = offer.name.match(/(\d+(?:\.\d+)?)\s*g\b/)?.[1] ?? "2";
-  const bowl = thing(/bowl/.test(look.name) ? look : lookFor("matcha bowl"), id + "b");
-  const scale = cuboid(48, 32, 6, "#e9ebe7");
-  const target = Number(grams);
-  const steps = [0, target * 0.55, target];
-  return {
-    node: <>
-      {at(160, 90, <><Shadow id={id} box={scale.box} />{scale.node}</>)}
-      {at(160, 84, <>{bowl.node}<g transform="translate(0 -13)"><ellipse className="sp sp-surface" rx={14} ry={6.6} fill={LIQUID.matcha} /></g></>)}
-      <rect x={136} y={94} width={30} height={10} rx={2.5} fill="#2b322d" />
-      {steps.map((value, i) => <text key={i} className={`sp sp-digit-${i}`} x={162} y={101.4} textAnchor="end" fontSize={7} fontWeight={600} fill="#9fd08a">{value.toFixed(1)} g</text>)}
-      <g className="sp sp-stream">
-        {[0, 1, 2, 3, 4, 5].map((i) => <circle key={i} className="sp-fall" style={{ animationDelay: `${-i * 0.2}s` }} cx={164 + (i % 3) - 1} cy={50} r={1.1} fill={LIQUID.matcha} />)}
-      </g>
-      {at(214, 30, <g className="sp sp-pivot sp-scoop">
-        <path d="M0 0L-46 18" stroke="#d8bf88" strokeWidth={3} strokeLinecap="round" />
-        <path d="M-44 15q-6 2-7 7 5 1 9-3" fill="#d8bf88" stroke="#b99a5c" strokeWidth={0.6} />
-        <circle cx={-48} cy={19} r={2.2} fill={LIQUID.matcha} />
-      </g>)}
-    </>,
-    readout: `${target.toFixed(1)} g ± 0.05 g`,
-  };
-}
-
 // Object-focused scenes sit a little closer; scenes with side panels or
 // edge-to-edge framing stay at 1:1 so nothing clips.
-const ZOOM: Partial<Record<Family, number>> = { inspect: 1.12, grasp: 1.12, measure: 1.15, pose: 1.2, collision: 1.08, place: 1.05, pour: 1.15, whisk: 1.12, dose: 1.1 };
+const ZOOM: Partial<Record<Family, number>> = { inspect: 1.12, grasp: 1.12, measure: 1.15, pose: 1.2, collision: 1.08, place: 1.05 };
 
 const SCENES: Record<Family, (s: S) => Scene> = {
   detect: (s) => detect(s, false), segment: (s) => detect(s, true), human, pose, capture,
-  inspect, read, measure, verify, grasp, control, place, pour, whisk, dose, path, map, reach, collision,
+  inspect, read, measure, verify, grasp, control, place, path, map, reach, collision,
 };
 
 export function SkillPreview({ offer }: { offer: Offer }) {

@@ -302,17 +302,6 @@ function Composer({
           </div></div>
         </div>
       </div>
-      <div className="suggestions">
-        {data.planner?.matcha_demo?.enabled&&<button className="suggestion-chip" onClick={()=>{
-          const prompt=data.planner!.matcha_demo!.prompt;
-          data.setExecutionMode('simulation');data.setBudget('0.25');data.setAutoBounties(true);data.setBountyReward('5.00');
-          input.current?.focus();
-          const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-          if(reduced){data.setTask(prompt);return;}
-          const step=Math.max(1,Math.ceil(prompt.length/36));let n=0;
-          const timer=window.setInterval(()=>{n=Math.min(prompt.length,n+step);data.setTask(prompt.slice(0,n));if(n>=prompt.length)window.clearInterval(timer);},16);
-        }}><span><strong>Make a matcha latte</strong><small>Try the guided recipe</small></span><ArrowUp size={13}/></button>}
-      </div>
       <ol className="how-it-works">
         <li>
           <strong>Describe a task</strong>
@@ -421,7 +410,7 @@ function Mission({ data, onNew, onRobot }: { data: RoboMarket; onNew: () => void
     <div className="page mission-page enter">
       <div className="mission-header">
         <div>
-          <h1>{plan.demo_scenario==='matcha_demo_v1'?'Make me a matcha latte':plan.request.task}</h1>
+          <h1>{plan.request.task}</h1>
           <p className="mission-meta">
             <span>{plan.robot_visual?.name || "Generated robot"}</span>
             <span>{completed} / {plan.subtasks.length} steps</span>

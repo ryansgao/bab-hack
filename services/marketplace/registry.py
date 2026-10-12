@@ -11,7 +11,7 @@ from services.storage import db
 BENCHMARKS = Path(__file__).resolve().parents[1] / 'models' / 'benchmarks.json'
 
 from services.marketplace.catalog import COCO_OBJECTS, BACKENDS, listings
-from services.models.simulation import offers as simulation_offers
+from services.models.simulation import offers as simulation_offers, PROGRAM_OPERATIONS
 
 # Sample catalog (many competing vendors) plus SimLab's reference simulation adapters.
 SEEDS = [{k: v for k, v in row.items() if k != 'backend'} for row in listings()] + simulation_offers()
@@ -24,8 +24,6 @@ def backend(model_id):
 
 from apps.simulation.catalog import niche_offers
 SEEDS.extend(niche_offers())
-from apps.simulation.matcha_demo import offers as matcha_offers
-SEEDS.extend(matcha_offers())
 
 def benchmarks():
     return json.loads(BENCHMARKS.read_text()) if BENCHMARKS.exists() else {'results': {}}
@@ -64,16 +62,16 @@ def seed(force=False):
                 continue
             # Keep provider edits (price, status, live latency) but refresh seeded metadata and published quality.
             existing = ModelOffer.model_validate_json(row['body'])
-            if model.id.startswith('matcha_demo_'):
-                # This isolated recipe profile is versioned source, not a provider-editable listing.
-                model.latency_ms=existing.latency_ms
-                model.latency_source=existing.latency_source
-                conn.execute('UPDATE models SET body=? WHERE id=?',(model.model_dump_json(),model.id))
-                continue
             existing.supported_objects = model.supported_objects
             if model.quality_source == 'measured_benchmark':
                 existing = _with_benchmark(existing, published)
             conn.execute('UPDATE models SET body=? WHERE id=?', (existing.model_dump_json(), model.id))
+        # A listing whose fixture program the simulation worker cannot run fails on every purchase,
+        # so a database that still holds one from a retired program drops it here.
+        for row in conn.execute('SELECT id, body FROM models').fetchall():
+            program = json.loads(row['body']).get('simulation_program')
+            if program and program.get('operation') not in PROGRAM_OPERATIONS:
+                conn.execute('DELETE FROM models WHERE id=?', (row['id'],))
     _seeded_db = target
 
 
@@ -81,8 +79,7 @@ def list_models(task_type=None):
     seed()
     with db() as conn:
         models = [ModelOffer.model_validate_json(row['body']) for row in conn.execute('SELECT body FROM models ORDER BY id')]
-    from apps.simulation.matcha_demo import enabled
-    return [m for m in models if (enabled() or not m.id.startswith('matcha_demo_')) and (task_type is None or m.task_type == task_type)]
+    return [m for m in models if task_type is None or m.task_type == task_type]
 
 
 def get_model(model_id):
