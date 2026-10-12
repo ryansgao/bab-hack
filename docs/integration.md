@@ -101,6 +101,15 @@ if `/api/health` stops answering. Wallet keys are not set by the script; payment
 "not configured" until they are added to the server's `.env`. Behind Cloudflare the per-visitor
 planning limit uses `CF-Connecting-IP`, which Cloudflare sets itself.
 
+### Website on Vercel
+
+`vercel.json` builds the website alone (`npm run build -w apps/frontend`) for the Vercel project
+`rbazaar`, served at https://rbazaar.vercel.app. Vercel hosts only the static files: every
+`/api/*` request is forwarded to the backend at `https://rbazaar.dev`, so the page loads without
+the backend but can do nothing until that server is up. The live mission stream is a WebSocket
+on the page's own host; if Vercel does not carry it to the backend, missions still refresh by
+polling.
+
 ## API integration
 
 Interactive contracts: `/docs`. Regenerate the checked-in contract after an
