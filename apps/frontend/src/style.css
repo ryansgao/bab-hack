@@ -401,6 +401,34 @@ nav > button.active {
   margin-bottom: 21px;
   letter-spacing: 0.2px;
 }
+.launch-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 22px;
+  padding: 4px 12px 4px 4px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.62);
+  backdrop-filter: blur(16px);
+  box-shadow: var(--glass-shadow);
+  color: var(--ink);
+  font-size: 12px;
+  text-decoration: none;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+.launch-tag:hover {
+  transform: translateY(-1px);
+  border-color: rgba(63, 125, 92, 0.35);
+}
+.launch-tag-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--sage);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 500;
+}
 .hero-heading h1 {
   font-size: clamp(44px, 4.4vw, 60px);
   line-height: 1.04;

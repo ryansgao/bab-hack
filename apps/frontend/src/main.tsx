@@ -155,6 +155,16 @@ function Composer({
   return (
     <div className="compose-page enter">
       <div className="hero-heading">
+        <a
+          className="launch-tag"
+          href="https://youtu.be/4LPFffFtbiI"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <span className="launch-tag-badge">New</span>
+          Watch our launch video
+          <ArrowRight size={13} />
+        </a>
         <h1>Model weights for robots, paid per call</h1>
         <p>
           A marketplace for physical AI. Developers sell VLAs, expert models,
