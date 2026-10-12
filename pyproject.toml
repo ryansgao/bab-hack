@@ -1,0 +1,17 @@
+# Dependencies of the gateway when it runs as a Vercel Function (see vercel.json).
+# requirements.txt stays the list for local runs and Docker. scikit-learn is left out here on
+# purpose: with numpy and scipy it exceeds the function size limit, and selection falls back to
+# exact matching when it is missing (services/agent/selection.py).
+[project]
+name = "rbazaar-gateway"
+version = "0.2.0"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.115,<1",
+  "uvicorn>=0.34,<1",
+  "pydantic>=2.10,<3",
+  "httpx>=0.28,<1",
+  "pillow>=11,<13",
+  "python-dotenv>=1,<2",
+  "websockets>=14,<17",
+]

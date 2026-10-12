@@ -1,10 +1,27 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "vite",
-  "installCommand": "npm ci",
-  "buildCommand": "npm run build -w apps/frontend",
-  "outputDirectory": "apps/frontend/dist",
+  "services": {
+    "web": {
+      "root": ".",
+      "framework": "vite",
+      "installCommand": "npm ci",
+      "buildCommand": "npm run build -w apps/frontend",
+      "outputDirectory": "apps/frontend/dist"
+    },
+    "api": {
+      "root": ".",
+      "framework": "fastapi",
+      "entrypoint": "services.api:app",
+      "functions": {
+        "services/api.py": {
+          "maxDuration": 300,
+          "excludeFiles": "{node_modules/**,apps/frontend/**,services/payments/**,tests/**,docs/**,videos/**,reports/**,data/**,.vercel/**,package-lock.json}"
+        }
+      }
+    }
+  },
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://rbazaar.dev/api/:path*" }
+    { "source": "/api/(.*)", "destination": { "service": "api" } },
+    { "source": "/(.*)", "destination": { "service": "web" } }
   ]
 }

@@ -101,14 +101,24 @@ if `/api/health` stops answering. Wallet keys are not set by the script; payment
 "not configured" until they are added to the server's `.env`. Behind Cloudflare the per-visitor
 planning limit uses `CF-Connecting-IP`, which Cloudflare sets itself.
 
-### Website on Vercel
+### Website and gateway on Vercel
 
-`vercel.json` builds the website alone (`npm run build -w apps/frontend`) for the Vercel project
-`rbazaar`, served at https://rbazaar.vercel.app. Vercel hosts only the static files: every
-`/api/*` request is forwarded to the backend at `https://rbazaar.dev`, so the page loads without
-the backend but can do nothing until that server is up. The live mission stream is a WebSocket
-on the page's own host; if Vercel does not carry it to the backend, missions still refresh by
-polling.
+`vercel.json` deploys two services to the Vercel project `rbazaar`
+(https://rbazaar.vercel.app): `web`, the built website, and `api`, the gateway
+(`services.api:app`) as a Vercel Function that receives every `/api/*` request, including the
+`/api/events` WebSocket. `pyproject.toml` lists the function's dependencies; it leaves out
+scikit-learn, which with numpy and scipy exceeds the function size limit, so selection uses its
+exact-matching fallback there. Settings and keys live in the Vercel project's environment
+(`ROBOMARKET_DB=/tmp/robomarket.sqlite`, the planning limits, `ANTHROPIC_API_KEY`).
+
+What works there: the page, the marketplace, guest sign-in and Claude planning. What does not
+hold: anything that needs the server to remember. Vercel runs several copies of the function and
+each has its own SQLite file and its own in-memory mission runtime, so a session, a saved plan
+or a running mission is lost whenever the next request lands on another copy (measured
+2026-10-12: a new guest session was recognised on 5 of 12 requests in a row, and on none after
+a burst of parallel requests). The payment service and the model worker do not run on Vercel.
+Reliable missions and payments need the stack on one long-running server (see the section
+above); `vercel.json` can then go back to a static website that forwards `/api/*` to it.
 
 ## API integration
 
